@@ -15,14 +15,14 @@
  *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
  *
  *
- * Copyright 2011-2017 Peter Güttinger and contributors
+ * Copyright 2011-2017 Peter GÃ¼ttinger and contributors
  */
 package ch.njol.util;
 
 import javax.annotation.Nullable;
 
 /**
- * @author Peter G�ttinger
+ * @author Peter Güttinger
  *
  */
 public class SynchronizedReference<V>
