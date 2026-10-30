@@ -1,138 +1,86 @@
 import org.apache.tools.ant.filters.ReplaceTokens
 
 plugins {
-    id "com.github.hierynomus.license" version "0.13.1"
+	id 'java'
 }
 
-apply plugin: 'java'
-apply plugin: 'maven-publish'
+group = project.property('groupid')
+version = project.property('version')
 
 repositories {
-	jcenter()
 	mavenCentral()
+
+	maven {
+		url = 'https://repo.papermc.io/repository/maven-public/'
+	}
 
 	maven {
 		url = 'https://hub.spigotmc.org/nexus/content/repositories/snapshots/'
 	}
 
-//	maven {
-//		url 'https://oss.sonatype.org/content/groups/public/'
-//	}
-
 	maven {
-		url 'http://maven.sk89q.com/repo'
+		url = 'https://maven.enginehub.org/repo/'
 	}
 
 	maven {
-		url 'https://mvn.yawk.at'
-	}
-
-//	maven {
-//		url 'http://nexus.theyeticave.net/content/repositories/pub_releases'
-//	}
-
-	maven {
-		url 'https://repo.destroystokyo.com/repository/maven-public/'
-	}
-	
-	maven {
-		url 'http://ci.emc.gs/nexus/content/groups/aikar/'
-	}
-	
-	maven {
-		url 'http://nexus.hc.to/content/repositories/pub_releases'
-	}
-	
-//	maven {
-//		url 'http://maven.elmakers.com/repository/'
-//	}
-	
-	
-	maven {
-		url 'https://jitpack.io'
+		url = 'https://jitpack.io'
 	}
 }
 
+// Skript is a plugin: the server provides the Bukkit API and every hooked plugin,
+// so nothing below ends up inside the jar.
 dependencies {
-	compile 'com.destroystokyo.paper:paper-api:1.12.1-R0.1-SNAPSHOT'
-	compile 'org.eclipse.jdt:org.eclipse.jdt.annotation:1.1.0'
-	compile 'com.google.code.findbugs:findbugs:2.0.3'
-	compile 'com.sk89q:worldguard:6.1.1-SNAPSHOT'
-	compile 'net.milkbowl.vault:Vault:1.6.6'
-	compile 'com.github.marcelo-mason:PreciousStones:24e3d4bf67b7240ae36b32be10e99d4091938c5c'
+	compileOnly 'com.destroystokyo.paper:paper-api:1.12.1-R0.1-SNAPSHOT'
+	compileOnly 'org.eclipse.jdt:org.eclipse.jdt.annotation:1.1.0'
+	compileOnly 'com.google.code.findbugs:findbugs:2.0.3'
+	compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+	compileOnly 'com.googlecode.json-simple:json-simple:1.1.1'
+	compileOnly 'org.mozilla:rhino:1.7.7.2'
 
-	testCompile 'junit:junit:4.12'
-	testCompile 'org.easymock:easymock:3.4'
+	// Classes the JDK 8 runtime ships but newer JDKs do not; needed to compile on JDK 9+.
+	compileOnly 'javax.xml.bind:jaxb-api:2.3.1'
+	compileOnly 'javax.xml.soap:javax.xml.soap-api:1.4.0'
 
-	compile fileTree(dir: 'lib', include: '*.jar')
+	// Hooked plugins: only the plugin jar itself is needed to compile against.
+	compileOnly('com.sk89q.worldguard:worldguard-legacy:6.2') { transitive = false }
+	compileOnly('com.sk89q.worldedit:worldedit-bukkit:6.1.4') { transitive = false }
+	compileOnly('com.sk89q.worldedit:worldedit-core:6.1') { transitive = false }
+	compileOnly('com.github.MilkBowl:Vault:1.7.3') { transitive = false }
+	compileOnly('com.github.marcelo-mason:PreciousStones:24e3d4bf67b7240ae36b32be10e99d4091938c5c') { transitive = false }
+
+	compileOnly fileTree(dir: 'lib', include: '*.jar')
+
+	testImplementation 'junit:junit:4.12'
+	testImplementation 'org.easymock:easymock:3.4'
+	testImplementation 'com.destroystokyo.paper:paper-api:1.12.1-R0.1-SNAPSHOT'
+	testImplementation 'org.eclipse.jdt:org.eclipse.jdt.annotation:1.1.0'
+	testImplementation 'com.google.code.findbugs:jsr305:3.0.2'
 }
 
 configurations.all {
 	resolutionStrategy.dependencySubstitution {
-		substitute module('org.bukkit:bukkit') with module('com.destroystokyo.paper:paper-api:1.11.2-R0.1-SNAPSHOT')
+		substitute module('org.bukkit:bukkit') using module('com.destroystokyo.paper:paper-api:1.11.2-R0.1-SNAPSHOT')
 	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = 'UTF-8'
+	// The Crucible (Forge 1.7.10) server runs on Java 8, so the bytecode must stay Java 8
+	// even when Gradle itself runs on a newer JDK.
+	options.release = 8
 }
 
 processResources {
 	filter ReplaceTokens, tokens: [
-		"version" :System.getenv('SKRIPT_VERSION') == null ? project.property("version") : System.getenv('SKRIPT_VERSION')
+		"version": System.getenv('SKRIPT_VERSION') == null ? project.property('version') : System.getenv('SKRIPT_VERSION')
 	]
 }
 
 jar {
-	archiveName System.getenv('SKRIPT_JAR_NAME') == null ? 'Skript.jar' : System.getenv("SKRIPT_JAR_NAME")
-	
+	archiveFileName = System.getenv('SKRIPT_JAR_NAME') == null ? project.property('jarName') : System.getenv('SKRIPT_JAR_NAME')
+
 	manifest {
 		attributes("Name": "ch/njol/skript",
 				"Sealed": "true")
-	}
-}
-
-license {
-    header file('licenseheader.txt')
-    exclude('**/Metrics.java')
-}
-
-configurations {
-	ecj
-}
-
-dependencies {
-	ecj 'org.eclipse.jdt.core.compiler:ecj:4.6.1'
-}
-
-compileJava {
-	options.fork = true
-	options.encoding = 'UTF-8'
-	options.compilerArgs = ['-properties', '.settings/org.eclipse.jdt.core.prefs', '-encoding', 'UTF-8']
-	options.forkOptions.with {
-		executable = 'java'
-		jvmArgs = ['-classpath', project.configurations.ecj.asPath, 'org.eclipse.jdt.internal.compiler.batch.Main']
-	}
-}
-
-task sourceJar(type: Jar) {
-    from sourceSets.main.allJava
-}
-
-publishing {
-	publications {
-		mavenJava(MavenPublication) {
-			groupId "ch.njol"
-			artifactId "skript"
-			version project.property("version")
-
-			from components.java
-
-			artifact sourceJar {
-    			classifier "sources"
-			}
-		}
-	}
-	
-	repositories {
-		maven {
-			url "file:///itemapi_repo/"
-		}
 	}
 }
