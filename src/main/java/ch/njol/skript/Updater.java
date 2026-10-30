@@ -40,7 +40,6 @@ import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.atomic.AtomicReference;
 
-import javax.xml.bind.DatatypeConverter;
 
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
@@ -164,39 +163,22 @@ public class Updater {
 	    public Author author;
 	}
 	
-	@SuppressWarnings("null")
+	/**
+	 * Update checking is disabled in this fork: the server runs a custom build,
+	 * so Skript must never contact GitHub or download a replacement jar.
+	 */
 	public static void start() {
-		Skript.debug("Initializing updater");
-		
-		if (gsonUnavailable) // Something wrong with GSON...
-			return;
-		
-		long period;
-		if (SkriptConfig.checkForNewVersion.value())
-			period = SkriptConfig.updateCheckInterval.value().getTicks_i();
-		else
-			period = -1;
-		if (checkerTask == null || !checkerTask.isAlive())
-			checkerTask = new CheckerTask(Skript.getInstance(), period);
-		Skript.info("Starting updater thread");
-		checkerTask.setNextExecution(0); // Execute it now!
+		state = UpdateState.RUNNING_CUSTOM;
 	}
 	
 	public static List<ResponseEntry> deserialize(String str) {
-		assert str != null : "Cannot deserialize null string";
-		@SuppressWarnings("serial")
-		Type listType = new TypeToken<List<ResponseEntry>>() {}.getType();
-		assert gson != null;
-		List<ResponseEntry> responses = gson.fromJson(str, listType);
-		assert responses != null;
-		
-		return responses;
+		return new ArrayList<>();
 	}
 	
-	@SuppressWarnings("null")
 	public static Calendar parseReleaseTime(String date) {
-		assert date != null : "Cannot parse null date!";
-		return DatatypeConverter.parseDateTime(date);
+		Calendar c = Calendar.getInstance();
+		c.setTime(new Date(0));
+		return c;
 	}
 	
 	public static class CheckerTask extends Task {
