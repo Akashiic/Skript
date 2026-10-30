@@ -1,33 +1,48 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.conditions;
 
+import org.bukkit.World;
+import org.bukkit.event.Event;
+import org.eclipse.jdt.annotation.Nullable;
+
 import ch.njol.skript.Skript;
-import ch.njol.skript.classes.Changer.ChangeMode;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.lang.Condition;
 import ch.njol.skript.lang.Expression;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
+import ch.njol.util.Checker;
 import ch.njol.util.Kleenean;
-import org.bukkit.GameRule;
-import org.bukkit.GameRules;
-import org.bukkit.World;
-import org.bukkit.event.Event;
-import org.jetbrains.annotations.Nullable;
 
+/**
+ * @author Peter Güttinger
+ */
 @Name("PvP")
 @Description("Checks the PvP state of a world.")
-@Example("PvP is enabled")
-@Example("PvP is disabled in \"world\"")
+@Examples({"PvP is enabled",
+		"PvP is disabled in \"world\""})
 @Since("1.3.4")
 public class CondPvP extends Condition {
-
-	// Added in 1.21.9
-	private static final boolean PVP_GAME_RULE_EXISTS = Skript.fieldExists(GameRule.class, "PVP");
-
-	// Added in 1.21.11
-	private static final boolean GAME_RULES_CLASS_EXISTS = Skript.classExists("org.bukkit.GameRules");
 	
 	static {
 		Skript.registerCondition(CondPvP.class, "(is PvP|PvP is) enabled [in %worlds%]", "(is PvP|PvP is) disabled [in %worlds%]");
@@ -35,45 +50,29 @@ public class CondPvP extends Condition {
 	
 	@SuppressWarnings("null")
 	private Expression<World> worlds;
+	boolean enabled;
 	
 	@SuppressWarnings({"unchecked", "null"})
 	@Override
 	public boolean init(final Expression<?>[] exprs, final int matchedPattern, final Kleenean isDelayed, final ParseResult parseResult) {
 		worlds = (Expression<World>) exprs[0];
-		setNegated(matchedPattern == 1);
+		enabled = matchedPattern == 0;
 		return true;
 	}
 	
 	@Override
-	public boolean check(Event event) {
-		if (GAME_RULES_CLASS_EXISTS)
-			return worlds.check(event, world -> world.getGameRuleValue(GameRules.PVP), isNegated());
-		if (PVP_GAME_RULE_EXISTS)
-			return worlds.check(event, world -> world.getGameRuleValue(GameRule.PVP), isNegated());
-		return worlds.check(event, world -> world.getPVP(), isNegated());
+	public String toString(final @Nullable Event e, final boolean debug) {
+		return "is PvP " + (enabled ? "enabled" : "disabled") + " in " + worlds.toString(e, debug);
 	}
-
+	
 	@Override
-	public boolean acceptChange(ChangeMode mode) {
-		return mode == ChangeMode.SET;
-	}
-
-	@Override
-	public void change(Event event, boolean enable, ChangeMode mode) {
-		for (World world : worlds.getArray(event)) {
-			if (GAME_RULES_CLASS_EXISTS) {
-				world.setGameRule(GameRules.PVP, enable);
-			} else if (PVP_GAME_RULE_EXISTS) {
-				world.setGameRule(GameRule.PVP, enable);
-			} else {
-				world.setPVP(enable);
+	public boolean check(final Event e) {
+		return worlds.check(e, new Checker<World>() {
+			@Override
+			public boolean check(final World w) {
+				return w.getPVP() == enabled;
 			}
-		}
+		}, isNegated());
 	}
-
-	@Override
-	public String toString(@Nullable Event event, boolean debug) {
-		return "PvP is " + (isNegated() ? "disabled" : "enabled") + " in " + worlds.toString(event, debug);
-	}
-
+	
 }

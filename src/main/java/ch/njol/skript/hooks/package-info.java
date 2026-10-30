@@ -14,13 +14,16 @@
  *  You should have received a copy of the GNU General Public License
  *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright Peter Güttinger, SkriptLang team and contributors
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
  */
 /**
  * Hook interface & implementations for specific plugins.
  * 
  * @author Peter Güttinger
  */
+@NonNullByDefault
 package ch.njol.skript.hooks;
 
+import org.eclipse.jdt.annotation.NonNullByDefault;
 

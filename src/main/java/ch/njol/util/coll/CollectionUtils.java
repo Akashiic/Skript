@@ -1,14 +1,38 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.util.coll;
 
-import ch.njol.util.Pair;
-import ch.njol.util.StringUtils;
-import org.jetbrains.annotations.Nullable;
-import org.jetbrains.annotations.UnknownNullability;
-
-import java.lang.reflect.Array;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
-import java.util.function.Predicate;
+import java.util.Random;
+import java.util.Set;
+
+import org.eclipse.jdt.annotation.NonNull;
+import org.eclipse.jdt.annotation.Nullable;
+
+import ch.njol.util.Pair;
 
 /**
  * Utils for collections and arrays. All methods will not print any errors for <tt>null</tt> collections/arrays, but will return false/-1/etc.
@@ -49,7 +73,7 @@ public abstract class CollectionUtils {
 		if (array == null)
 			return -1;
 		for (int i = start; i < end; i++) {
-			if (Objects.equals(array[i], t))
+			if (array[i] == null ? t == null : array[i].equals(t))
 				return i;
 		}
 		return -1;
@@ -78,30 +102,7 @@ public abstract class CollectionUtils {
 		}
 		return true;
 	}
-
-	/**
-	 * Checks the elements of an array against a given predicate.
-	 *
-	 * @param array the array to check, can be null
-	 * @param predicate the predicate to test the elements against
-	 * @param and if true, all elements must satisfy the predicate; if false, any element satisfying the predicate is enough
-	 * @param <T> the type of elements in the array
-	 * @return true if the condition is met based on the value of the 'and' parameter, false otherwise
-	 */
-	public static <T> boolean check(T @Nullable [] array, Predicate<T> predicate, boolean and) {
-		if (array == null)
-			return false;
-		for (T value : array) {
-			boolean result = predicate.test(value);
-			// exit early if we find a FALSE and we're ANDing, or a TRUE and we're ORing
-			if (and && !result)
-				return false;
-			if (!and && result)
-				return true;
-		}
-		return and;
-	}
-
+	
 	public static int indexOf(final @Nullable int[] array, final int num) {
 		if (array == null)
 			return -1;
@@ -124,7 +125,7 @@ public abstract class CollectionUtils {
 		return -1;
 	}
 	
-	public static boolean contains(final @Nullable int[] array, final int num) {
+	public final static boolean contains(final @Nullable int[] array, final int num) {
 		return indexOf(array, num) != -1;
 	}
 	
@@ -221,7 +222,7 @@ public abstract class CollectionUtils {
 	 * @param c The class to look for
 	 * @return Whether the class or any of its superclasses are contained in the array
 	 */
-	public static boolean containsSuperclass(final @Nullable Class<?>[] classes, final @Nullable Class<?> c) {
+	public final static boolean containsSuperclass(final @Nullable Class<?>[] classes, final @Nullable Class<?> c) {
 		if (classes == null || c == null)
 			return false;
 		for (final Class<?> cl : classes) {
@@ -238,7 +239,7 @@ public abstract class CollectionUtils {
 	 * @param cs The classes to look for
 	 * @return Whether the classes or any of their superclasses are contained in the array
 	 */
-	public static boolean containsAnySuperclass(final @Nullable Class<?>[] classes, final @Nullable Class<?>... cs) {
+	public final static boolean containsAnySuperclass(final @Nullable Class<?>[] classes, final @Nullable Class<?>... cs) {
 		if (classes == null || cs == null)
 			return false;
 		for (final Class<?> cl : classes) {
@@ -248,17 +249,6 @@ public abstract class CollectionUtils {
 				if (cl.isAssignableFrom(c))
 					return true;
 			}
-		}
-		return false;
-	}
-
-	/**
-	 * @return whether the given object is an instance of any of the given classes
-	 */
-	public static boolean isAnyInstanceOf(Object object, Class<?>... classes) {
-		for (Class<?> clazz : classes) {
-			if (clazz.isInstance(object))
-				return true;
 		}
 		return false;
 	}
@@ -308,7 +298,7 @@ public abstract class CollectionUtils {
 	 * @return
 	 */
 	@SuppressWarnings("null")
-	public static <E> Set<E> intersection(final @Nullable Set<E>... sets) {
+	public final static <E> Set<E> intersection(final @Nullable Set<E>... sets) {
 		if (sets == null || sets.length == 0)
 			return Collections.emptySet();
 		if (sets.length == 1 && sets[0] != null)
@@ -329,7 +319,7 @@ public abstract class CollectionUtils {
 	 * @return
 	 */
 	@SuppressWarnings("null")
-	public static <E> Set<E> union(final @Nullable Set<E>... sets) {
+	public final static <E> Set<E> union(final @Nullable Set<E>... sets) {
 		if (sets == null || sets.length == 0)
 			return Collections.emptySet();
 		if (sets.length == 1 && sets[0] != null)
@@ -355,39 +345,7 @@ public abstract class CollectionUtils {
 	public static <T> T[] array(final T... array) {
 		return array;
 	}
-
-	/**
-	 * Returns a {@code Class} for an array type whose component type
-	 * is described by this {@linkplain Class}.
-	 *
-	 * @return a {@code Class} describing the array type
-	 */
-	@SuppressWarnings("unchecked")
-	public static <T> Class<T[]> arrayType(Class<T> c) {
-		return (Class<T[]>) Array.newInstance(c, 0).getClass();
-	}
-
-	/**
-	 * Creates a new array whose elements are the elements between the start and end indices of the original array.
-	 * @param array the original array
-	 * @param startIndex starting index (inclusive)
-	 * @param endIndex ending index (exclusive)
-	 * @return a new array containing the elements between the start and end indices
-	 * @param <T> type of array
-	 */
-	@SuppressWarnings("unchecked")
-	public static <T> T[] subarray(T[] array, int startIndex, int endIndex) {
-		Class<T> componentType = (Class<T>) array.getClass().getComponentType();
-		startIndex = Math.max(startIndex, 0);
-		endIndex = Math.min(Math.max(endIndex, 0), array.length);
-		if (startIndex >= endIndex)
-			return (T[]) Array.newInstance(componentType, 0);
-		int size = endIndex - startIndex;
-		T[] subarray = (T[]) Array.newInstance(componentType, size);
-		System.arraycopy(array, startIndex, subarray, 0, size);
-		return subarray;
-	}
-
+	
 	/**
 	 * Creates a permutation of all integers in the interval [start, end]
 	 * 
@@ -395,7 +353,7 @@ public abstract class CollectionUtils {
 	 * @param end The highest number which will be included in the permutation
 	 * @return an array of length end - start + 1, or an empty array if start > end.
 	 */
-	public static int[] permutation(final int start, final int end) {
+	public final static int[] permutation(final int start, final int end) {
 		if (start > end)
 			return new int[0];
 		final int length = end - start + 1;
@@ -418,7 +376,7 @@ public abstract class CollectionUtils {
 	 * @param end The highest number which will be included in the permutation
 	 * @return an array of length end - start + 1, or an empty array if start > end.
 	 */
-	public static byte[] permutation(final byte start, final byte end) {
+	public final static byte[] permutation(final byte start, final byte end) {
 		if (start > end)
 			return new byte[0];
 		final int length = end - start + 1;
@@ -437,7 +395,7 @@ public abstract class CollectionUtils {
 	/**
 	 * Shorthand for <code>{@link permutation permutation}(0, length - 1)</code>
 	 */
-	public static int[] permutation(final int length) {
+	public final static int[] permutation(final int length) {
 		return permutation(0, length - 1);
 	}
 	
@@ -448,7 +406,7 @@ public abstract class CollectionUtils {
 	 * @return An int[] containing the elements of the given collection in the order they were returned by the collection's iterator.
 	 */
 	@SuppressWarnings("null")
-	public static int[] toArray(final @Nullable Collection<Integer> ints) {
+	public final static int[] toArray(final @Nullable Collection<Integer> ints) {
 		if (ints == null)
 			return new int[0];
 		final int[] r = new int[ints.size()];
@@ -462,7 +420,7 @@ public abstract class CollectionUtils {
 		return r;
 	}
 	
-	public static float[] toFloats(final @Nullable double[] doubles) {
+	public final static float[] toFloats(final @Nullable double[] doubles) {
 		if (doubles == null)
 			return new float[0];
 		final float[] floats = new float[doubles.length];
@@ -470,24 +428,5 @@ public abstract class CollectionUtils {
 			floats[i] = (float) doubles[i];
 		return floats;
 	}
-
-	public static Double[] wrap(double[] primitive) {
-		Double[] wrapped = new Double[primitive.length];
-		for (int i = 0; i < primitive.length; i++) {
-			wrapped[i] = primitive[i];
-		}
-		return wrapped;
-	}
-
-	/**
-	 * Stringifies a collection as an "and" or "or" list.
-	 * @param collection The collection to stringify.
-	 * @param and Whether this is an "and" list or an "or" list.
-	 * @return Stringification of {@code collection}.
-	 * For example, {@code "x, y, and z"}.
-	 */
-	public static String toString(Collection<?> collection, boolean and) {
-		return StringUtils.join(collection, ", ", and ? " and " : " or ");
-	}
-
+	
 }

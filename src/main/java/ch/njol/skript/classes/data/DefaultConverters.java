@@ -1,359 +1,186 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.classes.data;
 
-import ch.njol.skript.Skript;
-import ch.njol.skript.SkriptConfig;
-import ch.njol.skript.aliases.ItemType;
-import ch.njol.skript.command.Commands;
-import ch.njol.skript.config.Config;
-import ch.njol.skript.config.Node;
-import ch.njol.skript.lang.util.common.AnyAmount;
-import ch.njol.skript.lang.util.common.AnyNamed;
-import ch.njol.skript.util.BlockInventoryHolder;
-import ch.njol.skript.util.Direction;
-import ch.njol.skript.util.Experience;
-import ch.njol.skript.util.slot.Slot;
-import net.kyori.adventure.text.Component;
-import org.bukkit.Bukkit;
-import org.bukkit.GameRule;
+import java.util.Collection;
+
+import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.Nameable;
 import org.bukkit.OfflinePlayer;
-import org.bukkit.Server;
-import org.bukkit.World;
-import org.bukkit.WorldType;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
-import org.bukkit.block.DoubleChest;
-import org.bukkit.command.BlockCommandSender;
 import org.bukkit.command.CommandSender;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.EntitySnapshot;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
-import org.bukkit.plugin.Plugin;
-import org.bukkit.scoreboard.Objective;
-import org.bukkit.scoreboard.Team;
 import org.bukkit.util.Vector;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-import org.skriptlang.skript.bukkit.entity.EntityData;
-import org.skriptlang.skript.bukkit.entity.EntityType;
-import org.skriptlang.skript.bukkit.entity.EntityUtils;
-import org.skriptlang.skript.bukkit.entity.data.XpOrbData;
-import org.skriptlang.skript.lang.converter.Converter;
-import org.skriptlang.skript.lang.converter.Converters;
-import org.skriptlang.skript.lang.script.Script;
+import org.eclipse.jdt.annotation.Nullable;
 
-import java.util.UUID;
+import ch.njol.skript.aliases.ItemType;
+import ch.njol.skript.bukkitutil.PlayerUtils;
+import ch.njol.skript.classes.Converter;
+import ch.njol.skript.entity.EntityData;
+import ch.njol.skript.entity.EntityType;
+import ch.njol.skript.entity.XpOrbData;
+import ch.njol.skript.registrations.Converters;
+import ch.njol.skript.util.BlockUtils;
+import ch.njol.skript.util.Direction;
+import ch.njol.skript.util.EnchantmentType;
+import ch.njol.skript.util.Experience;
+import ch.njol.skript.util.Slot;
 
-@SuppressWarnings("removal") // temporary due to usage of AnyX classes.
+/**
+ * @author Peter Güttinger
+ */
+@SuppressWarnings("rawtypes")
 public class DefaultConverters {
-
+	
 	public DefaultConverters() {}
-
+	
 	static {
-		// Number to subtypes converters
-		Converters.registerConverter(Number.class, Byte.class, Number::byteValue);
-		Converters.registerConverter(Number.class, Double.class, Number::doubleValue);
-		Converters.registerConverter(Number.class, Float.class, Number::floatValue);
-		Converters.registerConverter(Number.class, Integer.class, Number::intValue);
-		Converters.registerConverter(Number.class, Long.class, Number::longValue);
-		Converters.registerConverter(Number.class, Short.class, Number::shortValue);
-
+		
 		// OfflinePlayer - PlayerInventory
-		Converters.registerConverter(OfflinePlayer.class, PlayerInventory.class, p -> {
-			if (!p.isOnline())
-				return null;
-			Player online = p.getPlayer();
-			assert online != null;
-			return online.getInventory();
-		}, Commands.CONVERTER_NO_COMMAND_ARGUMENTS);
-
+		Converters.registerConverter(OfflinePlayer.class, PlayerInventory.class, new Converter<OfflinePlayer, PlayerInventory>() {
+			@Override
+			@Nullable
+			public PlayerInventory convert(final OfflinePlayer p) {
+				if (!p.isOnline())
+					return null;
+				return p.getPlayer().getInventory();
+			}
+		}, Converter.NO_COMMAND_ARGUMENTS);
 		// OfflinePlayer - Player
-		Converters.registerConverter(OfflinePlayer.class, Player.class, OfflinePlayer::getPlayer, Commands.CONVERTER_NO_COMMAND_ARGUMENTS);
-
+		Converters.registerConverter(OfflinePlayer.class, Player.class, new Converter<OfflinePlayer, Player>() {
+			@Override
+			@Nullable
+			public Player convert(final OfflinePlayer p) {
+				return p.getPlayer();
+			}
+		}, Converter.NO_COMMAND_ARGUMENTS);
+		
+		// TODO improve handling of interfaces
 		// CommandSender - Player
-		Converters.registerConverter(CommandSender.class, Player.class, s -> {
-			if (s instanceof Player)
-				return (Player) s;
-			return null;
+		Converters.registerConverter(CommandSender.class, Player.class, new Converter<CommandSender, Player>() {
+			@Override
+			@Nullable
+			public Player convert(final CommandSender s) {
+				if (s instanceof Player)
+					return (Player) s;
+				return null;
+			}
 		});
-
-		// BlockCommandSender - Block
-		Converters.registerConverter(BlockCommandSender.class, Block.class, BlockCommandSender::getBlock);
-
-		// Experience - Number
-		Converters.registerConverter(Experience.class, Number.class, Experience::getXP);
-
 		// Entity - Player
-		Converters.registerConverter(Entity.class, Player.class, e -> {
-			if (e instanceof Player)
-				return (Player) e;
-			return null;
+		Converters.registerConverter(Entity.class, Player.class, new Converter<Entity, Player>() {
+			@Override
+			@Nullable
+			public Player convert(final Entity e) {
+				if (e instanceof Player)
+					return (Player) e;
+				return null;
+			}
 		});
-
 		// Entity - LivingEntity // Entity->Player is used if this doesn't exist
-		Converters.registerConverter(Entity.class, LivingEntity.class, e -> {
-			if (e instanceof LivingEntity)
-				return (LivingEntity) e;
-			return null;
+		Converters.registerConverter(Entity.class, LivingEntity.class, new Converter<Entity, LivingEntity>() {
+			@Override
+			@Nullable
+			public LivingEntity convert(final Entity e) {
+				if (e instanceof LivingEntity)
+					return (LivingEntity) e;
+				return null;
+			}
 		});
-
+		
 		// Block - Inventory
-		Converters.registerConverter(Block.class, Inventory.class, b -> {
-			if (b.getState() instanceof InventoryHolder)
-				return ((InventoryHolder) b.getState()).getInventory();
-			return null;
-		}, Commands.CONVERTER_NO_COMMAND_ARGUMENTS);
-
+		Converters.registerConverter(Block.class, Inventory.class, new Converter<Block, Inventory>() {
+			@Override
+			@Nullable
+			public Inventory convert(final Block b) {
+				if (b.getState() instanceof InventoryHolder)
+					return ((InventoryHolder) b.getState()).getInventory();
+				return null;
+			}
+		}, Converter.NO_COMMAND_ARGUMENTS);
+		
 		// Entity - Inventory
-		Converters.registerConverter(Entity.class, Inventory.class, e -> {
-			if (e instanceof InventoryHolder)
-				return ((InventoryHolder) e).getInventory();
-			return null;
-		}, Commands.CONVERTER_NO_COMMAND_ARGUMENTS);
-
-		// Block - ItemType
-		Converters.registerConverter(Block.class, ItemType.class, ItemType::new, Converter.NO_LEFT_CHAINING | Commands.CONVERTER_NO_COMMAND_ARGUMENTS);
-
+		Converters.registerConverter(Entity.class, Inventory.class, new Converter<Entity, Inventory>() {
+			@Override
+			@Nullable
+			public Inventory convert(final Entity e) {
+				if (e instanceof InventoryHolder)
+					return ((InventoryHolder) e).getInventory();
+				return null;
+			}
+		}, Converter.NO_COMMAND_ARGUMENTS);
+		
+		// Block - ItemStack
+		Converters.registerConverter(Block.class, ItemStack.class, new Converter<Block, ItemStack>() {
+			@SuppressWarnings("deprecation")
+			@Override
+			public ItemStack convert(final Block b) {
+				return new ItemStack(b.getTypeId(), 1, b.getData());
+			}
+		}, Converter.NO_LEFT_CHAINING | Converter.NO_COMMAND_ARGUMENTS);
+		
+		// Location - Block
+//		Converters.registerConverter(Location.class, Block.class, new Converter<Location, Block>() {
+//			@Override
+//			public Block convert(final Location l) {
+//				return l.getBlock();
+//			}
+//		});
+		Converters.registerConverter(Block.class, Location.class, new Converter<Block, Location>() {
+			@Override
+			@Nullable
+			public Location convert(final Block b) {
+				return BlockUtils.getLocation(b);
+			}
+		}, Converter.NO_COMMAND_ARGUMENTS);
+		
+		// Entity - Location
+		Converters.registerConverter(Entity.class, Location.class, new Converter<Entity, Location>() {
+			@Override
+			@Nullable
+			public Location convert(final Entity e) {
+				return e.getLocation();
+			}
+		}, Converter.NO_COMMAND_ARGUMENTS);
 		// Entity - EntityData
-		Converters.registerConverter(Entity.class, EntityData.class, EntityData::fromEntity, Commands.CONVERTER_NO_COMMAND_ARGUMENTS | Converter.NO_RIGHT_CHAINING);
-
+		Converters.registerConverter(Entity.class, EntityData.class, new Converter<Entity, EntityData>() {
+			@Override
+			public EntityData convert(final Entity e) {
+				return EntityData.fromEntity(e);
+			}
+		}, Converter.NO_COMMAND_ARGUMENTS | Converter.NO_RIGHT_CHAINING);
 		// EntityData - EntityType
-		Converters.registerConverter(EntityData.class, EntityType.class, data -> new EntityType(data, -1));
-
-		// ItemType - ItemStack
-		Converters.registerConverter(ItemType.class, ItemStack.class, ItemType::getRandom);
-		Converters.registerConverter(ItemStack.class, ItemType.class, ItemType::new);
-
-		// Experience - XpOrbData
-		Converters.registerConverter(Experience.class, XpOrbData.class, e -> new XpOrbData(e.getXP()));
-		Converters.registerConverter(XpOrbData.class, Experience.class, e -> new Experience(e.getExperience()));
-
-		// Slot - ItemType
-		Converters.registerConverter(Slot.class, ItemType.class, s -> {
-			ItemStack i = s.getItem();
-			return new ItemType(i != null ? i : new ItemStack(Material.AIR, 1));
+		Converters.registerConverter(EntityData.class, EntityType.class, new Converter<EntityData, EntityType>() {
+			@Override
+			public EntityType convert(final EntityData data) {
+				return new EntityType(data, -1);
+			}
 		});
-
-		// Block - InventoryHolder
-		Converters.registerConverter(Block.class, InventoryHolder.class, b -> {
-			BlockState s = b.getState();
-			if (s instanceof InventoryHolder)
-				return (InventoryHolder) s;
-			return null;
-		}, Converter.NO_RIGHT_CHAINING | Commands.CONVERTER_NO_COMMAND_ARGUMENTS);
-
-		Converters.registerConverter(InventoryHolder.class, Block.class, holder -> {
-			if (holder instanceof BlockState)
-				return new BlockInventoryHolder((BlockState) holder);
-			if (holder instanceof DoubleChest)
-				return holder.getInventory().getLocation().getBlock();
-			return null;
-		}, Converter.NO_CHAINING);
-
-		// InventoryHolder - Entity
-		Converters.registerConverter(InventoryHolder.class, Entity.class, holder -> {
-			if (holder instanceof Entity entity)
-				return entity;
-			return null;
-		}, Converter.NO_CHAINING);
-		// Entity - InventoryHolder
-		Converters.registerConverter(Entity.class, InventoryHolder.class, entity -> {
-			if (entity instanceof InventoryHolder inventoryHolder)
-				return inventoryHolder;
-			return null;
-		}, Converter.NO_RIGHT_CHAINING);
-
-
-		if (!SkriptConfig.useTypeProperties.value()) {
-			// Anything with a name -> AnyNamed
-			Converters.registerConverter(OfflinePlayer.class, AnyNamed.class, player -> player::getName, Converter.NO_RIGHT_CHAINING);
-			if (Skript.classExists("org.bukkit.generator.WorldInfo"))
-				Converters.registerConverter(World.class, AnyNamed.class, world -> world::getName, Converter.NO_RIGHT_CHAINING);
-			else //noinspection RedundantCast getName method is on World itself in older versions
-				Converters.registerConverter(World.class, AnyNamed.class, world -> () -> ((World) world).getName(), Converter.NO_RIGHT_CHAINING);
-			Converters.registerConverter(GameRule.class, AnyNamed.class, rule -> rule::getName, Converter.NO_RIGHT_CHAINING);
-			Converters.registerConverter(Server.class, AnyNamed.class, server -> server::getName, Converter.NO_RIGHT_CHAINING);
-			Converters.registerConverter(Plugin.class, AnyNamed.class, plugin -> plugin::getName, Converter.NO_RIGHT_CHAINING);
-			Converters.registerConverter(WorldType.class, AnyNamed.class, type -> type::getName, Converter.NO_RIGHT_CHAINING);
-			Converters.registerConverter(Team.class, AnyNamed.class, team -> team::getName, Converter.NO_RIGHT_CHAINING);
-			Converters.registerConverter(Objective.class, AnyNamed.class, objective -> objective::getName, Converter.NO_RIGHT_CHAINING);
-			Converters.registerConverter(Nameable.class, AnyNamed.class, //<editor-fold desc="Converter" defaultstate="collapsed">
-				nameable -> new AnyNamed() {
-					@Override
-					public @Nullable String name() {
-						//noinspection deprecation
-						return nameable.getCustomName();
-					}
-
-					@Override
-					public @Nullable Component nameComponent() {
-						return nameable.customName();
-					}
-
-					@Override
-					public boolean supportsNameChange() {
-						return true;
-					}
-
-					@Override
-					public void setName(String name) {
-						//noinspection deprecation
-						nameable.setCustomName(name);
-					}
-
-					@Override
-					public void setName(Component name) {
-						nameable.customName(name);
-					}
-				},
-				//</editor-fold>
-				Converter.NO_RIGHT_CHAINING);
-			Converters.registerConverter(Block.class, AnyNamed.class, //<editor-fold desc="Converter" defaultstate="collapsed">
-				block -> new AnyNamed() {
-					@Override
-					public @Nullable String name() {
-						BlockState state = block.getState();
-						if (state instanceof Nameable nameable)
-							//noinspection deprecation
-							return nameable.getCustomName();
-						return null;
-					}
-
-					@Override
-					public @Nullable Component nameComponent() {
-						BlockState state = block.getState();
-						if (state instanceof Nameable nameable)
-							return nameable.customName();
-						return null;
-					}
-
-					@Override
-					public boolean supportsNameChange() {
-						return true;
-					}
-
-					@Override
-					public void setName(String name) {
-						BlockState state = block.getState();
-						if (state instanceof Nameable nameable) {
-							//noinspection deprecation
-							nameable.setCustomName(name);
-							state.update(true, false);
-						}
-					}
-
-					@Override
-					public void setName(Component name) {
-						BlockState state = block.getState();
-						if (state instanceof Nameable nameable) {
-							nameable.customName(name);
-							state.update(true, false);
-						}
-					}
-				},
-				//</editor-fold>
-				Converter.NO_RIGHT_CHAINING);
-			Converters.registerConverter(CommandSender.class, AnyNamed.class, thing -> thing::getName, Converter.NO_RIGHT_CHAINING);
-			// Command senders should be done last because there might be a better alternative above
-
-			// Anything with an amount -> AnyAmount
-			Converters.registerConverter(ItemStack.class, AnyAmount.class, //<editor-fold desc="Converter" defaultstate="collapsed">
-				item -> new AnyAmount() {
-
-					@Override
-					public @NotNull Number amount() {
-						return item.getAmount();
-					}
-
-					@Override
-					public boolean supportsAmountChange() {
-						return true;
-					}
-
-					@Override
-					public void setAmount(Number amount) {
-						item.setAmount(amount != null ? amount.intValue() : 0);
-					}
-				},
-				//</editor-fold>
-				Converter.NO_RIGHT_CHAINING);
-		}
-
-		// Vector - Direction
-		Converters.registerConverter(Vector.class, Direction.class, Direction::new);
-
-		Converters.registerConverter(String.class, World.class, Bukkit::getWorld);
-
-		if (Skript.classExists("org.bukkit.entity.EntitySnapshot"))
-			Converters.registerConverter(EntitySnapshot.class, EntityData.class, snapshot -> EntityUtils.toSkriptEntityData(snapshot.getEntityType()));
-
-		// Script -> Config & Node
-		Converters.registerConverter(Script.class, Config.class, Script::getConfig);
-		Converters.registerConverter(Config.class, Node.class, Config::getMainNode);
-
-		// UUID -> String
-		Converters.registerConverter(UUID.class, String.class, UUID::toString);
-
-//		// Entity - String (UUID) // Very slow, thus disabled for now
-//		Converters.registerConverter(String.class, Entity.class, new Converter<String, Entity>() {
-//
-//			@Override
-//			@Nullable
-//			public Entity convert(String f) {
-//				Collection<? extends Player> players = PlayerUtils.getOnlinePlayers();
-//				for (Player p : players) {
-//					if (p.getName().equals(f) || p.getUniqueId().toString().equals(f))
-//						return p;
-//				}
-//
-//				return null;
-//			}
-//
-//		});
-
-		// Number - Vector; DISABLED due to performance problems
-//		Converters.registerConverter(Number.class, Vector.class, new Converter<Number, Vector>() {
-//			@Override
-//			@Nullable
-//			public Vector convert(Number number) {
-//				return new Vector(number.doubleValue(), number.doubleValue(), number.doubleValue());
-//			}
-//		});
-
-//		// World - Time
-//		Skript.registerConverter(World.class, Time.class, new Converter<World, Time>() {
-//			@Override
-//			public Time convert(final World w) {
-//				if (w == null)
-//					return null;
-//				return new Time((int) w.getTime());
-//			}
-//		});
-
-//		// Slot - Inventory
-//		Skript.addConverter(Slot.class, Inventory.class, new Converter<Slot, Inventory>() {
-//			@Override
-//			public Inventory convert(final Slot s) {
-//				if (s == null)
-//					return null;
-//				return s.getInventory();
-//			}
-//		});
-
-//		// Item - ItemStack
-//		Converters.registerConverter(Item.class, ItemStack.class, new Converter<Item, ItemStack>() {
-//			@Override
-//			public ItemStack convert(final Item i) {
-//				return i.getItemStack();
-//			}
-//		});
-
+		
 		// Location - World
 //		Skript.registerConverter(Location.class, World.class, new Converter<Location, World>() {
 //			private final static long serialVersionUID = 3270661123492313649L;
@@ -365,15 +192,139 @@ public class DefaultConverters {
 //				return l.getWorld();
 //			}
 //		});
-
-		// Location - Block
-//		Converters.registerConverter(Location.class, Block.class, new Converter<Location, Block>() {
+		
+		// ItemType - ItemStack
+		Converters.registerConverter(ItemType.class, ItemStack.class, new Converter<ItemType, ItemStack>() {
+			@Override
+			@Nullable
+			public ItemStack convert(final ItemType i) {
+				return i.getRandom();
+			}
+		});
+		Converters.registerConverter(ItemStack.class, ItemType.class, new Converter<ItemStack, ItemType>() {
+			@Override
+			public ItemType convert(final ItemStack i) {
+				return new ItemType(i);
+			}
+		});
+		
+		// Experience - XpOrbData
+		Converters.registerConverter(Experience.class, XpOrbData.class, new Converter<Experience, XpOrbData>() {
+			@Override
+			public XpOrbData convert(final Experience e) {
+				return new XpOrbData(e.getXP());
+			}
+		});
+		Converters.registerConverter(XpOrbData.class, Experience.class, new Converter<XpOrbData, Experience>() {
+			@Override
+			public Experience convert(final XpOrbData e) {
+				return new Experience(e.getExperience());
+			}
+		});
+		
+//		// Item - ItemStack
+//		Converters.registerConverter(Item.class, ItemStack.class, new Converter<Item, ItemStack>() {
 //			@Override
-//			public Block convert(final Location l) {
-//				return l.getBlock();
+//			public ItemStack convert(final Item i) {
+//				return i.getItemStack();
+//			}
+//		});
+		
+		// Slot - ItemStack
+		Converters.registerConverter(Slot.class, ItemStack.class, new Converter<Slot, ItemStack>() {
+			@Override
+			public ItemStack convert(final Slot s) {
+				final ItemStack i = s.getItem();
+				if (i == null)
+					return new ItemStack(Material.AIR, 1);
+				return i;
+			}
+		});
+//		// Slot - Inventory
+//		Skript.addConverter(Slot.class, Inventory.class, new Converter<Slot, Inventory>() {
+//			@Override
+//			public Inventory convert(final Slot s) {
+//				if (s == null)
+//					return null;
+//				return s.getInventory();
+//			}
+//		});
+		
+		// Block - InventoryHolder
+		Converters.registerConverter(Block.class, InventoryHolder.class, new Converter<Block, InventoryHolder>() {
+			@Override
+			@Nullable
+			public InventoryHolder convert(final Block b) {
+				if (b.getState() == null)
+					return null;
+				final BlockState s = b.getState();
+				if (s instanceof InventoryHolder)
+					return (InventoryHolder) s;
+				return null;
+			}
+		}, Converter.NO_COMMAND_ARGUMENTS);
+//		Skript.registerConverter(InventoryHolder.class, Block.class, new Converter<InventoryHolder, Block>() {
+//			@Override
+//			public Block convert(final InventoryHolder h) {
+//				if (h == null)
+//					return null;
+//				if (h instanceof BlockState)
+//					return ((BlockState) h).getBlock();
+//				return null;
+//			}
+//		});
+		
+//		// World - Time
+//		Skript.registerConverter(World.class, Time.class, new Converter<World, Time>() {
+//			@Override
+//			public Time convert(final World w) {
+//				if (w == null)
+//					return null;
+//				return new Time((int) w.getTime());
+//			}
+//		});
+		
+		// Enchantment - EnchantmentType
+		Converters.registerConverter(Enchantment.class, EnchantmentType.class, new Converter<Enchantment, EnchantmentType>() {
+			@Override
+			public EnchantmentType convert(final Enchantment e) {
+				return new EnchantmentType(e, -1);
+			}
+		});
+		
+//		// Entity - String (UUID) // Very slow, thus disabled for now
+//		Converters.registerConverter(String.class, Entity.class, new Converter<String, Entity>() {
+//
+//			@Override
+//			@Nullable
+//			public Entity convert(String f) {
+//				Collection<? extends Player> players = PlayerUtils.getOnlinePlayers();
+//				for (Player p : players) {
+//					if (p.getName().equals(f) || p.getUniqueId().toString().equals(f))
+//						return p;
+//				}
+//				
+//				return null;
+//			}
+//			
+//		});
+		
+		// Number - Vector; DISABLED due to performance problems
+//		Converters.registerConverter(Number.class, Vector.class, new Converter<Number, Vector>() {
+//			@Override
+//			@Nullable
+//			public Vector convert(Number number) {
+//				return new Vector(number.doubleValue(), number.doubleValue(), number.doubleValue());
 //			}
 //		});
 
+		// Vector - Direction
+		Converters.registerConverter(Vector.class, Direction.class, new Converter<Vector, Direction>() {
+			@Override
+			@Nullable
+			public Direction convert(Vector vector) {
+				return new Direction(vector);
+			}
+});
 	}
-
 }

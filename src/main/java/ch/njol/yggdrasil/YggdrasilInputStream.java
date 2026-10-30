@@ -1,7 +1,25 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.yggdrasil;
 
-import ch.njol.yggdrasil.YggdrasilSerializable.YggdrasilExtendedSerializable;
-import org.jetbrains.annotations.Nullable;
+import static ch.njol.yggdrasil.Tag.*;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -10,58 +28,70 @@ import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.List;
 
-import static ch.njol.yggdrasil.Tag.T_NULL;
-import static ch.njol.yggdrasil.Tag.T_REFERENCE;
-import static ch.njol.yggdrasil.Tag.getType;
+import org.eclipse.jdt.annotation.Nullable;
+
+import ch.njol.yggdrasil.YggdrasilSerializable.YggdrasilExtendedSerializable;
 
 public abstract class YggdrasilInputStream implements Closeable {
 	
 	protected final Yggdrasil yggdrasil;
 	
-	protected YggdrasilInputStream(Yggdrasil yggdrasil) {
+	protected YggdrasilInputStream(final Yggdrasil yggdrasil) {
 		this.yggdrasil = yggdrasil;
 	}
 	
+	// Tag
+	
 	protected abstract Tag readTag() throws IOException;
+	
+	// Primitives
 	
 	protected abstract Object readPrimitive(Tag type) throws IOException;
 	
 	protected abstract Object readPrimitive_(Tag type) throws IOException;
 	
+	// String
+	
 	protected abstract String readString() throws IOException;
+	
+	// Array
 	
 	protected abstract Class<?> readArrayComponentType() throws IOException;
 	
 	protected abstract int readArrayLength() throws IOException;
 	
-	private void readArrayContents(Object array) throws IOException {
+	private final void readArrayContents(final Object array) throws IOException {
 		if (array.getClass().getComponentType().isPrimitive()) {
-			int length = Array.getLength(array);
-			Tag type = getType(array.getClass().getComponentType());
-			for (int i = 0; i < length; i++)
+			final int length = Array.getLength(array);
+			final Tag type = getType(array.getClass().getComponentType());
+			for (int i = 0; i < length; i++) {
 				Array.set(array, i, readPrimitive_(type));
+			}
 		} else {
-			for (int i = 0; i < ((Object[]) array).length; i++)
+			for (int i = 0; i < ((Object[]) array).length; i++) {
 				((Object[]) array)[i] = readObject();
+			}
 		}
 	}
+	
+	// Enum
 	
 	protected abstract Class<?> readEnumType() throws IOException;
 	
 	protected abstract String readEnumID() throws IOException;
 	
 	@SuppressWarnings({"unchecked", "rawtypes"})
-	private Object readEnum() throws IOException {
-		Class<?> c = readEnumType();
-		String id = readEnumID();
+	private final Object readEnum() throws IOException {
+		final Class<?> c = readEnumType();
+		final String id = readEnumID();
 		if (Enum.class.isAssignableFrom(c)) {
 			return Yggdrasil.getEnumConstant((Class) c, id);
 		} else if (PseudoEnum.class.isAssignableFrom(c)) {
-			Object o = PseudoEnum.valueOf((Class) c, id);
+			final Object o = PseudoEnum.valueOf((Class) c, id);
 			if (o != null)
 				return o;
 //			if (YggdrasilRobustPseudoEnum.class.isAssignableFrom(c)) {
-//				TODO create this and a handler (for Enums as well)
+//				// TODO create this and a handler (for Enums as well)
 //			}
 			throw new StreamCorruptedException("Enum constant " + id + " does not exist in " + c);
 		} else {
@@ -69,9 +99,15 @@ public abstract class YggdrasilInputStream implements Closeable {
 		}
 	}
 	
+	// Class
+	
 	protected abstract Class<?> readClass() throws IOException;
 	
+	// Reference
+	
 	protected abstract int readReference() throws IOException;
+	
+	// generic Object
 	
 	protected abstract Class<?> readObjectType() throws IOException;
 	
@@ -79,96 +115,99 @@ public abstract class YggdrasilInputStream implements Closeable {
 	
 	protected abstract String readFieldID() throws IOException;
 	
-	private Fields readFields() throws IOException {
-		Fields fields = new Fields(yggdrasil);
-		short numFields = readNumFields();
+	private final Fields readFields() throws IOException {
+		final Fields fields = new Fields(yggdrasil);
+		final short numFields = readNumFields();
 		for (int i = 0; i < numFields; i++) {
-			String id = readFieldID();
-			Tag tag = readTag();
-			if (tag.isPrimitive())
-				fields.putPrimitive(id, readPrimitive(tag));
+			final String id = readFieldID();
+			final Tag t = readTag();
+			if (t.isPrimitive())
+				fields.putPrimitive(id, readPrimitive(t));
 			else
-				fields.putObject(id, readObject(tag));
+				fields.putObject(id, readObject(t));
 		}
 		return fields;
 	}
+	
+	// any Objects
 	
 	private final List<Object> readObjects = new ArrayList<>();
 	
 	@Nullable
 	public final Object readObject() throws IOException {
-		Tag tag = readTag();
-		return readObject(tag);
+		final Tag t = readTag();
+		return readObject(t);
 	}
 	
 	@SuppressWarnings("unchecked")
 	@Nullable
-	public final <T> T readObject(Class<T> expectedType) throws IOException {
-		Tag tag = readTag();
-		Object object = readObject(tag);
-		if (object != null && !expectedType.isInstance(object))
-			throw new StreamCorruptedException("Object " + object + " is of " + object.getClass() + " but expected " + expectedType);
-		return (T) object;
+	public final <T> T readObject(final Class<T> expectedType) throws IOException {
+		final Tag t = readTag();
+		final Object o = readObject(t);
+		if (o != null && !expectedType.isInstance(o))
+			throw new StreamCorruptedException("Object " + o + " is of " + o.getClass() + " but expected " + expectedType);
+		return (T) o;
 	}
 	
-	@SuppressWarnings({"rawtypes", "unchecked"})
+	@SuppressWarnings({"rawtypes", "unchecked", "null", "unused"})
 	@Nullable
-	private Object readObject(Tag tag) throws IOException {
-		if (tag == T_NULL)
+	private final Object readObject(final Tag t) throws IOException {
+		if (t == T_NULL)
 			return null;
-		if (tag == T_REFERENCE) {
-			int ref = readReference();
+		if (t == T_REFERENCE) {
+			final int ref = readReference();
 			if (ref < 0 || ref >= readObjects.size())
 				throw new StreamCorruptedException("Invalid reference " + ref + ", " + readObjects.size() + " object(s) read so far");
-			Object object = readObjects.get(ref);
-			if (object == null)
+			final Object o = readObjects.get(ref);
+			if (o == null)
 				throw new StreamCorruptedException("Reference to uninstantiable object: " + ref);
-			return object;
+			return o;
 		}
-		Object object;
-		switch (tag) {
+		final Object o;
+		switch (t) {
 			case T_ARRAY: {
-				Class<?> type = readArrayComponentType();
-				object = Array.newInstance(type, readArrayLength());
-				readObjects.add(object);
-				readArrayContents(object);
-				return object;
+				final Class<?> c = readArrayComponentType();
+				o = Array.newInstance(c, readArrayLength());
+				assert o != null;
+				readObjects.add(o);
+				readArrayContents(o);
+				return o;
 			}
 			case T_CLASS:
-				object = readClass();
+				o = readClass();
 				break;
 			case T_ENUM:
-				object = readEnum();
+				o = readEnum();
 				break;
 			case T_STRING:
-				object = readString();
+				o = readString();
 				break;
 			case T_OBJECT: {
-				Class<?> c = readObjectType();
-				YggdrasilSerializer s = yggdrasil.getSerializer(c);
+				final Class<?> c = readObjectType();
+				final YggdrasilSerializer s = yggdrasil.getSerializer(c);
 				if (s != null && !s.canBeInstantiated(c)) {
-					int ref = readObjects.size();
+					final int ref = readObjects.size();
 					readObjects.add(null);
-					Fields fields = readFields();
-					object = s.deserialize(c, fields);
-					if (object == null)
+					final Fields fields = readFields();
+					o = s.deserialize(c, fields);
+					if (o == null)
 						throw new YggdrasilException("YggdrasilSerializer " + s + " returned null from deserialize(" + c + "," + fields + ")");
-					readObjects.set(ref, object);
+					readObjects.set(ref, o);
 				} else {
-					object = yggdrasil.newInstance(c);
-					if (object == null)
+					o = yggdrasil.newInstance(c);
+					if (o == null)
 						throw new StreamCorruptedException();
-					readObjects.add(object);
-					Fields fields = readFields();
+					readObjects.add(o);
+					final Fields fields = readFields();
 					if (s != null) {
-						s.deserialize(object, fields);
-					} else if (object instanceof YggdrasilExtendedSerializable) {
-						((YggdrasilExtendedSerializable) object).deserialize(fields);
+						s.deserialize(o, fields);
+					} else if (o instanceof YggdrasilExtendedSerializable) {
+						((YggdrasilExtendedSerializable) o).deserialize(fields);
 					} else {
-						fields.setFields(object);
+						fields.setFields(o);
 					}
 				}
-				return object;
+				return o;
 			}
 			case T_BOOLEAN_OBJ:
 			case T_BYTE_OBJ:
@@ -178,9 +217,9 @@ public abstract class YggdrasilInputStream implements Closeable {
 			case T_INT_OBJ:
 			case T_LONG_OBJ:
 			case T_SHORT_OBJ:
-				Tag primitive = tag.getPrimitive();
-				assert primitive != null;
-				object = readPrimitive(primitive);
+				final Tag p = t.getPrimitive();
+				assert p != null;
+				o = readPrimitive(p);
 				break;
 			case T_BYTE:
 			case T_BOOLEAN:
@@ -191,12 +230,49 @@ public abstract class YggdrasilInputStream implements Closeable {
 			case T_LONG:
 			case T_SHORT:
 				throw new StreamCorruptedException();
+			case T_REFERENCE:
+			case T_NULL:
 			default:
 				assert false;
 				throw new StreamCorruptedException();
 		}
-		readObjects.add(object);
-		return object;
+		readObjects.add(o);
+		return o;
 	}
+	
+//	private final static class Validation implements Comparable<Validation> {
+//		private final ObjectInputValidation v;
+//		private final int prio;
+//		
+//		public Validation(final ObjectInputValidation v, final int prio) {
+//			this.v = v;
+//			this.prio = prio;
+//		}
+//		
+//		private void validate() throws InvalidObjectException {
+//			v.validateObject();
+//		}
+//		
+//		@Override
+//		public int compareTo(final Validation o) {
+//			return o.prio - prio;
+//		}
+//	}
+//	
+//	private final SortedSet<Validation> validations = new TreeSet<>();
+//	
+//	public void registerValidation(final ObjectInputValidation v, final int prio) throws NotActiveException, InvalidObjectException {
+//		if (depth == 0)
+//			throw new NotActiveException("stream inactive");
+//		if (v == null)
+//			throw new InvalidObjectException("null callback");
+//		validations.add(new Validation(v, prio));
+//	}
+//	
+//	private void validate() throws InvalidObjectException {
+//		for (final Validation v : validations)
+//			v.validate();
+//		validations.clear(); // if multiple objects are written to the stream this method will be called multiple times
+//	}
 	
 }

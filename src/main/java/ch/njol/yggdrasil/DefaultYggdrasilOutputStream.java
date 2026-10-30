@@ -1,74 +1,96 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.yggdrasil;
+
+import static ch.njol.yggdrasil.Tag.*;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import java.util.HashMap;
-import java.util.Map;
-
-import static ch.njol.yggdrasil.Tag.T_ARRAY;
-import static ch.njol.yggdrasil.Tag.T_REFERENCE;
-import static ch.njol.yggdrasil.Tag.getPrimitiveFromWrapper;
-import static ch.njol.yggdrasil.Tag.getType;
 
 public final class DefaultYggdrasilOutputStream extends YggdrasilOutputStream {
 	
+	private final static Charset UTF_8 = Charset.forName("UTF-8");
+	
 	private final OutputStream out;
+	
 	private final short version;
 	
-	public DefaultYggdrasilOutputStream(Yggdrasil yggdrasil, OutputStream out) throws IOException {
-		super(yggdrasil);
+	public DefaultYggdrasilOutputStream(final Yggdrasil y, final OutputStream out) throws IOException {
+		super(y);
 		this.out = out;
-		version = yggdrasil.version;
+		version = y.version;
 		writeInt(Yggdrasil.MAGIC_NUMBER);
 		writeShort(version);
 	}
 	
-	private void write(int b) throws IOException {
+	// private
+	
+	private void write(final int b) throws IOException {
 		out.write(b);
 	}
 	
 	@Override
-	protected void writeTag(Tag tag) throws IOException {
-		out.write(tag.tag);
+	protected void writeTag(final Tag t) throws IOException {
+		out.write(t.tag);
 	}
 	
-	private final Map<String, Integer> writtenShortStrings = new HashMap<>();
+	private final HashMap<String, Integer> writtenShortStrings = new HashMap<>();
 	int nextShortStringID = 0;
 	
 	/**
 	 * Writes a class ID or Field name
 	 */
-	private void writeShortString(String string) throws IOException {
-		if (writtenShortStrings.containsKey(string)) {
+	private void writeShortString(final String s) throws IOException {
+		if (writtenShortStrings.containsKey(s)) {
 			writeTag(T_REFERENCE);
 			if (version <= 1)
-				writeInt(writtenShortStrings.get(string));
+				writeInt(writtenShortStrings.get(s));
 			else
-				writeUnsignedInt(writtenShortStrings.get(string));
+				writeUnsignedInt(writtenShortStrings.get(s));
 		} else {
 			if (nextShortStringID < 0)
 				throw new YggdrasilException("Too many field names/class IDs (max: " + Integer.MAX_VALUE + ")");
-			byte[] d = string.getBytes(StandardCharsets.UTF_8);
+			final byte[] d = s.getBytes(UTF_8);
 			if (d.length >= (T_REFERENCE.tag & 0xFF))
-				throw new YggdrasilException("Field name or Class ID too long: " + string);
+				throw new YggdrasilException("Field name or Class ID too long: " + s);
 			write(d.length);
 			out.write(d);
 			if (d.length > 4)
-				writtenShortStrings.put(string, nextShortStringID++);
+				writtenShortStrings.put(s, nextShortStringID++);
 		}
 	}
 	
-	private void writeByte(byte b) throws IOException {
+	// Primitives
+	
+	private void writeByte(final byte b) throws IOException {
 		write(b & 0xFF);
 	}
 	
-	private void writeShort(short s) throws IOException {
+	private void writeShort(final short s) throws IOException {
 		write((s >>> 8) & 0xFF);
 		write(s & 0xFF);
 	}
 	
-	private void writeUnsignedShort(short s) throws IOException {
+	private void writeUnsignedShort(final short s) throws IOException {
 		assert s >= 0;
 		if (s <= 0x7f)
 			writeByte((byte) (0x80 | s));
@@ -76,14 +98,14 @@ public final class DefaultYggdrasilOutputStream extends YggdrasilOutputStream {
 			writeShort(s);
 	}
 	
-	private void writeInt(int i) throws IOException {
+	private void writeInt(final int i) throws IOException {
 		write((i >>> 24) & 0xFF);
 		write((i >>> 16) & 0xFF);
 		write((i >>> 8) & 0xFF);
 		write(i & 0xFF);
 	}
 	
-	private void writeUnsignedInt(int i) throws IOException {
+	private void writeUnsignedInt(final int i) throws IOException {
 		assert i >= 0;
 		if (i <= 0x7FFF)
 			writeShort((short) (0x8000 | i));
@@ -91,7 +113,7 @@ public final class DefaultYggdrasilOutputStream extends YggdrasilOutputStream {
 			writeInt(i);
 	}
 	
-	private void writeLong(long l) throws IOException {
+	private void writeLong(final long l) throws IOException {
 		write((int) ((l >>> 56) & 0xFF));
 		write((int) ((l >>> 48) & 0xFF));
 		write((int) ((l >>> 40) & 0xFF));
@@ -102,96 +124,102 @@ public final class DefaultYggdrasilOutputStream extends YggdrasilOutputStream {
 		write((int) (l & 0xFF));
 	}
 	
-	private void writeFloat(float f) throws IOException {
+	private void writeFloat(final float f) throws IOException {
 		writeInt(Float.floatToIntBits(f));
 	}
 	
-	private void writeDouble(double d) throws IOException {
+	private void writeDouble(final double d) throws IOException {
 		writeLong(Double.doubleToLongBits(d));
 	}
 	
-	private void writeChar(char c) throws IOException {
+	private void writeChar(final char c) throws IOException {
 		writeShort((short) c);
 	}
 	
-	private void writeBoolean(boolean b) throws IOException {
+	private void writeBoolean(final boolean b) throws IOException {
 		write(b ? 1 : 0);
 	}
 	
 	@Override
-	protected void writePrimitive_(Object object) throws IOException {
-		switch (getPrimitiveFromWrapper(object.getClass())) {
+	protected void writePrimitive_(final Object o) throws IOException {
+		switch (getPrimitiveFromWrapper(o.getClass())) {
 			case T_BYTE:
-				writeByte((Byte) object);
+				writeByte((Byte) o);
 				break;
 			case T_SHORT:
-				writeShort((Short) object);
+				writeShort((Short) o);
 				break;
 			case T_INT:
-				writeInt((Integer) object);
+				writeInt((Integer) o);
 				break;
 			case T_LONG:
-				writeLong((Long) object);
+				writeLong((Long) o);
 				break;
 			case T_FLOAT:
-				writeFloat((Float) object);
+				writeFloat((Float) o);
 				break;
 			case T_DOUBLE:
-				writeDouble((Double) object);
+				writeDouble((Double) o);
 				break;
 			case T_CHAR:
-				writeChar((Character) object);
+				writeChar((Character) o);
 				break;
 			case T_BOOLEAN:
-				writeBoolean((Boolean) object);
+				writeBoolean((Boolean) o);
 				break;
 			//$CASES-OMITTED$
 			default:
-				throw new YggdrasilException("Invalid call to writePrimitive with argument " + object);
+				throw new YggdrasilException("Invalid call to writePrimitive with argument " + o);
 		}
 	}
 	
 	@Override
-	protected void writePrimitiveValue(Object object) throws IOException {
-		writePrimitive_(object);
+	protected void writePrimitiveValue(final Object o) throws IOException {
+		writePrimitive_(o);
 	}
 	
+	// String
+	
 	@Override
-	protected void writeStringValue(String string) throws IOException {
-		byte[] d = string.getBytes(StandardCharsets.UTF_8);
+	protected void writeStringValue(final String s) throws IOException {
+		final byte[] d = s.getBytes(UTF_8);
 		writeUnsignedInt(d.length);
 		out.write(d);
 	}
 	
+	// Array
+	
 	@Override
-	protected void writeArrayComponentType(Class<?> componentType) throws IOException {
+	protected void writeArrayComponentType(final Class<?> componentType) throws IOException {
 		writeClass_(componentType);
 	}
 	
 	@Override
-	protected void writeArrayLength(int length) throws IOException {
+	protected void writeArrayLength(final int length) throws IOException {
 		writeUnsignedInt(length);
 	}
 	
 	@Override
-	protected void writeArrayEnd() {}
+	protected void writeArrayEnd() throws IOException {}
+	
+	// Class
 	
 	@Override
-	protected void writeClassType(Class<?> type) throws IOException {
-		writeClass_(type);
+	protected void writeClassType(final Class<?> c) throws IOException {
+		writeClass_(c);
 	}
 	
-	private void writeClass_(Class<?> type) throws IOException {
-		while (type.isArray()) {
+	private void writeClass_(Class<?> c) throws IOException {
+		while (c.isArray()) {
 			writeTag(T_ARRAY);
-			type = type.getComponentType();
+			c = c.getComponentType();
 		}
-		Tag tag = getType(type);
-		switch (tag) {
+		final Tag t = getType(c);
+		switch (t) {
 			case T_OBJECT:
 			case T_ENUM:
-				writeTag(tag);
-				writeShortString(yggdrasil.getID(type));
+				writeTag(t);
+				writeShortString(yggdrasil.getID(c));
 				break;
 			case T_BOOLEAN:
 			case T_BOOLEAN_OBJ:
@@ -211,48 +239,56 @@ public final class DefaultYggdrasilOutputStream extends YggdrasilOutputStream {
 			case T_SHORT_OBJ:
 			case T_CLASS:
 			case T_STRING:
-				writeTag(tag);
+				writeTag(t);
 				break;
 			case T_NULL:
 			case T_REFERENCE:
 			case T_ARRAY:
 			default:
-				throw new YggdrasilException("" + type.getCanonicalName());
+				throw new YggdrasilException("" + c.getCanonicalName());
 		}
 	}
 	
+	// Enum
+	
 	@Override
-	protected void writeEnumType(String type) throws IOException {
+	protected void writeEnumType(final String type) throws IOException {
 		writeShortString(type);
 	}
 	
 	@Override
-	protected void writeEnumID(String id) throws IOException {
+	protected void writeEnumID(final String id) throws IOException {
 		writeShortString(id);
 	}
 	
+	// generic Object
+	
 	@Override
-	protected void writeObjectType(String type) throws IOException {
+	protected void writeObjectType(final String type) throws IOException {
 		writeShortString(type);
 	}
 	
 	@Override
-	protected void writeNumFields(short numFields) throws IOException {
+	protected void writeNumFields(final short numFields) throws IOException {
 		writeUnsignedShort(numFields);
 	}
 	
 	@Override
-	protected void writeFieldID(String id) throws IOException {
+	protected void writeFieldID(final String id) throws IOException {
 		writeShortString(id);
 	}
 	
 	@Override
-	protected void writeObjectEnd() {}
+	protected void writeObjectEnd() throws IOException {}
+	
+	// Reference
 	
 	@Override
-	protected void writeReferenceID(int reference) throws IOException {
-		writeUnsignedInt(reference);
+	protected void writeReferenceID(final int ref) throws IOException {
+		writeUnsignedInt(ref);
 	}
+	
+	// stream
 	
 	@Override
 	public void flush() throws IOException {

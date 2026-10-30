@@ -14,8 +14,11 @@
  *  You should have received a copy of the GNU General Public License
  *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright Peter Güttinger, SkriptLang team and contributors
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
  */
+@NonNullByDefault
 package ch.njol.skript.lang.parser;
 
+import org.eclipse.jdt.annotation.NonNullByDefault;
 

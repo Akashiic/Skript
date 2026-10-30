@@ -1,3 +1,22 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.util;
 
 import java.util.Iterator;
@@ -8,7 +27,7 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.util.Vector;
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
 import ch.njol.util.Math2;
@@ -22,7 +41,7 @@ public class AABB implements Iterable<Block> {
 	
 	final World world;
 	final Vector lowerBound, upperBound;
-
+	
 	//	private final static Vector EPSILON = new Vector(Skript.EPSILON, Skript.EPSILON, Skript.EPSILON);
 	
 	@SuppressWarnings("null")
@@ -30,38 +49,38 @@ public class AABB implements Iterable<Block> {
 		if (l1.getWorld() != l2.getWorld())
 			throw new IllegalArgumentException("Locations must be in the same world");
 		world = l1.getWorld();
-		lowerBound = new Vector(Math.min(l1.getBlockX(), l2.getBlockX()), Math.min(l1.getBlockY(), l2.getBlockY()), Math.min(l1.getBlockZ(), l2.getBlockZ()));
-		upperBound = new Vector(Math.max(l1.getBlockX(), l2.getBlockX()), Math.max(l1.getBlockY(), l2.getBlockY()), Math.max(l1.getBlockZ(), l2.getBlockZ()));
+		lowerBound = new Vector(Math.min(l1.getX(), l2.getX()), Math.min(l1.getY(), l2.getY()), Math.min(l1.getZ(), l2.getZ()));
+		upperBound = new Vector(Math.max(l1.getX(), l2.getX()), Math.max(l1.getY(), l2.getY()), Math.max(l1.getZ(), l2.getZ()));
 	}
 	
+	@SuppressWarnings("null")
 	public AABB(final Block b1, final Block b2) {
 		if (b1.getWorld() != b2.getWorld())
 			throw new IllegalArgumentException("Blocks must be in the same world");
 		world = b1.getWorld();
 		lowerBound = new Vector(Math.min(b1.getX(), b2.getX()), Math.min(b1.getY(), b2.getY()), Math.min(b1.getZ(), b2.getZ()));
-		upperBound = new Vector(Math.max(b1.getX(), b2.getX()), Math.max(b1.getY(), b2.getY()), Math.max(b1.getZ(), b2.getZ()));
+		upperBound = new Vector(Math.max(b1.getX(), b2.getX()) + 1, Math.max(b1.getY(), b2.getY()) + 1, Math.max(b1.getZ(), b2.getZ()) + 1);
 	}
 	
 	@SuppressWarnings("null")
 	public AABB(final Location center, final double rX, final double rY, final double rZ) {
 		assert rX >= 0 && rY >= 0 && rZ >= 0 : rX + "," + rY + "," + rY;
 		world = center.getWorld();
-		int min = world.getMinHeight();
-		lowerBound = new Vector(center.getX() - rX, Math.max(center.getY() - rY, min), center.getZ() - rZ);
-		upperBound = new Vector(center.getX() + rX, Math.min(center.getY() + rY, world.getMaxHeight() - 1), center.getZ() + rZ);
+		lowerBound = new Vector(center.getX() - rX, Math.max(center.getY() - rY, 0), center.getZ() - rZ);
+		upperBound = new Vector(center.getX() + rX, Math.min(center.getY() + rY, world.getMaxHeight()), center.getZ() + rZ);
 	}
 	
 	public AABB(final World w, final Vector v1, final Vector v2) {
 		world = w;
 		lowerBound = new Vector(Math.min(v1.getX(), v2.getX()), Math.min(v1.getY(), v2.getY()), Math.min(v1.getZ(), v2.getZ()));
-		upperBound = new Vector(Math.max(v1.getX(), v2.getX()), Math.max(v1.getY(), v2.getY()), Math.max(v1.getZ(), v2.getZ()));
+		upperBound = new Vector(Math.max(v1.getX(), v2.getX()) + 1, Math.max(v1.getY(), v2.getY()) + 1, Math.max(v1.getZ(), v2.getZ()) + 1);
 	}
 	
+	@SuppressWarnings("null")
 	public AABB(final Chunk c) {
 		world = c.getWorld();
-		int min = world.getMinHeight();
-		lowerBound = c.getBlock(0, min, 0).getLocation().toVector();
-		upperBound = c.getBlock(15, world.getMaxHeight() - 1, 15).getLocation().toVector();
+		lowerBound = c.getBlock(0, 0, 0).getLocation().toVector();
+		upperBound = lowerBound.clone().add(new Vector(16, world.getMaxHeight(), 16));
 	}
 	
 	public boolean contains(final Location l) {
@@ -72,10 +91,12 @@ public class AABB implements Iterable<Block> {
 				&& lowerBound.getZ() - Skript.EPSILON < l.getZ() && l.getZ() < upperBound.getZ() + Skript.EPSILON;
 	}
 	
+	@SuppressWarnings("null")
 	public boolean contains(final Block b) {
 		return contains(b.getLocation()) && contains(b.getLocation().add(1, 1, 1));
 	}
 	
+	@SuppressWarnings("null")
 	public Vector getDimensions() {
 		return upperBound.clone().subtract(lowerBound);
 	}
@@ -90,22 +111,23 @@ public class AABB implements Iterable<Block> {
 	@Override
 	public Iterator<Block> iterator() {
 		return new Iterator<Block>() {
-			private final int minX = (int) Math2.ceil(lowerBound.getX());
-			private final int minY = (int) Math2.ceil(lowerBound.getY());
-			private final int minZ = (int) Math2.ceil(lowerBound.getZ());
-			private final int maxX = (int) Math2.floor(upperBound.getX());
-			private final int maxY = (int) Math2.floor(upperBound.getY());
-			private final int maxZ = (int) Math2.floor(upperBound.getZ());
+			private final int minX = Math2.ceilI(lowerBound.getX() - Skript.EPSILON),
+					minY = Math2.ceilI(lowerBound.getY() - Skript.EPSILON),
+					minZ = Math2.ceilI(lowerBound.getZ() - Skript.EPSILON);
+			private final int maxX = Math2.floorI(upperBound.getX() + Skript.EPSILON) - 1,
+					maxY = Math2.floorI(upperBound.getY() + Skript.EPSILON) - 1,
+					maxZ = Math2.floorI(upperBound.getZ() + Skript.EPSILON) - 1;
 			
-			private int x = minX - 1; // next() increases x by one immediately
-			private int y = minY;
-			private int z = minZ;
+			private int x = minX - 1,// next() increases x by one immediately
+					y = minY,
+					z = minZ;
 			
 			@Override
 			public boolean hasNext() {
 				return y <= maxY && (x != maxX || y != maxY || z != maxZ);
 			}
 			
+			@SuppressWarnings("null")
 			@Override
 			public Block next() {
 				if (!hasNext())

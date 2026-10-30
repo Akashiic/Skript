@@ -1,10 +1,34 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.expressions;
+
+import java.lang.reflect.Array;
+
+import org.bukkit.event.Event;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.classes.ClassInfo;
 import ch.njol.skript.classes.Parser;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.lang.Expression;
@@ -16,268 +40,149 @@ import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.skript.lang.VariableString;
 import ch.njol.skript.lang.util.SimpleExpression;
 import ch.njol.skript.localization.Language;
+import ch.njol.skript.log.ErrorQuality;
 import ch.njol.skript.log.LogEntry;
 import ch.njol.skript.log.ParseLogHandler;
 import ch.njol.skript.log.SkriptLogger;
-import ch.njol.skript.patterns.MalformedPatternException;
-import ch.njol.skript.patterns.MatchResult;
-import ch.njol.skript.patterns.PatternCompiler;
-import ch.njol.skript.patterns.SkriptPattern;
 import ch.njol.util.Kleenean;
 import ch.njol.util.NonNullPair;
-import org.bukkit.ChatColor;
-import org.bukkit.event.Event;
-import org.jetbrains.annotations.Nullable;
 
-import java.lang.reflect.Array;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
+/**
+ * @author Peter Güttinger
+ */
 @Name("Parse")
 @Description({"Parses text as a given type, or as a given pattern.",
 		"This expression can be used in two different ways: One which parses the entire text as a single instance of a type, e.g. as a number, " +
 				"and one that parses the text according to a pattern.",
 		"If the given text could not be parsed, this expression will return nothing and the <a href='#ExprParseError'>parse error</a> will be set if some information is available.",
 		"Some notes about parsing with a pattern:",
-		"- The pattern must be a <a href='./patterns/'>Skript pattern</a>, " +
+		"- The pattern must be a <a href='../patterns/'>Skript pattern</a>, " +
 				"e.g. percent signs are used to define where to parse which types, e.g. put a %number% or %items% in the pattern if you expect a number or some items there.",
 		"- You <i>have to</i> save the expression's value in a list variable, e.g. <code>set {parsed::*} to message parsed as \"...\"</code>.",
 		"- The list variable will contain the parsed values from all %types% in the pattern in order. If a type was plural, e.g. %items%, the variable's value at the respective index will be a list variable," +
 				" e.g. the values will be stored in {parsed::1::*}, not {parsed::1}."})
-@Example("set {var} to line 1 parsed as number")
-@Example("""
-	on chat:
-		set {var::*} to message parsed as "buying %items% for %money%"
-		if parse error is set:
-			message "%parse error%"
-		else if {var::*} is set:
-			cancel event
-			remove {var::2} from the player's balance
-			give {var::1::*} to the player
-	""")
+@Examples({"set {var} to line 1 parsed as number",
+		"on chat:",
+		"	set {var::*} to message parsed as \"buying %items% for %money%\"",
+		"	if parse error is set:",
+		"		message \"%parse error%\"",
+		"	else if {var::*} is set:",
+		"		cancel event",
+		"		remove {var::2} from the player's balance",
+		"		give {var::1::*} to the player"})
 @Since("2.0")
 public class ExprParse extends SimpleExpression<Object> {
-
 	static {
-		// Historically, the priority here has been COMBINED; it was changed because property expressions are between COMBINED and PME by default.
-		// We need `uuid of arg-1 parsed as player` to be ExprUuid(ExprParse(ExprArgument)), not ExprParse(ExprUuid(ExprArgument))
-		// The latter can occur because ExprUUID is valid for worlds, which may be converted to from strings.
-		Skript.registerExpression(ExprParse.class, Object.class, ExpressionType.PATTERN_MATCHES_EVERYTHING,
-			"%string% parsed as (%-*classinfo%|\"<.*>\")");
+		Skript.registerExpression(ExprParse.class, Object.class, ExpressionType.COMBINED,
+				"%string% parsed as (%-*classinfo%|\"<.*>\")");
 	}
-
+	
 	@Nullable
 	static String lastError = null;
-
-	@SuppressWarnings("NotNullFieldNotInitialized")
+	
+	@SuppressWarnings("null")
 	private Expression<String> text;
-
+	
 	@Nullable
-	private SkriptPattern pattern;
+	private String pattern;
 	@Nullable
-	private NonNullPair<ClassInfo<?>, Boolean>[] patternExpressions;
-	private boolean single = true;
-	public boolean flatten = true;
-
+	private boolean[] plurals;
+	
 	@Nullable
-	private ClassInfo<?> classInfo;
-
-	@Override
+	private ClassInfo<?> c;
+	
 	@SuppressWarnings({"unchecked", "null"})
-	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult) {
+	@Override
+	public boolean init(final Expression<?>[] exprs, final int matchedPattern, final Kleenean isDelayed, final ParseResult parseResult) {
 		text = (Expression<String>) exprs[0];
 		if (exprs[1] == null) {
-			String pattern = ChatColor.translateAlternateColorCodes('&', parseResult.regexes.get(0).group());
-
+			String pattern = "" + parseResult.regexes.get(0).group();
 			if (!VariableString.isQuotedCorrectly(pattern, false)) {
-				Skript.error("Invalid amount and/or placement of double quotes in '" + pattern + "'");
+				Skript.error("Invalid amount and/or placement of double quotes in '" + pattern + "'", ErrorQuality.SEMANTIC_ERROR);
 				return false;
 			}
-
-			NonNullPair<String, NonNullPair<ClassInfo<?>, Boolean>[]> p = SkriptParser.validatePattern(pattern);
-			if (p == null) {
-				// Errored in validatePattern already
+			// escape '¦'
+			final StringBuilder b = new StringBuilder(pattern.length());
+			for (int i = 0; i < pattern.length(); i++) {
+				final char c = pattern.charAt(i);
+				if (c == '\\') {
+					b.append(c);
+					b.append(pattern.charAt(i + 1));
+					i++;
+				} else if (c == '¦') {
+					b.append("\\¦");
+				} else {
+					b.append(c);
+				}
+			}
+			pattern = "" + b.toString();
+			final NonNullPair<String, boolean[]> p = SkriptParser.validatePattern(pattern);
+			if (p == null)
 				return false;
-			}
-
-			// Make all types in the pattern plural
-			pattern = p.getFirst();
-			patternExpressions = p.getSecond();
-
-			// Check if all the types can actually parse
-			for (NonNullPair<ClassInfo<?>, Boolean> patternExpression : patternExpressions) {
-				if (!canParse(patternExpression.getFirst()))
-					return false;
-				if (patternExpression.getSecond())
-					single = false;
-			}
-
-			// Escape '¦' and ':' (used for parser tags/marks)
-			pattern = escapeParseTags(pattern);
-
-			// Compile the SkriptPattern
-			try {
-				this.pattern = PatternCompiler.compile(pattern);
-			} catch (MalformedPatternException exception) {
-				// Some checks already done by validatePattern above, but just making sure
-				Skript.error("Malformed pattern: " + exception.getMessage());
-				return false;
-			}
-
-			// If the pattern contains at most 1 type, and this type is single, this expression is single
-			if (single)
-				this.single = this.pattern.countNonNullTypes() <= 1;
+			this.pattern = p.getFirst();
+			plurals = p.getSecond();
 		} else {
-			classInfo = ((Literal<ClassInfo<?>>) exprs[1]).getSingle();
-
-			if (classInfo.getC() == String.class) {
-				Skript.error("Parsing as text is useless as only things that are already text may be parsed");
+			c = ((Literal<ClassInfo<?>>) exprs[1]).getSingle();
+			final Parser<?> p = c.getParser();
+			if (p == null || !p.canParse(ParseContext.COMMAND)) { // TODO special parse context?
+				Skript.error("Text cannot be parsed as " + c.getName().withIndefiniteArticle(), ErrorQuality.SEMANTIC_ERROR);
 				return false;
 			}
-
-			// Make sure the ClassInfo has a parser
-			return canParse(classInfo);
 		}
 		return true;
 	}
-
+	
+	@SuppressWarnings("null")
 	@Override
 	@Nullable
-	@SuppressWarnings("null")
-	protected Object[] get(Event event) {
-		String text = this.text.getSingle(event);
-		if (text == null)
+	protected Object[] get(final Event e) {
+		final String t = text.getSingle(e);
+		if (t == null)
 			return null;
-
-		ParseLogHandler parseLogHandler = SkriptLogger.startParseLogHandler();
+		final ParseLogHandler h = SkriptLogger.startParseLogHandler();
 		try {
-			lastError = null;
-
-			if (classInfo != null) {
-				Parser<?> parser = classInfo.getParser();
-				assert parser != null; // checked in init()
-
-				// Parse and return value
-				Object value = parser.parse(text, ParseContext.PARSE);
-				if (value != null) {
-					Object[] valueArray = (Object[]) Array.newInstance(classInfo.getC(), 1);
-					valueArray[0] = value;
-					return valueArray;
+			if (c != null) {
+				final Parser<?> p = c.getParser();
+				assert p != null; // checked in init()
+				final Object o = p.parse(t, ParseContext.COMMAND);
+				if (o != null) {
+					final Object[] one = (Object[]) Array.newInstance(c.getC(), 1);
+					one[0] = o;
+					return one;
 				}
 			} else {
-				assert pattern != null && patternExpressions != null;
-
-				MatchResult matchResult = pattern.match(text, SkriptParser.PARSE_LITERALS, ParseContext.PARSE);
-
-				if (matchResult != null) {
-					Expression<?>[] exprs = matchResult.getExpressions();
-
-					assert patternExpressions.length == exprs.length;
-
-					if (flatten) {
-						List<Object> values = new ArrayList<>();
-						for (int i = 0; i < exprs.length; i++) {
-							if (exprs[i] != null) {
-								if (patternExpressions[i].getSecond()) {
-									values.addAll(Arrays.asList(exprs[i].getArray(null)));
-									continue;
-								}
-								values.add(exprs[i].getSingle(null));
-							}
-						}
-						return values.toArray();
-					}
-
-					int nonNullExprCount = 0;
-					for (Expression<?> expr : exprs) {
-						if (expr != null) // Ignore missing optional parts
-							nonNullExprCount++;
-					}
-
-					Object[] values = new Object[nonNullExprCount];
-
-					int valueIndex = 0;
-					for (int i = 0; i < exprs.length; i++) {
-						if (exprs[i] != null) {
-							//noinspection DataFlowIssue
-							values[valueIndex] = patternExpressions[i].getSecond() ? exprs[i].getArray(null) : exprs[i].getSingle(null);
-							valueIndex++;
-						}
-					}
-
-					return values;
+				assert pattern != null && plurals != null;
+				final ParseResult r = SkriptParser.parse(t, pattern);
+				if (r != null) {
+					assert plurals.length == r.exprs.length;
+					final Object[] os = new Object[r.exprs.length];
+					for (int i = 0; i < os.length; i++)
+						os[i] = plurals[i] ? r.exprs[i].getArray(null) : r.exprs[i].getSingle(null);
+					return os;
 				}
 			}
-
-			LogEntry error = parseLogHandler.getError();
-			if (error != null) {
-				lastError = error.toString();
-			} else {
-				if (classInfo != null) {
-					lastError = text + " could not be parsed as " + classInfo.getName().withIndefiniteArticle();
-				} else {
-					lastError = text + " could not be parsed as \"" + pattern + "\"";
-				}
-			}
+			final LogEntry err = h.getError();
+			lastError = err != null ? err.getMessage() : null;
 			return null;
 		} finally {
-			parseLogHandler.clear();
-			parseLogHandler.printLog();
+			h.clear();
+			h.printLog();
 		}
 	}
-
+	
 	@Override
 	public boolean isSingle() {
-		return single;
+		return pattern == null;
 	}
-
+	
 	@Override
-	public Class<?> getReturnType() {
-		if (classInfo != null)
-			return classInfo.getC();
-		return patternExpressions.length == 1 ? patternExpressions[0].getFirst().getC() : Object.class;
+	public Class<? extends Object> getReturnType() {
+		return c != null ? c.getC() : Object[].class;
 	}
-
+	
 	@Override
-	public String toString(@Nullable Event event, boolean debug) {
-		return text.toString(event, debug) + " parsed as " + (classInfo != null ? classInfo.toString(Language.F_INDEFINITE_ARTICLE) : pattern);
+	public String toString(final @Nullable Event e, final boolean debug) {
+		return text.toString(e, debug) + " parsed as " + (c != null ? c.toString(Language.F_INDEFINITE_ARTICLE) : pattern);
 	}
-
-	private static boolean canParse(ClassInfo<?> classInfo) {
-		Parser<?> parser = classInfo.getParser();
-		if (parser == null || !parser.canParse(ParseContext.PARSE)) {
-			Skript.error("Text cannot be parsed as " + classInfo.getName().withIndefiniteArticle());
-			return false;
-		}
-		return true;
-	}
-
-	/**
-	 * Escapes parse tags & parse mark characters in the given pattern.
-	 */
-	private static String escapeParseTags(String pattern) {
-		StringBuilder b = new StringBuilder(pattern.length());
-
-		for (int i = 0; i < pattern.length(); i++) {
-			char c = pattern.charAt(i);
-
-			if (c == '\\') {
-				// Escape character, add it and directly add the next character
-				b.append(c);
-				b.append(pattern.charAt(i + 1));
-				i++;
-			} else if (c == '¦' || c == ':') {
-				// Escape parse tags & marks
-				b.append("\\");
-				b.append(c);
-			} else {
-				// Add regular characters
-				b.append(c);
-			}
-		}
-
-		return b.toString();
-	}
-
+	
 }

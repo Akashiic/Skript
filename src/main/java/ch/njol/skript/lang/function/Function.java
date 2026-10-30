@@ -1,204 +1,141 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.lang.function;
-
-import ch.njol.skript.SkriptConfig;
-import ch.njol.skript.classes.ClassInfo;
-import ch.njol.skript.lang.Expression;
-import ch.njol.skript.lang.KeyProviderExpression;
-import ch.njol.skript.lang.KeyedValue;
-import ch.njol.util.coll.CollectionUtils;
-import org.bukkit.Bukkit;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-import org.skriptlang.skript.common.function.DefaultFunction;
-import org.skriptlang.skript.common.function.FunctionArguments;
-import org.skriptlang.skript.common.function.Parameter.Modifier;
-import org.skriptlang.skript.common.function.Parameters;
-import org.skriptlang.skript.common.function.ScriptParameter;
 
 import java.util.Arrays;
 
+import org.bukkit.Bukkit;
+import org.eclipse.jdt.annotation.Nullable;
+
+import ch.njol.skript.classes.ClassInfo;
+import ch.njol.util.coll.CollectionUtils;
+
 /**
- * Functions can be called using arguments.
+ * @author Peter Güttinger
  */
-public abstract class Function<T> implements org.skriptlang.skript.common.function.Function<T> {
-
-	/**
-	 * Execute functions even when some parameters are not present.
-	 * Field is updated by SkriptConfig in case of reloads.
-	 */
-	public static boolean executeWithNulls = SkriptConfig.executeFunctionsWithMissingParams.value();
-
-	private final Signature<T> sign;
-
-	public Function(Signature<T> sign) {
-		this.sign = sign;
+public abstract class Function<T> {
+	
+	final String name;
+	
+	final Parameter<?>[] parameters;
+	
+	@Nullable
+	final ClassInfo<T> returnType;
+	final boolean single;
+	
+	public Function(final String name, final Parameter<?>[] parameters, final @Nullable ClassInfo<T> returnType, final boolean single) {
+		this.name = name;
+		this.parameters = parameters;
+		this.returnType = returnType;
+		this.single = single;
 	}
-
-	/**
-	 * Gets signature of this function that contains all metadata about it.
-	 * @return A function signature.
-	 */
-	public Signature<T> getSignature() {
-		return sign;
-	}
-
-	@Override
-	public org.skriptlang.skript.common.function.@NotNull Signature<T> signature() {
-		return sign;
-	}
-
+	
 	public String getName() {
-		return sign.getName();
+		return name;
 	}
-
-	/**
-	 * @deprecated Use {@link Signature#parameters()} and {@link Parameters#all()} instead.
-	 */
-	@Deprecated(forRemoval = true, since = "2.14")
+	
+	@SuppressWarnings("null")
+	public Parameter<?> getParameter(final int index) {
+		return parameters[index];
+	}
+	
 	public Parameter<?>[] getParameters() {
-		return Arrays.stream(sign.getParameters()).map(
-				Signature::toOldParameter)
-				.toArray(Parameter[]::new);
+		return parameters;
 	}
-
-	/**
-	 * @deprecated Use {@link Signature#parameters()} and {@link Parameters#get(int)} instead.
-	 */
-	@Deprecated(forRemoval = true, since = "2.14")
-	public Parameter<?> getParameter(int index) {
-		return Signature.toOldParameter(sign.getParameter(index));
+	
+	@Nullable
+	public ClassInfo<T> getReturnType() {
+		return returnType;
 	}
-
+	
 	public boolean isSingle() {
-		return sign.isSingle();
+		return single;
 	}
-
-	public @Nullable ClassInfo<T> getReturnType() {
-		return sign.getReturnType();
+	
+	// TODO allow setting parameters by name
+	public int getMinParameters() {
+		for (int i = parameters.length - 1; i >= 0; i--) {
+			if (parameters[i].def == null)
+				return i + 1;
+		}
+		return 0;
 	}
-
+	
+	public int getMaxParameters() {
+		return parameters.length;
+	}
+	
+	// FIXME what happens with a delay in a function?
+	
 	/**
-	 * @return The return type of this signature. Returns null for no return type.
+	 * @param params An array with at least {@link #getMinParameters()} elements and at most {@link #getMaxParameters()} elements.
+	 * @return The result of the function
 	 */
-	public Class<T> type() {
-		return sign.returnType();
-	}
-
-	/**
-	 * @deprecated Use {@link #execute(FunctionEvent, FunctionArguments)} instead.
-	 */
-	@Deprecated(forRemoval = true, since = "2.14")
-	public final T @Nullable [] execute(Object[][] params) {
-		FunctionEvent<? extends T> event = new FunctionEvent<>(this);
-
-		// Call function event only if requested by addon
-		// Functions may be called VERY often, so this might have performance impact
+	@SuppressWarnings("null")
+	@Nullable
+	public final T[] execute(final Object[][] params) {
+		final FunctionEvent<? extends T> e = new FunctionEvent<>(this);
+		
 		if (Functions.callFunctionEvents)
-			Bukkit.getPluginManager().callEvent(event);
-
-		// Parameters taken by the function.
-		Parameters parameters = sign.parameters();
-		if (params.length > parameters.size()) {
-			// Too many parameters, should have failed to parse
+			Bukkit.getPluginManager().callEvent(e);
+		
+		if (params.length > parameters.length) {
 			assert false : params.length;
 			return null;
 		}
-
-		// If given less that max amount of parameters, pad remaining with nulls
-		Object[][] parameterValues = params.length < parameters.size() ? Arrays.copyOf(params, parameters.size()) : params;
-
-		int i = 0;
-		// Execute parameters or default value expressions
-		for (org.skriptlang.skript.common.function.Parameter<?> parameter : parameters.all()) {
-			Object[] parameterValue = parameter.hasModifier(Modifier.KEYED) ? convertToKeyed(parameterValues[i]) : parameterValues[i];
-
-			Expression<?> defaultValueExpr;
-			if (parameter instanceof Parameter<?> script) {
-				defaultValueExpr = script.def;
-			} else if (parameter instanceof ScriptParameter<?> script) {
-				defaultValueExpr = script.defaultValue();
-			} else {
-				defaultValueExpr = null;
-			}
-
-			// see https://github.com/SkriptLang/Skript/pull/8135
-			if ((parameterValues[i] == null || parameterValues[i].length == 0) && parameter.hasModifier(Modifier.KEYED) && defaultValueExpr != null) {
-				Object[] defaultValue = defaultValueExpr.getArray(event);
-				if (defaultValue.length == 1) {
-					parameterValue = KeyedValue.zip(defaultValue, null);
-				} else {
-					parameterValue = defaultValue;
-				}
-			} else if (parameterValue == null && !(this instanceof DefaultFunction<?>)) { // Go for default value
-				assert defaultValueExpr != null; // Should've been parse error
-				//noinspection unchecked,rawtypes
-				parameterValue = parameter.evaluate((Expression) defaultValueExpr, event);
-			}
-
-			/*
-			 * Cancel execution of function if one of parameters produces null.
-			 * This used to be the default behavior, but since scripts don't
-			 * really have a concept of nulls, it was changed. The config
-			 * option may be removed in future.
-			 */
-			if (!(this instanceof DefaultFunction<?>) && !executeWithNulls && parameterValue != null && parameterValue.length == 0)
+		final Object[][] ps = params.length < parameters.length ? Arrays.copyOf(params, parameters.length) : params;
+		assert ps != null;
+		for (int i = 0; i < parameters.length; i++) {
+			final Parameter<?> p = parameters[i];
+			final Object[] val = i < params.length ? params[i] : p.def != null ? p.def.getArray(e) : null;
+			if (val == null || val.length == 0)
 				return null;
-			parameterValues[i] = parameterValue;
-			i++;
+			ps[i] = val;
 		}
-
-		// Execute function contents
-		T[] r = execute(event, parameterValues);
-		// Assert that return value type makes sense
-		assert sign.getReturnType() == null ? r == null : r == null
-			|| (r.length <= 1 || !sign.isSingle()) && !CollectionUtils.contains(r, null)
-			&& sign.getReturnType().getC().isAssignableFrom(r.getClass().getComponentType())
-			: this + "; " + Arrays.toString(r);
-
-		// If return value is empty array, return null
-		// Otherwise, return the value (nullable)
+		final T[] r = execute(e, ps);
+		assert returnType == null ? r == null : r == null || (r.length <= 1 || !single) && !CollectionUtils.contains(r, null) && returnType.getC().isAssignableFrom(r.getClass().getComponentType()) : this + "; " + Arrays.toString(r);
 		return r == null || r.length > 0 ? r : null;
 	}
-
-	private KeyedValue<Object> @Nullable [] convertToKeyed(Object[] values) {
-		if (values == null)
-			return null;
-
-		if (values.length == 0)
-			//noinspection unchecked
-			return new KeyedValue[0];
-
-		if (values instanceof KeyedValue[])
-			//noinspection unchecked
-			return (KeyedValue<Object>[]) values;
-
-		return KeyedValue.zip(values, null);
-	}
-
+	
 	/**
-	 * @deprecated Use {@link #execute(FunctionEvent, FunctionArguments)} instead.
+	 * @param e
+	 * @param params An array containing as many arrays as this function has parameters. The contained arrays are neither null nor empty, and are of type Object[] (i.e. not of the
+	 *            actual parameters' types).
+	 * @return Whatever this function is supposed to return. May be null or empty, but must not contain null elements.
 	 */
-	@Deprecated(since = "2.14", forRemoval = true)
-	public abstract T @Nullable [] execute(FunctionEvent<?> event, Object[][] params);
-
-	/**
-	 * @return The keys of the values returned by this function, or null if no keys are returned.
-	 */
-	public @NotNull String @Nullable [] returnedKeys() {
-		return null;
-	}
-
-	/**
-	 * Resets the return value of the {@code Function}.
-	 * Should be called right after execution.
-	 *
-	 * @return Whether or not the return value was successfully reset
-	 */
-	public abstract boolean resetReturnValue();
-
+	@Nullable
+	public abstract T[] execute(FunctionEvent e, final Object[][] params);
+	
 	@Override
 	public String toString() {
-		return (sign.isLocal() ? "local " : "") + "function " + sign.getName();
+		return "function " + name;
 	}
-
+	
+	/**
+	 * Generates a signature for this function. Should only be used to validate
+	 * (Java) function references.
+	 * @return Signature.
+	 */
+	@SuppressWarnings("null")
+	public Signature<T> getSignature() {
+		return new Signature<>("unknown", name, Arrays.asList(parameters), returnType, null, single);
+	}
+	
 }

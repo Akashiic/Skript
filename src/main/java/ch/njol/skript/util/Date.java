@@ -1,135 +1,106 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.util;
 
-import ch.njol.skript.SkriptConfig;
-import ch.njol.yggdrasil.YggdrasilSerializable;
-import org.jetbrains.annotations.Nullable;
-
+import java.time.ZoneId;
 import java.util.TimeZone;
 
-public class Date extends java.util.Date implements YggdrasilSerializable {
+import org.eclipse.jdt.annotation.Nullable;
 
-	/**
-	 * Get a new Date with the current time
-	 *
-	 * @return New date with the current time
-	 */
-	public static Date now() {
-		return new Date();
-	}
+import ch.njol.skript.Skript;
+import ch.njol.skript.SkriptConfig;
+import ch.njol.yggdrasil.YggdrasilSerializable;
 
+/**
+ * @author Peter Güttinger
+ */
+public class Date implements Comparable<Date>, YggdrasilSerializable {
+	
 	/**
-	 * Converts a {@link java.util.Date} to a {@link Date}.
-	 *
-	 * @param date The {@link java.util.Date} to convert.
-	 * @return The converted date.
+	 * Timestamp. Should always be in computer time/UTC/GMT+0.
 	 */
-	public static Date fromJavaDate(java.util.Date date) {
-		if (date instanceof Date ours)
-			return ours;
-		return new Date(date.getTime());
-	}
-
-	/**
-	 * Creates a new Date with the current time.
-	 */
+	private long timestamp;
+	
 	public Date() {
-		super();
+		this(System.currentTimeMillis());
 	}
-
-	/**
-	 * Creates a new Date with the provided timestamp.
-	 *
-	 * @param timestamp The timestamp in milliseconds.
-	 */
-	public Date(long timestamp) {
-		super(timestamp);
+	
+	public Date(final long timestamp) {
+		this.timestamp = timestamp;
 	}
-
-	/**
-	 * Creates a new Date with the provided timestamp and timezone.
-	 *
-	 * @param timestamp The timestamp in milliseconds.
-	 * @param zone The timezone to use.
-	 */
-	public Date(long timestamp, TimeZone zone) {
-		super(timestamp - zone.getOffset(timestamp));
+	
+	public Date(final long timestamp, final TimeZone zone) {
+		final long offset = zone.getOffset(timestamp);
+		this.timestamp = timestamp - offset;
 	}
-
-	/**
-	 * Add a {@link Timespan} to this date
-	 *
-	 * @param other Timespan to add
-	 */
-	public void add(Timespan other) {
-		setTime(getTime() + other.getAs(Timespan.TimePeriod.MILLISECOND));
+	
+	public Timespan difference(final Date other) {
+		return new Timespan(Math.abs(timestamp - other.timestamp));
 	}
-
-	/**
-	 * Subtract a {@link Timespan} from this date
-	 *
-	 * @param other Timespan to subtract
-	 */
-	public void subtract(Timespan other) {
-		setTime(getTime() - other.getAs(Timespan.TimePeriod.MILLISECOND));
-	}
-
-	/**
-	 * Returns the difference between this date and another date as a {@link Timespan}.
-	 *
-	 * @param other The other date.
-	 * @return The difference between the provided dates as a {@link Timespan}.
-	 */
-	public Timespan difference(Date other) {
-		return new Timespan(Math.abs(getTime() - other.getTime()));
-	}
-
-	/**
-	 * Get a new instance of this Date with the added timespan
-	 *
-	 * @param other Timespan to add to this Date
-	 * @return New Date with the added timespan
-	 */
-	public Date plus(Timespan other) {
-		return new Date(getTime() + other.getAs(Timespan.TimePeriod.MILLISECOND));
-	}
-
-	/**
-	 * Get a new instance of this Date with the subtracted timespan
-	 *
-	 * @param other Timespan to subtract from this Date
-	 * @return New Date with the subtracted timespan
-	 */
-	public Date minus(Timespan other) {
-		return new Date(getTime() - other.getAs(Timespan.TimePeriod.MILLISECOND));
-	}
-
-	/**
-	 * @deprecated Use {@link #getTime()} instead.
-	 */
-	@Deprecated(since = "2.10.0", forRemoval = true)
-	public long getTimestamp() {
-		return getTime();
-	}
-
+	
 	@Override
-	public int hashCode() {
-		return 31 + Long.hashCode(getTime());
+	public int compareTo(final @Nullable Date other) {
+		final long d = other == null ? timestamp : timestamp - other.timestamp;
+		return d < 0 ? -1 : d > 0 ? 1 : 0;
 	}
-
-	@Override
-	public boolean equals(@Nullable Object obj) {
-		if (obj == null)
-			return false;
-		if (!(obj instanceof java.util.Date other))
-			return false;
-		if (this == obj)
-			return true;
-		return getTime() == other.getTime();
-	}
-
+	
 	@Override
 	public String toString() {
-		return SkriptConfig.formatDate(getTime());
+		return SkriptConfig.formatDate(timestamp);
 	}
-
+	
+	/**
+	 * @return The timestamp in milliseconds
+	 */
+	public long getTimestamp() {
+		return timestamp;
+	}
+	
+	public void add(final Timespan span) {
+		timestamp += span.getMilliSeconds();
+	}
+	
+	public void subtract(final Timespan span) {
+		timestamp -= span.getMilliSeconds();
+	}
+	
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + (int) (timestamp ^ (timestamp >>> 32));
+		return result;
+	}
+	
+	@Override
+	public boolean equals(final @Nullable Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (!(obj instanceof Date))
+			return false;
+		final Date other = (Date) obj;
+		if (timestamp != other.timestamp)
+			return false;
+		return true;
+	}
+	
 }

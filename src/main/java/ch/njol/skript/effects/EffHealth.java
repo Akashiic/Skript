@@ -1,200 +1,143 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.effects;
 
+import org.bukkit.entity.LivingEntity;
+import org.bukkit.event.Event;
+import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
+import org.bukkit.inventory.ItemStack;
+import org.eclipse.jdt.annotation.Nullable;
+
 import ch.njol.skript.Skript;
-import ch.njol.skript.aliases.ItemType;
-import ch.njol.skript.bukkitutil.DamageUtils;
 import ch.njol.skript.bukkitutil.HealthUtils;
-import ch.njol.skript.bukkitutil.ItemUtils;
-import ch.njol.skript.config.Node;
+import ch.njol.skript.classes.Changer.ChangeMode;
+import ch.njol.skript.classes.Changer.ChangerUtils;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
-import ch.njol.skript.doc.RequiredPlugins;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.lang.Effect;
 import ch.njol.skript.lang.Expression;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
-import ch.njol.skript.lang.SyntaxStringBuilder;
-import ch.njol.skript.util.Patterns;
-import ch.njol.skript.util.slot.Slot;
+import ch.njol.skript.util.Slot;
 import ch.njol.util.Kleenean;
-import ch.njol.util.Math2;
-import org.bukkit.damage.DamageSource;
-import org.bukkit.entity.Damageable;
-import org.bukkit.event.Event;
-import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
-import org.bukkit.inventory.ItemStack;
-import org.jetbrains.annotations.Nullable;
-import org.skriptlang.skript.log.runtime.SyntaxRuntimeErrorProducer;
 
-import java.util.function.Consumer;
-
+/**
+ * @author Peter Güttinger
+ */
 @Name("Damage/Heal/Repair")
-@Description({
-	"Damage, heal, or repair an entity or item.",
-	"Servers running Spigot 1.20.4+ can optionally choose to specify a fake damage cause."
-})
-@Example("damage player by 5 hearts")
-@Example("damage player by 3 hearts with fake cause fall")
-@Example("heal the player")
-@Example("repair tool of player")
-@Since("1.0, 2.10 (damage cause)")
-@RequiredPlugins("Spigot 1.20.4+ (for damage cause)")
-public class EffHealth extends Effect implements SyntaxRuntimeErrorProducer {
-
-	private enum EffectType {
-		DAMAGE, HEAL, REPAIR
-	}
-
-	// TODO: Remove when 1.20.4+ is minimum supported
-	private static final boolean SUPPORTS_DAMAGE_SOURCE = Skript.classExists("org.bukkit.damage.DamageSource");
-
-	private static final Patterns<EffectType> PATTERNS;
-
+@Description("Damage/Heal/Repair an entity, or item stack.")
+@Examples({"damage player by 5 hearts",
+		"heal the player",
+		"repair tool of player"})
+@Since("1.0")
+public class EffHealth extends Effect {
+	
 	static {
-		if (!SUPPORTS_DAMAGE_SOURCE) {
-			PATTERNS = new Patterns<>(new Object[][]{
-				{"damage %livingentities/itemtypes/slots% by %number% [heart[s]]", EffectType.DAMAGE},
-				{"heal %livingentities% [by %-number% [heart[s]]]", EffectType.HEAL},
-				{"repair %itemtypes/slots% [by %-number%]", EffectType.REPAIR}
-			});
-		} else {
-			PATTERNS = new Patterns<>(new Object[][]{
-				{"damage %livingentities/itemtypes/slots% by %number% [heart[s]]", EffectType.DAMAGE},
-				{"damage %livingentities% by %number% [heart[s]] with [fake] [damage] cause %damagecause%", EffectType.DAMAGE},
-				{"damage %livingentities% by %number% [heart[s]] (using|with) %damagesource% [as the source]", EffectType.DAMAGE},
-				{"heal %livingentities% [by %-number% [heart[s]]]", EffectType.HEAL},
-				{"repair %itemtypes/slots% [by %-number%]", EffectType.REPAIR}
-			});
-		}
-
-		Skript.registerEffect(EffHealth.class, PATTERNS.getPatterns());
+		Skript.registerEffect(EffHealth.class,
+				"damage %slots/livingentities/itemstack% by %number% [heart[s]][ with fake cause %-damagecause%]",
+				"heal %livingentities% [by %-number% [heart[s]]]",
+				"repair %slots/itemstack% [by %-number%]");
 	}
-
+	
+	@SuppressWarnings("null")
 	private Expression<?> damageables;
-	private @Nullable Expression<Number> amount = null;
-	private EffectType effectType;
-	private @Nullable Expression<?> damageCause = null;
-	private @Nullable Expression<?> damageSource = null;
-	private Node node;
-
+	@Nullable
+	private Expression<Number> damage;
+	private boolean heal = false;
+	@Nullable
+	private Expression<DamageCause> dmgCause;
+	
+	@SuppressWarnings({"unchecked", "null"})
 	@Override
-	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult) {
-		effectType = PATTERNS.getInfo(matchedPattern);
-		damageables = exprs[0];
-		//noinspection unchecked
-		amount = (Expression<Number>) exprs[1];
-
-		if (effectType == EffectType.DAMAGE && SUPPORTS_DAMAGE_SOURCE) {
-			if (matchedPattern == 1)  {
-				damageCause = exprs[2];
-			} else if (matchedPattern == 2) {
-				damageSource = exprs[2];
+	public boolean init(final Expression<?>[] vars, final int matchedPattern, final Kleenean isDelayed, final ParseResult parser) {
+		damageables = vars[0];
+		if (ItemStack.class.isAssignableFrom(damageables.getReturnType())) {
+			if (!ChangerUtils.acceptsChange(damageables, ChangeMode.SET, ItemStack.class)) {
+				Skript.error(damageables + " cannot be changed, thus it cannot be damaged or repaired.");
+				return false;
 			}
 		}
-		node = getParser().getNode();
+		damage = (Expression<Number>) vars[1];
+		heal = (matchedPattern >= 1);
+		
+		if (vars.length >= 3) dmgCause = (Expression<DamageCause>) vars[2];
 		return true;
 	}
-
+	
 	@Override
-	protected void execute(Event event) {
-		Double amount = null;
-		if (this.amount != null) {
-			Number amountPostCheck = this.amount.getSingle(event);
-			if (amountPostCheck == null)
+	public void execute(final Event e) {
+		double damage = 0;
+		if (this.damage != null) {
+			final Number n = this.damage.getSingle(e);
+			if (n == null)
 				return;
-			amount = amountPostCheck.doubleValue();
+			damage = n.doubleValue();
 		}
-
-		Object damageData = null;
-		if (damageCause != null) {
-			damageData = damageCause.getSingle(event);
-		} else if (damageSource != null) {
-			damageData = damageSource.getSingle(event);
-		}
-
-		for (Object obj : this.damageables.getArray(event)) {
-			if (obj instanceof ItemType itemType) {
-				handleItem(itemType.getRandom(), amount, integer -> ItemUtils.setDamage(itemType, integer));
-			} else if (obj instanceof Slot slot) {
-				ItemStack itemStack = slot.getItem();
-				if (itemStack == null)
-					continue;
-				handleItem(itemStack, amount, integer -> {
-					ItemUtils.setDamage(itemStack, integer);
-					slot.setItem(itemStack);
-				});
-			} else if (obj instanceof Damageable damageable) {
-				handleDamageable(damageable, amount, damageData);
-			}
-		}
-	}
-
-	private void handleItem(ItemStack itemStack, @Nullable Double amount, Consumer<Integer> consumer) {
-		Integer value = null;
-		if (effectType == EffectType.DAMAGE) {
-			assert amount != null;
-			value = Math2.fit(0, ItemUtils.getDamage(itemStack) + amount.intValue(), ItemUtils.getMaxDamage(itemStack));
-		} else if (effectType == EffectType.REPAIR) {
-			value = amount == null ?
-				0 : Math2.fit(0, ItemUtils.getDamage(itemStack) - amount.intValue(), ItemUtils.getMaxDamage(itemStack));
-		}
-		if (value != null)
-			consumer.accept(value);
-	}
-
-	private void handleDamageable(Damageable damageable, @Nullable Double amount, @Nullable Object object) {
-		if (effectType == EffectType.DAMAGE) {
-			assert amount != null;
-			if (SUPPORTS_DAMAGE_SOURCE && object != null) {
-				if (object instanceof DamageCause damageCause) {
-					HealthUtils.damage(damageable, amount, DamageUtils.getDamageSourceFromCause(damageCause));
-					return;
-				} else if (object instanceof DamageSource damageSource) {
-					HealthUtils.damage(damageable, amount, damageSource);
-					return;
-				}
-			}
-			HealthUtils.damage(damageable, amount);
-		} else if (effectType == EffectType.HEAL) {
-			if (amount == null) {
-				HealthUtils.heal(damageable, HealthUtils.getMaxHealth(damageable));
+		if (ItemStack.class.isAssignableFrom(damageables.getReturnType())) {
+			ItemStack i = (ItemStack) damageables.getSingle(e);
+			if (i == null)
+				return;
+			if (this.damage == null) {
+				i.setDurability((short) 0);
 			} else {
-				HealthUtils.heal(damageable, amount);
+				i.setDurability((short) Math.max(0, i.getDurability() + (heal ? -damage : damage)));
+				if (i.getDurability() >= i.getType().getMaxDurability())
+					i = null;
 			}
+			damageables.change(e, new ItemStack[] {i}, ChangeMode.SET);
+			return;
 		}
-	}
-
-	@Override
-	public Node getNode() {
-		return node;
-	}
-
-	@Override
-	public String toString(@Nullable Event event, boolean debug) {
-		SyntaxStringBuilder builder = new SyntaxStringBuilder(event, debug);
-		switch (effectType) {
-			case DAMAGE -> {
-				assert amount != null;
-				builder.append("damage", damageables, "by", amount);
-				if (damageCause != null) {
-					builder.append("with fake damage cause", damageCause);
-				} else if (damageSource != null) {
-					builder.append("using", damageSource);
+		for (final Object damageable : damageables.getArray(e)) {
+			if (damageable instanceof Slot) {
+				ItemStack is = ((Slot) damageable).getItem();
+				if (is == null)
+					continue;
+				if (this.damage == null) {
+					is.setDurability((short) 0);
+				} else {
+					is.setDurability((short) Math.max(0, is.getDurability() + (heal ? -damage : damage)));
+					if (is.getDurability() >= is.getType().getMaxDurability())
+						is = null;
+				}
+				((Slot) damageable).setItem(is);
+			} else if (damageable instanceof LivingEntity) {
+				if (this.damage == null) {
+					HealthUtils.setHealth((LivingEntity) damageable, HealthUtils.getMaxHealth((LivingEntity) damageable));
+				} else {
+					HealthUtils.heal((LivingEntity) damageable, (heal ? 1 : -1) * damage);
+					
+					if (!heal) {
+						DamageCause cause = DamageCause.CUSTOM;
+						if (dmgCause != null) cause = dmgCause.getSingle(e);
+						assert cause != null;
+						HealthUtils.setDamageCause((LivingEntity) damageable, cause);
+					}
 				}
 			}
-			case HEAL -> {
-				builder.append("heal", damageables);
-				if (amount != null)
-					builder.append("by", amount);
-			}
-			case REPAIR -> {
-				builder.append("repair", damageables);
-				if (amount != null)
-					builder.append("by", amount);
-			}
 		}
-		return builder.toString();
 	}
-
+	
+	@Override
+	public String toString(final @Nullable Event e, final boolean debug) {
+		return (heal ? "heal " : "damage ") + damageables.toString(e, debug) + (damage != null ? " by " + damage.toString(e, debug) : "");
+	}
+	
 }

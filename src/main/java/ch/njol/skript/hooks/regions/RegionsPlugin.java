@@ -1,19 +1,36 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.hooks.regions;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Set;
 
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
-import ch.njol.skript.Skript;
 import ch.njol.skript.hooks.Hook;
 import ch.njol.skript.hooks.regions.classes.Region;
 import ch.njol.skript.variables.Variables;
@@ -24,10 +41,6 @@ import ch.njol.yggdrasil.ClassResolver;
  */
 // REMIND support more plugins?
 public abstract class RegionsPlugin<P extends Plugin> extends Hook<P> {
-
-	public static final String DEPRECATION_MESSAGE =
-		"Skript's region syntaxes are deprecated and will be removed in a future release." +
-			" For WorldGuard support, we recommend using skript-worldguard: https://github.com/SkriptLang/skript-worldguard";
 	
 	public RegionsPlugin() throws IOException {}
 	
@@ -58,15 +71,12 @@ public abstract class RegionsPlugin<P extends Plugin> extends Hook<P> {
 	@Override
 	protected boolean init() {
 		plugins.add(this);
-		Skript.warning("Loaded regions hook for " + getName() + "." +
-			" Please note that Skript's region hooks are deprecated and will be removed in a future release." +
-			" For WorldGuard support, we recommend using skript-worldguard: https://github.com/SkriptLang/skript-worldguard");
 		return true;
 	}
 	
 	public abstract boolean canBuild_i(Player p, Location l);
 	
-	public static boolean canBuild(final Player p, final Location l) {
+	public final static boolean canBuild(final Player p, final Location l) {
 		for (final RegionsPlugin<?> pl : plugins) {
 			if (!pl.canBuild_i(p, l))
 				return false;
@@ -76,18 +86,10 @@ public abstract class RegionsPlugin<P extends Plugin> extends Hook<P> {
 	
 	public abstract Collection<? extends Region> getRegionsAt_i(Location l);
 	
-	public static Set<? extends Region> getRegionsAt(final Location l) {
+	public final static Set<? extends Region> getRegionsAt(final Location l) {
 		final Set<Region> r = new HashSet<>();
-		Iterator<RegionsPlugin<?>> it = plugins.iterator();
-		while (it.hasNext()) {
-			RegionsPlugin<?> pl = it.next();
-			try {
-				r.addAll(pl.getRegionsAt_i(l));
-			} catch (Throwable e) { // Unstable WorldGuard API
-				Skript.error(pl.getName() + " hook crashed and was removed to prevent future errors.");
-				e.printStackTrace();
-				it.remove();
-			}
+		for (final RegionsPlugin<?> pl : plugins) {
+			r.addAll(pl.getRegionsAt_i(l));
 		}
 		return r;
 	}
@@ -96,7 +98,7 @@ public abstract class RegionsPlugin<P extends Plugin> extends Hook<P> {
 	public abstract Region getRegion_i(World world, String name);
 	
 	@Nullable
-	public static Region getRegion(final World world, final String name) {
+	public final static Region getRegion(final World world, final String name) {
 		for (final RegionsPlugin<?> pl : plugins) {
 			return pl.getRegion_i(world, name);
 		}
@@ -105,7 +107,7 @@ public abstract class RegionsPlugin<P extends Plugin> extends Hook<P> {
 	
 	public abstract boolean hasMultipleOwners_i();
 	
-	public static boolean hasMultipleOwners() {
+	public final static boolean hasMultipleOwners() {
 		for (final RegionsPlugin<?> pl : plugins) {
 			if (pl.hasMultipleOwners_i())
 				return true;

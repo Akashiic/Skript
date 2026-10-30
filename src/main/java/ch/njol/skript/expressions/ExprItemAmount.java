@@ -1,97 +1,109 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.expressions;
 
-import ch.njol.skript.aliases.ItemType;
-import ch.njol.skript.classes.Changer.ChangeMode;
+import ch.njol.skript.Skript;
+import ch.njol.skript.classes.Changer;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
-import ch.njol.skript.expressions.base.SimplePropertyExpression;
-import ch.njol.skript.util.slot.Slot;
+import ch.njol.skript.lang.Expression;
+import ch.njol.skript.lang.ExpressionType;
+import ch.njol.skript.lang.SkriptParser;
+import ch.njol.skript.lang.util.SimpleExpression;
+import ch.njol.util.Kleenean;
 import ch.njol.util.coll.CollectionUtils;
 import org.bukkit.event.Event;
 import org.bukkit.inventory.ItemStack;
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
+@SuppressWarnings({"unchecked"})
 @Name("Item Amount")
-@Description("The amount of an <a href='#itemstack'>item stack</a>.")
-@Example("send \"You have got %item amount of player's tool% %player's tool% in your hand!\" to player")
+@Description("Gets the amount of an <a href='classes.html#itemstack'>item stack</a>.")
+@Examples("send \"You have got %item amount of player's tool% %player's tool% in your hand !\" to player")
 @Since("2.2-dev24")
-public class ExprItemAmount extends SimplePropertyExpression<Object, Long> {
+public class ExprItemAmount extends SimpleExpression<Number>{
+	
+    static {
+        Skript.registerExpression(ExprItemAmount.class, Number.class, ExpressionType.PROPERTY, "item[[ ]stack] (amount|size|number) of %itemstack%");
+    }
+    
+    @SuppressWarnings("null")
+	private Expression<ItemStack> itemStackExpression;
 
-	static {
-		register(ExprItemAmount.class, Long.class, "item[[ ]stack] (amount|size|number)", "slots/itemtypes/itemstacks");
-	}
-
+	@SuppressWarnings("null")
 	@Override
-	public Long convert(final Object item) {
-		if (item instanceof ItemType) {
-			return (long) ((ItemType) item).getAmount();
-		} else if (item instanceof Slot) {
-			return (long) ((Slot) item).getAmount();
-		} else {
-			return (long) ((ItemStack) item).getAmount();
-		}
-	}
+    public boolean init(Expression<?>[] expr, int i, Kleenean kleenean, SkriptParser.ParseResult parseResult) {
+        itemStackExpression = (Expression<ItemStack>) expr[0];
+        return true;
+    }
 
-	@Override
-	@Nullable
-	public Class<?>[] acceptChange(ChangeMode mode) {
-		switch (mode) {
-			case SET:
-			case ADD:
-			case RESET:
-			case DELETE:
-			case REMOVE:
-				return CollectionUtils.array(Long.class);
-		}
-		return null;
-	}
+    @Override
+    protected Number[] get(Event e) {
+    	ItemStack stack = itemStackExpression.getSingle(e);
+        return stack != null ? new Number[] {stack.getAmount()} : new Number[] {0};
+    }
 
-	@Override
-	public void change(Event event, @Nullable Object[] delta, ChangeMode mode) {
-		int amount = delta != null ? ((Number) delta[0]).intValue() : 0;
-		switch (mode) {
-			case REMOVE:
-				amount = -amount;
-				// fall through
-			case ADD:
-				for (Object obj : getExpr().getArray(event))
-					if (obj instanceof ItemType) {
-						ItemType item = ((ItemType) obj);
-						item.setAmount(item.getAmount() + amount);
-					} else if (obj instanceof Slot) {
-						Slot slot = ((Slot) obj);
-						slot.setAmount(slot.getAmount() + amount);
-					} else {
-						ItemStack item = ((ItemStack) obj);
-						item.setAmount(item.getAmount() + amount);
-					}
-				break;
-			case RESET:
-			case DELETE:
-				amount = 1;
-				// fall through
-			case SET:
-				for (Object obj : getExpr().getArray(event))
-					if (obj instanceof ItemType) {
-						((ItemType) obj).setAmount(amount);
-					} else if (obj instanceof Slot) {
-						((Slot) obj).setAmount(amount);
-					} else {
-						((ItemStack) obj).setAmount(amount);
-					}
-				break;
-		}
-	}
+    @Override
+    public void change(Event e, @Nullable Object[] delta, Changer.ChangeMode mode) {
+    	ItemStack stack = itemStackExpression.getSingle(e);
+    	int newAmount = delta != null ? ((Number) delta[0]).intValue() : 0;
+        if (stack != null) {
+            switch (mode) {
+                case ADD:
+                    stack.setAmount(newAmount + stack.getAmount());
+                    break;
+                case SET:
+                    stack.setAmount(newAmount);
+                    break;
+                case REMOVE:
+                    stack.setAmount(stack.getAmount() - newAmount);
+                    break;
+                case RESET:
+                    stack.setAmount(1);
+                    break;
+					//$CASES-OMITTED$
+				default:
+					break;
+            }
+        }
+    }
 
-	@Override
-	public Class<? extends Long> getReturnType() {
-		return Long.class;
-	}
+    @Override
+    public @Nullable Class<?>[] acceptChange(Changer.ChangeMode mode) {
+        return (mode != Changer.ChangeMode.REMOVE_ALL && mode != Changer.ChangeMode.DELETE) ? CollectionUtils.array(Number.class) : null;
+    }
 
-	@Override
-	protected String getPropertyName() {
-		return "item amount";
-	}
+    @Override
+    public Class<? extends Number> getReturnType() {
+        return Number.class;
+    }
+
+    @Override
+    public boolean isSingle() {
+        return true;
+    }
+
+    @Override
+    public String toString(@Nullable Event event, boolean b) {
+        return "item amount";
+    }
 }

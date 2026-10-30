@@ -1,18 +1,35 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.expressions;
 
-import ch.njol.skript.lang.EventRestrictedSyntax;
 import org.bukkit.event.Event;
 import org.bukkit.event.entity.EntityDamageEvent;
-import org.bukkit.event.player.PlayerItemDamageEvent;
-import org.bukkit.event.vehicle.VehicleDamageEvent;
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
+import ch.njol.skript.ScriptLoader;
 import ch.njol.skript.Skript;
 import ch.njol.skript.bukkitutil.HealthUtils;
 import ch.njol.skript.classes.Changer.ChangeMode;
 import ch.njol.skript.doc.Description;
 import ch.njol.skript.doc.Events;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.lang.Expression;
@@ -23,103 +40,68 @@ import ch.njol.skript.log.ErrorQuality;
 import ch.njol.util.Kleenean;
 import ch.njol.util.coll.CollectionUtils;
 
+/**
+ * @author Peter Güttinger
+ */
 @Name("Damage")
-@Description({
-	"How much damage is done in a entity/vehicle/item damage events.",
-	"For entity damage events, possibly ignoring armour, criticals and/or enchantments (remember that in Skript '1' is one full heart, not half a heart).",
-	"For items, it's the amount of durability damage the item will be taking."
-})
-@Example("""
-	on item damage:
-		event-item is any tool
-		clear damage # unbreakable tools as the damage will be 0
-	""")
-@Example("""
-	on damage:
-		increase the damage by 2
-	""")
-@Since("1.3.5, 2.8.0 (item damage event)")
-@Events({"Damage", "Vehicle Damage", "Item Damage"})
-public class ExprDamage extends SimpleExpression<Number> implements EventRestrictedSyntax {
-	
+@Description("How much damage is done in a damage event, possibly ignoring armour, criticals and/or enchantments. Can be changed (remember that in Skript '1' is one full heart, not half a heart).")
+@Examples({"increase the damage by 2"})
+@Since("1.3.5")
+@Events("damage")
+public class ExprDamage extends SimpleExpression<Double> {
 	static {
-		Skript.registerExpression(ExprDamage.class, Number.class, ExpressionType.SIMPLE, "[the] damage");
+		Skript.registerExpression(ExprDamage.class, Double.class, ExpressionType.SIMPLE, "[the] damage");
 	}
 	
 	@SuppressWarnings("null")
 	private Kleenean delay;
 	
 	@Override
-	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult) {
+	public boolean init(final Expression<?>[] exprs, final int matchedPattern, final Kleenean isDelayed, final ParseResult parseResult) {
+		if (!ScriptLoader.isCurrentEvent(EntityDamageEvent.class)) {
+			Skript.error("The expression 'damage' can only be used in damage events", ErrorQuality.SEMANTIC_ERROR);
+			return false;
+		}
 		delay = isDelayed;
 		return true;
 	}
-
-	@Override
-	public Class<? extends Event>[] supportedEvents() {
-		return CollectionUtils.array(EntityDamageEvent.class, VehicleDamageEvent.class, PlayerItemDamageEvent.class);
-	}
 	
 	@Override
 	@Nullable
-	protected Number[] get(Event event) {
-		if (!(event instanceof EntityDamageEvent || event instanceof VehicleDamageEvent || event instanceof PlayerItemDamageEvent))
-			return new Number[0];
-		
-		if (event instanceof VehicleDamageEvent)
-			return CollectionUtils.array(((VehicleDamageEvent) event).getDamage());
-		if (event instanceof PlayerItemDamageEvent)
-			return CollectionUtils.array(((PlayerItemDamageEvent) event).getDamage());
-
-		return CollectionUtils.array(HealthUtils.getDamage((EntityDamageEvent) event));
+	protected Double[] get(final Event e) {
+		if (!(e instanceof EntityDamageEvent))
+			return new Double[0];
+		return new Double[] {HealthUtils.getDamage((EntityDamageEvent) e)};
 	}
 	
+	@SuppressWarnings("unchecked")
 	@Override
 	@Nullable
-	public Class<?>[] acceptChange(ChangeMode mode) {
+	public Class<?>[] acceptChange(final ChangeMode mode) {
 		if (delay != Kleenean.FALSE) {
 			Skript.error("Can't change the damage anymore after the event has already passed");
 			return null;
 		}
-		switch (mode) {
-			case ADD:
-			case SET:
-			case DELETE:
-			case REMOVE:
-				return CollectionUtils.array(Number.class);
-			default:
-				return null;
-		}
+		if (mode == ChangeMode.REMOVE_ALL)
+			return null;
+		return CollectionUtils.array(Number.class);
 	}
 	
 	@Override
-	public void change(Event event, @Nullable Object[] delta, ChangeMode mode) throws UnsupportedOperationException {
-		if (!(event instanceof EntityDamageEvent || event instanceof VehicleDamageEvent || event instanceof PlayerItemDamageEvent))
+	public void change(final Event e, final @Nullable Object[] delta, final ChangeMode mode) throws UnsupportedOperationException {
+		if (!(e instanceof EntityDamageEvent))
 			return;
-
-		double value = delta == null ? 0 : ((Number) delta[0]).doubleValue();
+		double d = delta == null ? 0 : ((Number) delta[0]).doubleValue();
 		switch (mode) {
 			case SET:
 			case DELETE:
-				if (event instanceof VehicleDamageEvent) {
-					((VehicleDamageEvent) event).setDamage(value);
-				} else if (event instanceof PlayerItemDamageEvent) {
-					((PlayerItemDamageEvent) event).setDamage((int) value);
-				} else {
-					HealthUtils.setDamage((EntityDamageEvent) event, value);
-				}
+				HealthUtils.setDamage((EntityDamageEvent) e, d);
 				break;
 			case REMOVE:
-				value = -value;
+				d = -d;
 				//$FALL-THROUGH$
 			case ADD:
-				if (event instanceof VehicleDamageEvent) {
-					((VehicleDamageEvent) event).setDamage(((VehicleDamageEvent) event).getDamage() + value);
-				} else if (event instanceof PlayerItemDamageEvent) {
-					((PlayerItemDamageEvent) event).setDamage((int) (((PlayerItemDamageEvent) event).getDamage() + value));
-				} else {
-					HealthUtils.setDamage((EntityDamageEvent) event, HealthUtils.getDamage((EntityDamageEvent) event) + value);
-				}
+				HealthUtils.setDamage((EntityDamageEvent) e, HealthUtils.getDamage((EntityDamageEvent) e) + d);
 				break;
 			case REMOVE_ALL:
 			case RESET:
@@ -133,12 +115,12 @@ public class ExprDamage extends SimpleExpression<Number> implements EventRestric
 	}
 	
 	@Override
-	public Class<? extends Number> getReturnType() {
-		return Number.class;
+	public Class<? extends Double> getReturnType() {
+		return Double.class;
 	}
 	
 	@Override
-	public String toString(@Nullable Event event, boolean debug) {
+	public String toString(final @Nullable Event e, final boolean debug) {
 		return "the damage";
 	}
 	

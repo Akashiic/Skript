@@ -1,9 +1,33 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.expressions;
+
+import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
+import org.bukkit.event.entity.FoodLevelChangeEvent;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.classes.Changer.ChangeMode;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.effects.Delay;
@@ -11,25 +35,21 @@ import ch.njol.skript.expressions.base.PropertyExpression;
 import ch.njol.skript.lang.Expression;
 import ch.njol.skript.lang.ExpressionType;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
+import ch.njol.skript.util.Getter;
 import ch.njol.util.Kleenean;
 import ch.njol.util.Math2;
 import ch.njol.util.coll.CollectionUtils;
-import org.bukkit.entity.Player;
-import org.bukkit.event.Event;
-import org.bukkit.event.entity.FoodLevelChangeEvent;
-import org.jetbrains.annotations.Nullable;
 
 /**
  * @author Peter Güttinger
  */
 @Name("Food Level")
 @Description("The food level of a player from 0 to 10. Has several aliases: food/hunger level/meter/bar. ")
-@Example("set the player's food level to 10")
+@Examples({"set the player's food level to 10"})
 @Since("1.0")
-public class ExprFoodLevel extends PropertyExpression<Player, Number> {
-	
+public class ExprFoodLevel extends PropertyExpression<Player, Float> {
 	static {
-		Skript.registerExpression(ExprFoodLevel.class, Number.class, ExpressionType.PROPERTY, "[the] (food|hunger)[[ ](level|met(er|re)|bar)] [of %players%]", "%players%'[s] (food|hunger)[[ ](level|met(er|re)|bar)]");
+		Skript.registerExpression(ExprFoodLevel.class, Float.class, ExpressionType.PROPERTY, "[the] (food|hunger)[[ ](level|met(er|re)|bar)] [of %player%]", "%player%'[s] (food|hunger)[[ ](level|met(er|re)|bar)]", "feed [the] %player%");
 	}
 	
 	@SuppressWarnings({"unchecked", "null"})
@@ -40,19 +60,22 @@ public class ExprFoodLevel extends PropertyExpression<Player, Number> {
 	}
 	
 	@Override
-	protected Number[] get(Event event, Player[] source) {
-		return get(source, player -> {
-			if (getTime() >= 0 && event instanceof FoodLevelChangeEvent foodLevelChangeEvent
-				&& player.equals(foodLevelChangeEvent.getEntity()) && !Delay.isDelayed(event)) {
-				return 0.5f * foodLevelChangeEvent.getFoodLevel();
+	protected Float[] get(final Event e, final Player[] source) {
+		return get(source, new Getter<Float, Player>() {
+			@Override
+			public Float get(final Player p) {
+				if (getTime() >= 0 && e instanceof FoodLevelChangeEvent && p.equals(((FoodLevelChangeEvent) e).getEntity()) && !Delay.isDelayed(e)) {
+					return 0.5f * ((FoodLevelChangeEvent) e).getFoodLevel();
+				} else {
+					return 0.5f * p.getFoodLevel();
+				}
 			}
-			return 0.5f * player.getFoodLevel();
 		});
 	}
 	
 	@Override
-	public Class<? extends Number> getReturnType() {
-		return Number.class;
+	public Class<Float> getReturnType() {
+		return Float.class;
 	}
 	
 	@Override
@@ -60,6 +83,7 @@ public class ExprFoodLevel extends PropertyExpression<Player, Number> {
 		return "the food level of " + getExpr().toString(e, debug);
 	}
 	
+	@SuppressWarnings("unchecked")
 	@Override
 	@Nullable
 	public Class<?>[] acceptChange(final ChangeMode mode) {

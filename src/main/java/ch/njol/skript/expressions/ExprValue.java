@@ -1,126 +1,84 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.expressions;
 
-import ch.njol.skript.Skript;
-import ch.njol.skript.SkriptConfig;
-import ch.njol.skript.classes.Changer.ChangeMode;
-import ch.njol.skript.classes.ClassInfo;
-import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
-import ch.njol.skript.doc.Name;
-import ch.njol.skript.doc.Since;
-import ch.njol.skript.expressions.base.SimplePropertyExpression;
+import java.lang.reflect.Array;
+
+import org.bukkit.event.Event;
+import org.eclipse.jdt.annotation.Nullable;
+
 import ch.njol.skript.lang.Expression;
-import ch.njol.skript.lang.ExpressionType;
 import ch.njol.skript.lang.Literal;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
-import ch.njol.skript.lang.util.common.AnyValued;
+import ch.njol.skript.lang.Unit;
+import ch.njol.skript.lang.util.SimpleExpression;
 import ch.njol.util.Kleenean;
-import org.bukkit.event.Event;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-import org.skriptlang.skript.common.properties.elements.expressions.PropExprValueOf;
 
 /**
- * @deprecated This is being removed in favor of {@link PropExprValueOf}
+ * @author Peter Güttinger
  */
-@Name("Value")
-@Description({
-	"Returns the value of something that has a value, e.g. a node in a config.",
-	"The value is automatically converted to the specified type (e.g. text, number) where possible."
-})
-@Example("""
-	set {_node} to node "language" in the skript config
-	broadcast the text value of {_node}
-	""")
-@Example("""
-	set {_node} to node "update check interval" in the skript config
+public class ExprValue extends SimpleExpression<Unit> {
+//	static { // REMIND add this (>2.0)
+//		Skript.registerExpression(ExprValue.class, Unit.class, ExpressionType.PATTERN_MATCHES_EVERYTHING, "%~number% %*unit%");
+//	}
 	
-	broadcast text value of {_node}
-	# text value of {_node} = "12 hours" (text)
+	@SuppressWarnings("null")
+	private Expression<Number> amount;
+	@SuppressWarnings("null")
+	private Unit unit;
 	
-	wait for {_node}'s timespan value
-	# timespan value of {_node} = 12 hours (duration)
-	""")
-@Since("2.10 (Nodes), 2.10 (Any)")
-@Deprecated(since="2.13", forRemoval = true)
-public class ExprValue extends SimplePropertyExpression<Object, Object> {
-
-	static {
-		if (!SkriptConfig.useTypeProperties.value())
-			Skript.registerExpression(ExprValue.class, Object.class, ExpressionType.PROPERTY,
-				"[the] %*classinfo% value of %valued%",
-				"[the] %*classinfo% values of %valueds%",
-				"%valued%'s %*classinfo% value",
-				"%valueds%'[s] %*classinfo% values"
-			);
-	}
-
-	private boolean isSingle;
-	private ClassInfo<?> classInfo;
-
+	@SuppressWarnings({"unchecked", "null"})
 	@Override
-	@SuppressWarnings("unchecked")
-	public boolean init(Expression<?>[] expressions, int pattern, Kleenean isDelayed, ParseResult parseResult) {
-		@NotNull Literal<ClassInfo<?>> format;
-		switch (pattern) {
-			case 0:
-				this.isSingle = true;
-			case 1:
-				format = (Literal<ClassInfo<?>>) expressions[0];
-				this.setExpr(expressions[1]);
-				break;
-			case 2:
-				this.isSingle = true;
-			default:
-				format = (Literal<ClassInfo<?>>) expressions[1];
-				this.setExpr(expressions[0]);
-		}
-		this.classInfo = format.getSingle();
+	public boolean init(final Expression<?>[] exprs, final int matchedPattern, final Kleenean isDelayed, final ParseResult parseResult) {
+		amount = (Expression<Number>) exprs[0];
+		unit = ((Literal<Unit>) exprs[1]).getSingle();
 		return true;
 	}
-
+	
 	@Override
-	public @Nullable Object convert(@Nullable Object object) {
-		if (object == null)
+	@Nullable
+	protected Unit[] get(final Event e) {
+		final Number a = amount.getSingle(e);
+		if (a == null)
 			return null;
-		if (object instanceof AnyValued<?> valued)
-			return valued.convertedValue(classInfo);
-		return null;
+		final Unit u = unit.clone();
+		u.setAmount(a.doubleValue());
+		final Unit[] one = (Unit[]) Array.newInstance(unit.getClass(), 1);
+		one[0] = u;
+		return one;
 	}
-
-	@Override
-	public Class<?> @Nullable [] acceptChange(ChangeMode mode) {
-		return switch (mode) {
-			case SET -> new Class<?>[] {Object.class};
-			case RESET, DELETE -> new Class<?>[0];
-			default -> null;
-		};
-	}
-
-	@Override
-	public void change(Event event, Object @Nullable [] delta, ChangeMode mode) {
-		Object newValue = delta != null ? delta[0] : null;
-		for (Object object : getExpr().getArray(event)) {
-			if (!(object instanceof AnyValued<?> valued))
-				continue;
-			if (valued.supportsValueChange())
-				valued.changeValueSafely(newValue);
-		}
-	}
-
-	@Override
-	public Class<?> getReturnType() {
-		return classInfo.getC();
-	}
-
+	
 	@Override
 	public boolean isSingle() {
-		return isSingle;
+		return true;
 	}
-
+	
+	@SuppressWarnings("null")
 	@Override
-	protected String getPropertyName() {
-		return classInfo.getCodeName() + " value" + (isSingle ? "" : "s");
+	public Class<? extends Unit> getReturnType() {
+		return unit.getClass();
 	}
-
+	
+	@Override
+	public String toString(final @Nullable Event e, final boolean debug) {
+		return amount.toString(e, debug) + " " + unit.toString();
+	}
+	
 }

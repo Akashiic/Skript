@@ -1,24 +1,46 @@
+/*
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ * 
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ * 
+ */
+
 package ch.njol.skript.util.chat;
 
 import java.lang.reflect.Type;
-import java.util.Locale;
 
-import org.jetbrains.annotations.Nullable;
+import org.bukkit.event.Event;
+import org.eclipse.jdt.annotation.Nullable;
 
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonParseException;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 
-import net.md_5.bungee.api.ChatColor;
-import org.skriptlang.skript.bukkit.text.TextComponentParser;
+import ch.njol.skript.Skript;
+import ch.njol.skript.lang.VariableString;
 
 /**
  * Component for chat messages. This can be serialized with GSON and then
  * sent to client.
- * @deprecated See {@link TextComponentParser}.
  */
-@Deprecated(since = "2.15", forRemoval = true)
 public class MessageComponent {
 	
 	public String text = "";
@@ -57,7 +79,7 @@ public class MessageComponent {
 	/**
 	 * Color of this text. Defaults to reseting it.
 	 */
-	public @Nullable ChatColor color;
+	public @Nullable String color;
 	
 	/**
 	 * Value of this, if present, will appended on what player is currently
@@ -69,40 +91,28 @@ public class MessageComponent {
 	@Nullable
 	public ClickEvent clickEvent;
 	
-	/**
-	 * Font of the component. 1.16+. Null for BaseComponents means default font.
-	 */
-	@Nullable
-	public String font;
-
-	@Nullable
-	public String translation;
-
-	@Nullable
-	public String keybind;
-
 	public static class ClickEvent {
+		
 		public ClickEvent(ClickEvent.Action action, String value) {
 			this.action = action;
 			this.value = value;
 		}
 		
-		public enum Action  {
+		public static enum Action  {
+			
 			open_url,
 			
 			run_command,
 			
 			suggest_command,
 			
-			change_page,
-
-			copy_to_clipboard;
+			change_page;
 			
 			public final String spigotName;
 			
 			@SuppressWarnings("null")
 			Action() {
-				spigotName = this.name().toUpperCase(Locale.ENGLISH);
+				spigotName = this.name().toUpperCase();
 			}
 		}
 		
@@ -112,6 +122,7 @@ public class MessageComponent {
 	}
 	
 	public static class HoverEvent {
+		
 		public HoverEvent(HoverEvent.Action action, String value) {
 			this.action = action;
 			this.value = value;
@@ -131,7 +142,7 @@ public class MessageComponent {
 			
 			@SuppressWarnings("null")
 			Action() {
-				spigotName = this.name().toUpperCase(Locale.ENGLISH);
+				spigotName = this.name().toUpperCase();
 			}
 		}
 		
@@ -144,29 +155,10 @@ public class MessageComponent {
 	public HoverEvent hoverEvent;
 	
 	public static class BooleanSerializer implements JsonSerializer<Boolean> {
+
 		@Override
 		public @Nullable JsonElement serialize(@Nullable Boolean src, @Nullable Type typeOfSrc, @Nullable JsonSerializationContext context) {
 			return src ? new JsonPrimitive(true) : null;
 		}
 	}
-
-	public MessageComponent copy() {
-		MessageComponent messageComponent = new MessageComponent();
-		messageComponent.text = this.text;
-		messageComponent.reset = this.reset;
-		messageComponent.bold = this.bold;
-		messageComponent.italic = this.italic;
-		messageComponent.underlined = this.underlined;
-		messageComponent.strikethrough = this.strikethrough;
-		messageComponent.obfuscated = this.obfuscated;
-		messageComponent.color = this.color;
-		messageComponent.insertion = this.insertion;
-		messageComponent.clickEvent = this.clickEvent;
-		messageComponent.font = this.font;
-		messageComponent.hoverEvent = this.hoverEvent;
-		messageComponent.translation = translation;
-		messageComponent.keybind = keybind;
-		return messageComponent;
-	}
-
 }

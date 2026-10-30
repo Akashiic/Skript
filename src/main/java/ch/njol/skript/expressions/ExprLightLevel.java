@@ -1,8 +1,33 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.expressions;
 
+import org.bukkit.Location;
+import org.bukkit.block.Block;
+import org.bukkit.event.Event;
+import org.eclipse.jdt.annotation.Nullable;
+
 import ch.njol.skript.Skript;
+import ch.njol.skript.classes.Converter;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.expressions.base.PropertyExpression;
@@ -11,10 +36,6 @@ import ch.njol.skript.lang.ExpressionType;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.skript.util.Direction;
 import ch.njol.util.Kleenean;
-import org.bukkit.Location;
-import org.bukkit.block.Block;
-import org.bukkit.event.Event;
-import org.jetbrains.annotations.Nullable;
 
 /**
  * @author Peter Güttinger
@@ -22,14 +43,12 @@ import org.jetbrains.annotations.Nullable;
 @Name("Light Level")
 @Description({"Gets the light level at a certain location which ranges from 0 to 15.",
 		"It can be separated into sunlight (15 = direct sunlight, 1-14 = indirect) and block light (torches, glowstone, etc.). The total light level of a block is the maximum of the two different light types."})
-@Example("""
-	# set vampire players standing in bright sunlight on fire
-	every 5 seconds:
-		loop all players:
-			{vampire::%uuid of loop-player%} is true
-			sunlight level at the loop-player is greater than 10
-			ignite the loop-player for 5 seconds
-	""")
+@Examples({"# set vampire players standing in bright sunlight on fire",
+		"every 5 seconds:",
+		"	loop all players:",
+		"		{vampire.%loop-player%} is true",
+		"		sunlight level at the loop-player is greater than 10",
+		"		ignite the loop-player for 5 seconds"})
 @Since("1.3.4")
 public class ExprLightLevel extends PropertyExpression<Location, Byte> {
 	static {
@@ -54,10 +73,13 @@ public class ExprLightLevel extends PropertyExpression<Location, Byte> {
 	
 	@Override
 	protected Byte[] get(final Event e, final Location[] source) {
-		return get(source, location -> {
-			Block block = location.getBlock();
-			return whatLight == ANY ? block.getLightLevel()
-				: whatLight == BLOCK ? block.getLightFromBlocks() : block.getLightFromSky();
+		return get(source, new Converter<Location, Byte>() {
+			@SuppressWarnings("null")
+			@Override
+			public Byte convert(final Location l) {
+				final Block b = l.getBlock();
+				return whatLight == ANY ? b.getLightLevel() : whatLight == BLOCK ? b.getLightFromBlocks() : b.getLightFromSky();
+			}
 		});
 	}
 	

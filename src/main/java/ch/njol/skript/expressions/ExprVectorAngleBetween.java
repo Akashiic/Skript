@@ -1,55 +1,54 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.expressions;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.lang.Expression;
 import ch.njol.skript.lang.ExpressionType;
-import ch.njol.skript.lang.Literal;
-import ch.njol.skript.lang.SkriptParser.ParseResult;
+import ch.njol.skript.lang.SkriptParser;
 import ch.njol.skript.lang.util.SimpleExpression;
 import ch.njol.util.Kleenean;
-import ch.njol.util.coll.CollectionUtils;
+import ch.njol.util.VectorMath;
+
 import org.bukkit.event.Event;
 import org.bukkit.util.Vector;
-import org.jetbrains.annotations.Nullable;
-import ch.njol.skript.lang.simplification.SimplifiedLiteral;
+import org.eclipse.jdt.annotation.Nullable;
 
-@Name("Vectors - Angle Between")
-@Description("Gets the angle between two vectors.")
-@Example("send \"%the angle between vector 1, 0, 0 and vector 0, 1, 1%\"")
+/**
+ * @author bi0qaw
+ */
+@Name("Vectors - Angle between")
+@Description("Gets the angle between two vectors")
+@Examples({"send \"%angle between vector 1, 0, 0 and vector 0, 1, 1%\""})
 @Since("2.2-dev28")
-public class ExprVectorAngleBetween extends SimpleExpression<Number> {
-
-	private static final float RAD_TO_DEG = (float) (180 / Math.PI);
-
+public class ExprVectorAngleBetween extends SimpleExpression<Float> {
 	static {
-		Skript.registerExpression(ExprVectorAngleBetween.class, Number.class, ExpressionType.COMBINED,
-				"[the] angle between [[the] vectors] %vector% and %vector%");
+		Skript.registerExpression(ExprVectorAngleBetween.class, Float.class, ExpressionType.SIMPLE, "angle between %vector% and %vector%");
 	}
 
 	@SuppressWarnings("null")
 	private Expression<Vector> first, second;
-
-	@SuppressWarnings({"unchecked", "null"})
-	@Override
-	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult) {
-		first = (Expression<Vector>) exprs[0];
-		second = (Expression<Vector>) exprs[1];
-		return true;
-	}
-
-	@Override
-	@SuppressWarnings("null")
-	protected Number[] get(Event event) {
-		Vector first = this.first.getSingle(event);
-		Vector second = this.second.getSingle(event);
-		if (first == null || second == null)
-			return null;
-		return CollectionUtils.array(first.angle(second) * RAD_TO_DEG);
-	}
 
 	@Override
 	public boolean isSingle() {
@@ -57,20 +56,31 @@ public class ExprVectorAngleBetween extends SimpleExpression<Number> {
 	}
 
 	@Override
-	public Class<? extends Number> getReturnType() {
-		return Number.class;
+	public String toString(@Nullable Event event, boolean b) {
+		return "angle between " + first.toString() + " and " + second.toString() ;
 	}
 
 	@Override
-	public Expression<? extends Number> simplify() {
-		if (first instanceof Literal<Vector> && second instanceof Literal<Vector>)
-			return SimplifiedLiteral.fromExpression(this);
-		return this;
+	public Class<? extends Float> getReturnType() {
+		return Float.class;
+	}
+
+	@SuppressWarnings({"unchecked", "null"})
+	@Override
+	public boolean init(Expression<?>[] expressions, int i, Kleenean kleenean, SkriptParser.ParseResult parseResult) {
+		first = (Expression<Vector>)expressions[0];
+		second = (Expression<Vector>)expressions[1];
+		return true;
 	}
 
 	@Override
-	public String toString(@Nullable Event event, boolean debug) {
-		return "the angle between " + first.toString(event, debug) + " and " + second.toString(event, debug);
+	@SuppressWarnings("null")
+	protected Float[] get(Event event) {
+		Vector v1 = first.getSingle(event);
+		Vector v2 = second.getSingle(event);
+		if (v1 == null || v2 == null){
+			return null;
+		}
+		return new Float[] { v1.angle(v2) * (float) VectorMath.RAD_TO_DEG };
 	}
-
 }

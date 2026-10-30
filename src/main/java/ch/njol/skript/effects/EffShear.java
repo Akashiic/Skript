@@ -1,80 +1,78 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.effects;
+
+import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Sheep;
+import org.bukkit.event.Event;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.lang.Effect;
 import ch.njol.skript.lang.Expression;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.util.Kleenean;
-import io.papermc.paper.entity.Shearable;
-import org.bukkit.entity.LivingEntity;
-import org.bukkit.entity.Sheep;
-import org.bukkit.entity.Snowman;
-import org.bukkit.event.Event;
-import org.jetbrains.annotations.Nullable;
 
+/**
+ * @author Peter Güttinger
+ */
 @Name("Shear")
-@Description({
-	"Shears or un-shears a shearable entity with drops by shearing and a 'sheared' sound. Using with 'force' will force this effect despite the entity's 'shear state'.",
-	"\nPlease note that..:",
-	"\n- Force-shearing or un-shearing on a sheared mushroom cow is not possible"
-})
-@Example("""
-	on rightclick on a sheep holding a sword:
-		shear the clicked sheep
-		chance of 10%
-		force shear the clicked sheep
-	""")
-@Since("2.0 (cows, sheep & snowmen), 2.8.0 (all shearable entities)")
+@Description("Shears or 'un-shears' a sheep. Please note that no wool is dropped, this only sets the 'sheared' state of the sheep.")
+@Examples({"on rightclick on a sheep holding a sword:",
+		"	shear the clicked sheep"})
+@Since("2.0")
 public class EffShear extends Effect {
-
-	private static final boolean INTERFACE_METHOD = Skript.classExists("io.papermc.paper.entity.Shearable");
-
 	static {
 		Skript.registerEffect(EffShear.class,
-				(INTERFACE_METHOD ? "[:force] " : "") + "shear %livingentities%",
+				"shear %livingentities%",
 				"un[-]shear %livingentities%");
 	}
-
-	private Expression<LivingEntity> entity;
-	private boolean force;
+	
+	@SuppressWarnings("null")
+	private Expression<LivingEntity> sheep;
 	private boolean shear;
-
+	
+	@SuppressWarnings({"unchecked", "null"})
 	@Override
-	@SuppressWarnings("unchecked")
-	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult) {
-		entity = (Expression<LivingEntity>) exprs[0];
-		force = parseResult.hasTag("force");
+	public boolean init(final Expression<?>[] exprs, final int matchedPattern, final Kleenean isDelayed, final ParseResult parseResult) {
+		sheep = (Expression<LivingEntity>) exprs[0];
 		shear = matchedPattern == 0;
 		return true;
 	}
 	
 	@Override
-	protected void execute(Event event) {
-		for (LivingEntity entity : entity.getArray(event)) {
-			if (shear && INTERFACE_METHOD) {
-				if (!(entity instanceof Shearable))
-					continue;
-				Shearable shearable = ((Shearable) entity);
-				if (!force && !shearable.readyToBeSheared())
-					continue;
-				shearable.shear();
-				continue;
-			}
-			if (entity instanceof Sheep) {
-				((Sheep) entity).setSheared(shear);
-			} else if (entity instanceof Snowman) {
-				((Snowman) entity).setDerp(shear);
+	protected void execute(final Event e) {
+		for (final LivingEntity en : sheep.getArray(e)) {
+			if (en instanceof Sheep) {
+				((Sheep) en).setSheared(shear);
 			}
 		}
 	}
 	
 	@Override
-	public String toString(@Nullable Event event, boolean debug) {
-		return (shear ? "" : "un") + "shear " + entity.toString(event, debug);
+	public String toString(final @Nullable Event e, final boolean debug) {
+		return (shear ? "" : "un") + "shear " + sheep.toString(e, debug);
 	}
 	
 }

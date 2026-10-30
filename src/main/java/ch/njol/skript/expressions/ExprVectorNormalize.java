@@ -1,60 +1,61 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.expressions;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.lang.Expression;
 import ch.njol.skript.lang.ExpressionType;
-import ch.njol.skript.lang.Literal;
-import ch.njol.skript.lang.SkriptParser.ParseResult;
+import ch.njol.skript.lang.SkriptParser;
 import ch.njol.skript.lang.util.SimpleExpression;
 import ch.njol.util.Kleenean;
-import ch.njol.util.coll.CollectionUtils;
 import org.bukkit.event.Event;
 import org.bukkit.util.Vector;
-import org.jetbrains.annotations.Nullable;
-import ch.njol.skript.lang.simplification.SimplifiedLiteral;
+import org.eclipse.jdt.annotation.Nullable;
 
-@Name("Vectors - Normalized")
-@Description("Returns the same vector but with length 1.")
-@Example("set {_v} to normalized {_v}")
-@Example("set {_v} to normalised {_u}")
+/**
+ * @author bi0qaw
+ */
+@Name("Vectors - Normalize")
+@Description("Normalizes a vector")
+@Examples({"set {_v} to {_v} normalized"})
 @Since("2.2-dev28")
 public class ExprVectorNormalize extends SimpleExpression<Vector> {
-
 	static {
-		Skript.registerExpression(ExprVectorNormalize.class, Vector.class, ExpressionType.COMBINED,
-				"normali(z|s)e[d] %vector%",
-				"%vector% normali(z|s)ed");
+		Skript.registerExpression(ExprVectorNormalize.class, Vector.class, ExpressionType.SIMPLE, "normalize %vector%", "%vector% normalized");
 	}
 
 	@SuppressWarnings("null")
 	private Expression<Vector> vector;
 
 	@Override
-	@SuppressWarnings({"unchecked", "null"})
-	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult) {
-		vector = (Expression<Vector>) exprs[0];
-		return true;
-	}
-
-	@Override
-	@SuppressWarnings("null")
-	protected Vector[] get(Event event) {
-		Vector vector = this.vector.getSingle(event);
-		if (vector == null)
-			return null;
-		vector = vector.clone();
-		if (!vector.isZero() && !vector.isNormalized())
-			vector.normalize();
-		return CollectionUtils.array(vector);
-	}
-
-	@Override
 	public boolean isSingle() {
 		return true;
+	}
+
+	@Override
+	public String toString(final @Nullable Event event, boolean b) {
+		return "normalized " + vector.toString();
 	}
 
 	@Override
@@ -63,15 +64,19 @@ public class ExprVectorNormalize extends SimpleExpression<Vector> {
 	}
 
 	@Override
-	public Expression<? extends Vector> simplify() {
-		if (vector instanceof Literal<Vector>)
-			return SimplifiedLiteral.fromExpression(this);
-		return this;
+	@SuppressWarnings({"unchecked", "null"})
+	public boolean init(Expression<?>[] expressions, int i, Kleenean kleenean, SkriptParser.ParseResult parseResult) {
+		vector = (Expression<Vector>)expressions[0];
+		return true;
 	}
 
 	@Override
-	public String toString(@Nullable Event event, boolean debug) {
-		return "normalized " + vector.toString(event, debug);
+	@SuppressWarnings("null")
+	protected Vector[] get(Event event) {
+		Vector v = vector.getSingle(event);
+		if (v == null){
+			return null;
+		}
+		return new Vector[]{ v.clone().normalize() };
 	}
-
 }

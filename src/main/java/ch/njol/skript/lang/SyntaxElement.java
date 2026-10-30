@@ -1,52 +1,64 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.lang;
 
-import ch.njol.skript.lang.SkriptParser.ParseResult;
+import ch.njol.skript.ScriptLoader;
 import ch.njol.skript.lang.parser.ParserInstance;
+import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.util.Kleenean;
-import org.jetbrains.annotations.Contract;
-import org.jetbrains.annotations.NotNull;
 
 /**
- * Represents a general part of the syntax.
+ * Represents a general part of the syntax. Implementing classes/interfaces are {@link Expression} and {@link Statement}.
+ * <p>
+ * TODO find a better name for this
+ * 
+ * @author Peter Güttinger
  */
 public interface SyntaxElement {
-
+	
 	/**
-	 * Called immediately after the constructor. This should be used to do any work that need to be done prior to
-	 * downstream initialization. This is not intended to be used by syntaxes directly, but by parent classes to do
-	 * work prior to the initialization of the child classes.
-	 *
-	 * @return Whether this expression was pre-initialised successfully.
-	 * 			An error should be printed prior to returning false to specify the cause.
-	 */
-	default boolean preInit() {
-		return true;
-	}
-
-	/**
-	 * Called just after the constructor and {@link #preInit}.
+	 * Called just after the constructor.
 	 * 
-	 * @param expressions all %expr%s included in the matching pattern in the order they appear in the pattern. If an optional value was left out, it will still be included in this list
-	 *            holding the default value of the desired type, which usually depends on the event.
+	 * @param exprs all %expr%s included in the matching pattern in the order they appear in the pattern. If an optional value was left out it will still be included in this list
+	 *            holding the default value of the desired type which usually depends on the event.
 	 * @param matchedPattern The index of the pattern which matched
 	 * @param isDelayed Whether this expression is used after a delay or not (i.e. if the event has already passed when this expression will be called)
 	 * @param parseResult Additional information about the match.
 	 * @return Whether this expression was initialised successfully. An error should be printed prior to returning false to specify the cause.
-	 * @see ParserInstance#isCurrentEvent(Class...)
+	 * @see ScriptLoader#isCurrentEvent(Class...)
 	 */
-	boolean init(Expression<?>[] expressions, int matchedPattern, Kleenean isDelayed, ParseResult parseResult);
+	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult);
 
 	/**
-	 * @see ParserInstance#get()
+	 * Sets parser instance for this syntax element. Make sure to override this, if it is needed.
+	 * If this method is not overridden, it does <b>nothing</b>, since not everything needs
+	 * to know about parsing process or do logging.
+	 * 
+	 * Methods of extending class should be able to retrieve this from protected variable named
+	 * "pi" or "parserInstance", if it is needed. No getter should be written.
+	 * @param pi Parser instance.
 	 */
-	default ParserInstance getParser() {
-		return ParserInstance.get();
+	public default void setParserInstance(ParserInstance pi) {
+		
 	}
-
-	/**
-	 * @return A string naming the type of syntax this is. e.g. "expression", "section".
-	 */
-	@Contract(pure = true)
-	@NotNull String getSyntaxTypeName();
-
+	
+	// TODO [code style] add equals to be able to find out whether two elements are equal (useful for e.g. 'if <a>: ... [else] if not <a>: ...')
+	
 }

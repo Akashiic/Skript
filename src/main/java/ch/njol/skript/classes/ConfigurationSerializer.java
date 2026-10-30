@@ -1,3 +1,22 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.classes;
 
 import java.io.NotSerializableException;
@@ -6,7 +25,7 @@ import java.io.StreamCorruptedException;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.yggdrasil.Fields;
 
@@ -35,6 +54,7 @@ public class ConfigurationSerializer<T extends ConfigurationSerializable> extend
 		return false;
 	}
 
+	@SuppressWarnings("null")
 	@Override
 	protected T deserialize(final Fields fields) throws StreamCorruptedException {
 		final String val = fields.getObject("value", String.class);
@@ -48,7 +68,7 @@ public class ConfigurationSerializer<T extends ConfigurationSerializable> extend
 		return t;
 	}
 	
-	public static String serializeCS(final ConfigurationSerializable o) {
+	public final static String serializeCS(final ConfigurationSerializable o) {
 		final YamlConfiguration y = new YamlConfiguration();
 		y.set("value", o);
 		return "" + y.saveToString();
@@ -56,7 +76,7 @@ public class ConfigurationSerializer<T extends ConfigurationSerializable> extend
 	
 	@SuppressWarnings("unchecked")
 	@Nullable
-	public static <T extends ConfigurationSerializable> T deserializeCS(final String s, final Class<T> c) {
+	public final static <T extends ConfigurationSerializable> T deserializeCS(final String s, final Class<T> c) {
 		final YamlConfiguration y = new YamlConfiguration();
 		try {
 			y.loadFromString(s);
@@ -82,7 +102,7 @@ public class ConfigurationSerializer<T extends ConfigurationSerializable> extend
 	}
 	
 	@Override
-	@Deprecated(since = "2.3.0", forRemoval = true)
+	@Deprecated
 	@Nullable
 	public T deserialize(final String s) {
 		final ClassInfo<? extends T> info = this.info;
@@ -91,9 +111,9 @@ public class ConfigurationSerializer<T extends ConfigurationSerializable> extend
 	}
 	
 	@SuppressWarnings("unchecked")
-	@Deprecated(since = "2.3.0", forRemoval = true)
+	@Deprecated
 	@Nullable
-	public static <T extends ConfigurationSerializable> T deserializeCSOld(final String s, final Class<T> c) {
+	public final static <T extends ConfigurationSerializable> T deserializeCSOld(final String s, final Class<T> c) {
 		final YamlConfiguration y = new YamlConfiguration();
 		try {
 			y.loadFromString(s.replace("\uFEFF", "\n"));

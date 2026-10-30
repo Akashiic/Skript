@@ -1,13 +1,31 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.effects;
 
 import org.bukkit.Location;
-import org.bukkit.entity.Entity;
 import org.bukkit.event.Event;
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.lang.Effect;
@@ -20,9 +38,9 @@ import ch.njol.util.Kleenean;
  * @author Peter Güttinger
  */
 @Name("Lightning")
-@Description("Strike lightning at a given location. Can use 'lightning effect' to create a lightning that does not harm entities or start fires.")
-@Example("strike lightning at the player")
-@Example("strike lightning effect at the victim")
+@Description("Strike lightning at a given location. Can use 'ligning effect' to create a lightning that does not harm entities or start fires.")
+@Examples({"strike lightning at the player",
+		"strike lightning effect at the victim"})
 @Since("1.4")
 public class EffLightning extends Effect {
 	
@@ -34,9 +52,6 @@ public class EffLightning extends Effect {
 	private Expression<Location> locations;
 	
 	private boolean effectOnly;
-	
-	@Nullable
-	public static Entity lastSpawned = null;
 	
 	@SuppressWarnings({"unchecked", "null"})
 	@Override
@@ -50,9 +65,9 @@ public class EffLightning extends Effect {
 	protected void execute(final Event e) {
 		for (final Location l : locations.getArray(e)) {
 			if (effectOnly)
-				lastSpawned = l.getWorld().strikeLightningEffect(l);
+				l.getWorld().strikeLightningEffect(l);
 			else
-				lastSpawned = l.getWorld().strikeLightning(l);
+				l.getWorld().strikeLightning(l);
 		}
 	}
 	

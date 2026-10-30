@@ -1,16 +1,35 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.util.coll.iterator;
 
-import com.google.common.collect.PeekingIterator;
-import org.jetbrains.annotations.Nullable;
-
+import java.util.Iterator;
 import java.util.NoSuchElementException;
+
+import org.eclipse.jdt.annotation.Nullable;
 
 /**
  * A simple iterator to iterate over an array.
  * 
  * @author Peter Güttinger
  */
-public class ArrayIterator<T> implements PeekingIterator<T> {
+public class ArrayIterator<T> implements Iterator<T> {
 	
 	@Nullable
 	private final T[] array;
@@ -33,15 +52,7 @@ public class ArrayIterator<T> implements PeekingIterator<T> {
 			return false;
 		return index < array.length;
 	}
-
-	@Override
-	public T peek() {
-		int peekIndex = index + 1;
-		if (array == null || peekIndex >= array.length)
-			return null;
-		return array[peekIndex];
-	}
-
+	
 	@Override
 	@Nullable
 	public T next() {

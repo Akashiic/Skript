@@ -14,13 +14,16 @@
  *  You should have received a copy of the GNU General Public License
  *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright Peter Güttinger, SkriptLang team and contributors
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
  */
 /**
  * Contains the default conditions of Skript.
  * 
  * @author Peter Güttinger
  */
+@NonNullByDefault
 package ch.njol.skript.conditions;
 
+import org.eclipse.jdt.annotation.NonNullByDefault;
 

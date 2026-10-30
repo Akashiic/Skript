@@ -1,109 +1,118 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.events;
 
-import ch.njol.skript.Skript;
-import ch.njol.skript.bukkitutil.ItemUtils;
-import org.skriptlang.skript.bukkit.entity.EntityData;
-import ch.njol.skript.lang.Literal;
-import ch.njol.skript.lang.SkriptEvent;
-import ch.njol.skript.lang.SkriptParser.ParseResult;
-
+import org.bukkit.Material;
 import org.bukkit.entity.Enderman;
-import org.bukkit.entity.FallingBlock;
 import org.bukkit.entity.Sheep;
 import org.bukkit.entity.Silverfish;
 import org.bukkit.event.Event;
 import org.bukkit.event.entity.EntityChangeBlockEvent;
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
-import java.util.Locale;
-import java.util.function.Predicate;
+import ch.njol.skript.Skript;
+import ch.njol.skript.lang.Literal;
+import ch.njol.skript.lang.SkriptEvent;
+import ch.njol.skript.lang.SkriptParser.ParseResult;
+import ch.njol.util.Checker;
 
+/**
+ * @author Peter Güttinger
+ */
 public class EvtEntityBlockChange extends SkriptEvent {
-
 	static {
-		Skript.registerEvent("Enderman/Sheep/Silverfish/Falling Block", EvtEntityBlockChange.class, EntityChangeBlockEvent.class, ChangeEvent.patterns)
-				.description(
-						"Called when an enderman places or picks up a block, a sheep eats grass, " +
-						"a silverfish boops into/out of a block or a falling block lands and turns into a block respectively.",
-						"event-block represents the old block and event-blockdata represents the new replacement that'll be applied to the block."
-				)
-				.examples(
-						"on sheep eat:",
-							"\tkill event-entity",
-							"\tbroadcast \"A sheep stole some grass!\"",
-						"",
-						"on falling block land:",
-							"\tevent-entity is a falling dirt",
-							"\tcancel event"
-				)
-				.since("unknown, 2.5.2 (falling block), 2.8.0 (any entity support)");
+		Skript.registerEvent("Enderman/Sheep/Silverfish", EvtEntityBlockChange.class, EntityChangeBlockEvent.class, ChangeEvent.patterns)
+				.description("Called when an enderman places or picks up a block, a sheep eats grass or a silverfish boops into/out of a block respectively.")
+				.examples("")
+				.since("");
 	}
-
-	private enum ChangeEvent {
-
-		ENDERMAN_PLACE("enderman place", event -> event.getEntity() instanceof Enderman && !ItemUtils.isAir(event.getTo())),
-		ENDERMAN_PICKUP("enderman pickup", event -> event.getEntity() instanceof Enderman && ItemUtils.isAir(event.getTo())),
-
-		SHEEP_EAT("sheep eat", event -> event.getEntity() instanceof Sheep),
-
-		SILVERFISH_ENTER("silverfish enter", event -> event.getEntity() instanceof Silverfish && !ItemUtils.isAir(event.getTo())),
-		SILVERFISH_EXIT("silverfish exit", event -> event.getEntity() instanceof Silverfish && ItemUtils.isAir(event.getTo())),
-
-		FALLING_BLOCK_FALLING("falling block fall[ing]", event -> event.getEntity() instanceof FallingBlock && ItemUtils.isAir(event.getTo())),
-		FALLING_BLOCK_LANDING("falling block land[ing]", event -> event.getEntity() instanceof FallingBlock && !ItemUtils.isAir(event.getTo())),
-
-		// Covers all possible entity block changes.
-		GENERIC("(entity|%*-entitydatas%) chang(e|ing) block[s]");
-
-		@Nullable
-		private final Predicate<EntityChangeBlockEvent> checker;
+	
+	private static enum ChangeEvent {
+		ENDERMAN_PLACE("enderman place", new Checker<EntityChangeBlockEvent>() {
+			@Override
+			public boolean check(final EntityChangeBlockEvent e) {
+				return e.getEntity() instanceof Enderman && e.getTo() != Material.AIR;
+			}
+		}),
+		ENDERMAN_PICKUP("enderman pickup", new Checker<EntityChangeBlockEvent>() {
+			@Override
+			public boolean check(final EntityChangeBlockEvent e) {
+				return e.getEntity() instanceof Enderman && e.getTo() == Material.AIR;
+			}
+		}),
+		SHEEP_EAT("sheep eat", new Checker<EntityChangeBlockEvent>() {
+			@Override
+			public boolean check(final EntityChangeBlockEvent e) {
+				return e.getEntity() instanceof Sheep;
+			}
+		}),
+		SILVERFISH_ENTER("silverfish enter", new Checker<EntityChangeBlockEvent>() {
+			@Override
+			public boolean check(final EntityChangeBlockEvent e) {
+				return e.getEntity() instanceof Silverfish && e.getTo() == Material.MONSTER_EGGS;
+			}
+		}),
+		SILVERFISH_EXIT("silverfish exit", new Checker<EntityChangeBlockEvent>() {
+			@Override
+			public boolean check(final EntityChangeBlockEvent e) {
+				return e.getEntity() instanceof Silverfish && e.getTo() != Material.MONSTER_EGGS;
+			}
+		});
+		
 		private final String pattern;
-
-		ChangeEvent(String pattern) {
-			this(pattern, null);
-		}
-
-		ChangeEvent(String pattern, @Nullable Predicate<EntityChangeBlockEvent> checker) {
+		final Checker<EntityChangeBlockEvent> checker;
+		
+		private ChangeEvent(final String pattern, final Checker<EntityChangeBlockEvent> c) {
 			this.pattern = pattern;
-			this.checker = checker;
+			checker = c;
 		}
-
-		private static final String[] patterns;
-
+		
+		static String[] patterns;
 		static {
 			patterns = new String[ChangeEvent.values().length];
-			for (int i = 0; i < patterns.length; i++)
+			for (int i = 0; i < patterns.length; i++) {
 				patterns[i] = values()[i].pattern;
+			}
 		}
 	}
-
-	@Nullable
-	private Literal<EntityData<?>> datas;
+	
+	@SuppressWarnings("null")
 	private ChangeEvent event;
-
+	
+	@SuppressWarnings("null")
 	@Override
-	@SuppressWarnings("unchecked")
-	public boolean init(Literal<?>[] args, int matchedPattern, ParseResult parseResult) {
+	public boolean init(final Literal<?>[] args, final int matchedPattern, final ParseResult parser) {
 		event = ChangeEvent.values()[matchedPattern];
-		if (event == ChangeEvent.GENERIC)
-			datas = (Literal<EntityData<?>>) args[0];
 		return true;
 	}
-
+	
 	@Override
-	public boolean check(Event event) {
-		if (!(event instanceof EntityChangeBlockEvent))
+	public boolean check(final Event e) {
+		if (!(e instanceof EntityChangeBlockEvent))
 			return false;
-		if (datas != null && !datas.check(event, data -> data.isInstance(((EntityChangeBlockEvent) event).getEntity())))
-			return false;
-		if (this.event.checker == null)
-			return true;
-		return this.event.checker.test((EntityChangeBlockEvent) event);
+		return event.checker.check((EntityChangeBlockEvent) e);
 	}
-
+	
 	@Override
-	public String toString(@Nullable Event event, boolean debug) {
-		return this.event.name().toLowerCase(Locale.ENGLISH).replace('_', ' ');
+	public String toString(final @Nullable Event e, final boolean debug) {
+		return "" + event.name().replace('_', ' ').toLowerCase();
 	}
-
+	
 }

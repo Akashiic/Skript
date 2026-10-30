@@ -1,3 +1,22 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.events.bukkit;
 
 import org.bukkit.Location;
@@ -5,28 +24,51 @@ import org.bukkit.event.Cancellable;
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
 
+import ch.njol.skript.registrations.EventValues;
+import ch.njol.skript.util.Experience;
+import ch.njol.skript.util.Getter;
+
+/**
+ * @author Peter Güttinger
+ */
 public class ExperienceSpawnEvent extends Event implements Cancellable {
+	static {
+		EventValues.registerEventValue(ExperienceSpawnEvent.class, Location.class, new Getter<Location, ExperienceSpawnEvent>() {
+			@Override
+			public Location get(final ExperienceSpawnEvent e) {
+				return e.getLocation();
+			}
+		}, 0);
+		EventValues.registerEventValue(ExperienceSpawnEvent.class, Experience.class, new Getter<Experience, ExperienceSpawnEvent>() {
+			@Override
+			public Experience get(final ExperienceSpawnEvent e) {
+				return new Experience(e.getSpawnedXP());
+			}
+		}, 0);
+	}
 	
-	private int exp;
-	private final Location location;
-	private boolean cancelled = false;
+	private int xp;
 	
-	public ExperienceSpawnEvent(int exp, Location location) {
-		this.exp = exp;
-		this.location = location;
+	private final Location l;
+	
+	public ExperienceSpawnEvent(final int xp, final Location l) {
+		this.xp = xp;
+		this.l = l;
 	}
 	
 	public int getSpawnedXP() {
-		return exp;
+		return xp;
 	}
 	
-	public void setSpawnedXP(int xp) {
-		this.exp = Math.max(0, xp);
+	public void setSpawnedXP(final int xp) {
+		this.xp = Math.max(0, xp);
 	}
 	
 	public Location getLocation() {
-		return location;
+		return l;
 	}
+	
+	private boolean cancelled = false;
 	
 	@Override
 	public boolean isCancelled() {

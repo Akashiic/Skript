@@ -1,9 +1,28 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.command;
 
 import java.util.WeakHashMap;
 
 import org.bukkit.event.Event;
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.classes.ClassInfo;
@@ -22,10 +41,7 @@ import ch.njol.skript.variables.Variables;
  * Represents an argument of a command
  * 
  * @author Peter Güttinger
- * @deprecated There is no direct replacement for this class.
- * The closest alternative is {@link org.skriptlang.skript.bukkit.command.custom.ArgumentData}.
  */
-@Deprecated(since = "2.17", forRemoval = true)
 public class Argument<T> {
 	
 	@Nullable
@@ -41,7 +57,7 @@ public class Argument<T> {
 	
 	private final boolean optional;
 	
-	private transient WeakHashMap<Event, T[]> current = new WeakHashMap<>();
+	private transient WeakHashMap<Event, T[]> current = new WeakHashMap<Event, T[]>();
 	
 	private Argument(@Nullable final String name, final @Nullable Expression<? extends T> def, final ClassInfo<T> type, final boolean single, final int index, final boolean optional) {
 		this.name = name;
@@ -80,7 +96,7 @@ public class Argument<T> {
 						if (def.startsWith("\"") && def.endsWith("\""))
 							d = (Expression<? extends T>) VariableString.newInstance("" + def.substring(1, def.length() - 1));
 						else
-							d = (Expression<? extends T>) new SimpleLiteral<>(def, false);
+							d = (Expression<? extends T>) new SimpleLiteral<String>(def, false);
 					} else {
 						d = new SkriptParser(def, SkriptParser.PARSE_LITERALS, ParseContext.DEFAULT).parseExpression(type.getC());
 					}
@@ -94,7 +110,7 @@ public class Argument<T> {
 				}
 			}
 		}
-		return new Argument<>(name, d, type, single, index, def != null || forceOptional);
+		return new Argument<T>(name, d, type, single, index, def != null || forceOptional);
 	}
 	
 	@Override
@@ -132,10 +148,6 @@ public class Argument<T> {
 	@Nullable
 	public T[] getCurrent(final Event e) {
 		return current.get(e);
-	}
-
-	public @Nullable String getName() {
-		return name;
 	}
 	
 	public Class<T> getType() {

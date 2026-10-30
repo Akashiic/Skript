@@ -1,3 +1,22 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.hooks.regions;
 
 import java.io.IOException;
@@ -21,7 +40,7 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.hooks.regions.classes.Region;
@@ -63,7 +82,7 @@ public class GriefPreventionHook extends RegionsPlugin<GriefPrevention> {
 		} catch (final NoSuchFieldException e) {} catch (final SecurityException e) {}
 		if (getClaim == null && claimsField == null) {
 			Skript.error("Skript " + Skript.getVersion() + " is not compatible with GriefPrevention " + plugin.getDescription().getVersion() + "."
-					+ " Please report this at https://github.com/SkriptLang/Skript/issues/ if this error occurred after you updated GriefPrevention.");
+					+ " Please report this at http://dev.bukkit.org/bukkit-plugins/skript/tickets/ if this error occurred after you updated GriefPrevention.");
 			return false;
 		}
 		return super.init();
@@ -143,10 +162,7 @@ public class GriefPreventionHook extends RegionsPlugin<GriefPrevention> {
 		
 		@Override
 		public boolean isOwner(final OfflinePlayer p) {
-			String name = p.getName();
-			if (name != null)
-				return name.equalsIgnoreCase(claim.getOwnerName());
-			return false; // Assume no ownership when player has never visited server
+			return p.getName().equalsIgnoreCase(claim.getOwnerName());
 		}
 		
 		@SuppressWarnings({"null", "deprecation"})
@@ -165,9 +181,9 @@ public class GriefPreventionHook extends RegionsPlugin<GriefPrevention> {
 			final Location lower = claim.getLesserBoundaryCorner(), upper = claim.getGreaterBoundaryCorner();
 			if (lower == null || upper == null || lower.getWorld() == null || upper.getWorld() == null || lower.getWorld() != upper.getWorld())
 				return EmptyIterator.get();
-			upper.setY(upper.getWorld().getMaxHeight() - 1);
-			upper.setX(upper.getBlockX());
-			upper.setZ(upper.getBlockZ());
+			upper.setY(upper.getWorld().getMaxHeight());
+			upper.setX(upper.getBlockX() + 1);
+			upper.setZ(upper.getBlockZ() + 1);
 			return new AABB(lower, upper).iterator();
 		}
 		

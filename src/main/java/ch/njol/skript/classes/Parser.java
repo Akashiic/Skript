@@ -1,6 +1,25 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.classes;
 
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.lang.ParseContext;
 import ch.njol.skript.lang.parser.ParserInstance;
@@ -22,9 +41,25 @@ public abstract class Parser<T> {
 	 * Parses the input. This method may print an error prior to returning null if the input couldn't be parsed.
 	 * <p>
 	 * Remember to override {@link #canParse(ParseContext)} if this parser doesn't parse at all (i.e. you only use it's toString methods) or only parses for certain contexts.
+	 * 
+	 * @param s The String to parse. This string is already trim()med.
+	 * @param context Context of parsing, may not be null
+	 * @param pi Parser instance. Use {@link ParserInstance#submitErrorLog(ch.njol.skript.log.ParseLogHandler)} for your parse log handlers.
+	 * In case other methods (especially in SkriptParser) need that, just pass it to them.
+	 * @return The parsed input or null if the input is invalid for this parser.
+	 */
+	@Nullable
+	public T parse(String s, ParseContext context, ParserInstance pi) {
+		return parse(s, context); // For old code/simple code
+	}
+	
+	/**
+	 * Parses the input. This method may print an error prior to returning null if the input couldn't be parsed.
 	 * <p>
-	 * Note that this method will be called very frequently during script parsing,
-	 * so try to avoid computationally expensive operations in this method when possible.
+	 * Remember to override {@link #canParse(ParseContext)} if this parser doesn't parse at all (i.e. you only use it's toString methods) or only parses for certain contexts.
+	 * 
+	 * Note that this method does not provide {@link ParserInstance}; you won't be able to use logging in multithreaded
+	 * parsing environment.
 	 * 
 	 * @param s The String to parse. This string is already trim()med.
 	 * @param context Context of parsing, may not be null
@@ -32,7 +67,7 @@ public abstract class Parser<T> {
 	 */
 	@Nullable
 	public T parse(String s, ParseContext context) {
-		throw new UnsupportedOperationException("Parsing not implemented (remember to override parse method): " + getClass().getName());
+		throw new UnsupportedOperationException("Parsing not implemented (remember to override parse method)");
 	}
 	
 	/**
@@ -85,7 +120,17 @@ public abstract class Parser<T> {
 	 * @return The given object's representation in a variable name.
 	 */
 	public abstract String toVariableNameString(final T o);
-
+	
+	/**
+	 * Returns a pattern that matches all possible outputs of {@link #toVariableNameString(Object)}. This is used to test for variable conflicts.
+	 * <p>
+	 * This pattern is inserted directly into another pattern, i.e. without any surrounding parantheses, and the pattern is compiled without any checks, thus an invalid pattern
+	 * will crash Skript.
+	 * 
+	 * @return A valid Regex pattern string matching all possible return values of {@link #toVariableNameString(Object)}
+	 */
+	public abstract String getVariableNamePattern();
+	
 	/**
 	 * Returns a string representation of the given object to be used for debugging.<br>
 	 * The Parser of 'Block' for example returns the block's type in toString, while this method also returns the coordinates of the block.<br>

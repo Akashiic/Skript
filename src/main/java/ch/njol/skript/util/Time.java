@@ -1,20 +1,39 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.util;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.localization.Message;
 import ch.njol.util.Math2;
 import ch.njol.yggdrasil.YggdrasilSerializable;
-import org.jetbrains.annotations.Nullable;
-import org.skriptlang.skript.lang.util.Cyclical;
-
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * @author Peter Güttinger
  */
-public class Time implements YggdrasilSerializable, Cyclical<Integer> {
-
+public class Time implements YggdrasilSerializable {
+	
 	private final static int TICKS_PER_HOUR = 1000, TICKS_PER_DAY = 24 * TICKS_PER_HOUR;
 	private final static double TICKS_PER_MINUTE = 1000. / 60;
 	/**
@@ -23,15 +42,12 @@ public class Time implements YggdrasilSerializable, Cyclical<Integer> {
 	private final static int HOUR_ZERO = 6 * TICKS_PER_HOUR;
 	
 	private final int time;
-
-	private static final Pattern DAY_TIME_PATTERN = Pattern.compile("(\\d?\\d)(:(\\d\\d))? ?(am|pm)", Pattern.CASE_INSENSITIVE);
-	private static final Pattern TIME_PATTERN = Pattern.compile("\\d?\\d:\\d\\d", Pattern.CASE_INSENSITIVE);
-
+	
 	public Time() {
-		this(0);
+		time = 0;
 	}
 	
-	public Time(int time) {
+	public Time(final int time) {
 		this.time = Math2.mod(time, TICKS_PER_DAY);
 	}
 	
@@ -48,27 +64,13 @@ public class Time implements YggdrasilSerializable, Cyclical<Integer> {
 	public int getTime() {
 		return (time + HOUR_ZERO) % TICKS_PER_DAY;
 	}
-
-	public int getHour() {
-		int thisTime = time;
-		if (time < 0)
-			thisTime = Math.abs(time);
-		int hour = (thisTime + HOUR_ZERO) / TICKS_PER_HOUR;
-		if (hour >= 24)
-			hour -= 24;
-		return hour;
-	}
-
-	public int getMinute() {
-		return (int) Math2.round(((time + HOUR_ZERO) % TICKS_PER_HOUR) / TICKS_PER_MINUTE);
-	}
-
+	
 	@Override
 	public String toString() {
 		return toString(time);
 	}
 	
-	public static String toString(int ticks) {
+	public static String toString(final int ticks) {
 		assert 0 <= ticks && ticks < TICKS_PER_DAY;
 		final int t = (ticks + HOUR_ZERO) % TICKS_PER_DAY;
 		int hours = t / TICKS_PER_HOUR;
@@ -90,11 +92,11 @@ public class Time implements YggdrasilSerializable, Cyclical<Integer> {
 	 */
 	@SuppressWarnings("null")
 	@Nullable
-	public static Time parse(final String s) {
+	public final static Time parse(final String s) {
 //		if (s.matches("\\d+")) {
 //			return new Time(Integer.parseInt(s));
 //		} else
-		if (TIME_PATTERN.matcher(s).matches()) {
+		if (s.matches("\\d?\\d:\\d\\d")) {
 			int hours = Utils.parseInt(s.split(":")[0]);
 			if (hours == 24) { // allows to write 24:00 - 24:59 instead of 0:00-0:59
 				hours = 0;
@@ -109,7 +111,7 @@ public class Time implements YggdrasilSerializable, Cyclical<Integer> {
 			}
 			return new Time((int) Math.round(hours * TICKS_PER_HOUR - HOUR_ZERO + minutes * TICKS_PER_MINUTE));
 		} else {
-			final Matcher m = DAY_TIME_PATTERN.matcher(s);
+			final Matcher m = Pattern.compile("(\\d?\\d)(:(\\d\\d))? ?(am|pm)", Pattern.CASE_INSENSITIVE).matcher(s);
 			if (m.matches()) {
 				int hours = Utils.parseInt(m.group(1));
 				if (hours == 12) {
@@ -144,19 +146,10 @@ public class Time implements YggdrasilSerializable, Cyclical<Integer> {
 			return true;
 		if (obj == null)
 			return false;
-		if (!(obj instanceof Time other))
+		if (!(obj instanceof Time))
 			return false;
+		final Time other = (Time) obj;
 		return time == other.time;
-	}
-	
-	@Override
-	public Integer getMaximum() {
-		return TICKS_PER_DAY;
-	}
-	
-	@Override
-	public Integer getMinimum() {
-		return 0;
 	}
 	
 }

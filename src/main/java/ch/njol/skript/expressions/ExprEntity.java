@@ -1,26 +1,45 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.expressions;
+
+import org.bukkit.entity.Entity;
+import org.bukkit.event.Event;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.aliases.Aliases;
 import ch.njol.skript.aliases.ItemType;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
+import ch.njol.skript.entity.EntityData;
 import ch.njol.skript.expressions.base.EventValueExpression;
 import ch.njol.skript.lang.Expression;
 import ch.njol.skript.lang.ExpressionType;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.skript.lang.util.SimpleExpression;
-import ch.njol.skript.lang.util.SimpleLiteral;
 import ch.njol.skript.log.RetainingLogHandler;
 import ch.njol.skript.log.SkriptLogger;
 import ch.njol.util.Kleenean;
 import ch.njol.util.StringUtils;
-import org.bukkit.entity.Entity;
-import org.bukkit.event.Event;
-import org.jetbrains.annotations.Nullable;
-import org.skriptlang.skript.bukkit.entity.EntityData;
 
 /**
  * @author Peter Güttinger
@@ -28,10 +47,10 @@ import org.skriptlang.skript.bukkit.entity.EntityData;
 @Name("Creature/Entity/Player/Projectile/Villager/Powered Creeper/etc.")
 @Description({"The entity involved in an event (an entity is a player, a creature or an inanimate object like ignited TNT, a dropped item or an arrow).",
 		"You can use the specific type of the entity that's involved in the event, e.g. in a 'death of a creeper' event you can use 'the creeper' instead of 'the entity'."})
-@Example("give a diamond sword of sharpness 3 to the player")
-@Example("kill the creeper")
-@Example("kill all powered creepers in the wolf's world")
-@Example("projectile is an arrow")
+@Examples({"give a diamond sword of sharpness 3 to the player",
+		"kill the creeper",
+		"kill all powered creepers in the wolf's world",
+		"projectile is an arrow"})
 @Since("1.0")
 public class ExprEntity extends SimpleExpression<Entity> {
 	static {
@@ -74,6 +93,7 @@ public class ExprEntity extends SimpleExpression<Entity> {
 			log.stop();
 		}
 		entity = new EventValueExpression<>(type.getType());
+		entity.setParserInstance(pi);
 		return entity.init();
 	}
 	
@@ -96,24 +116,6 @@ public class ExprEntity extends SimpleExpression<Entity> {
 		return null;
 	}
 	
-	@SuppressWarnings("unchecked")
-	@Override
-	@Nullable
-	public <R> Expression<? extends R> getConvertedExpression(Class<R>... to) {
-		for (Class<R> t : to) {
-			if (t.equals(EntityData.class)) {
-				return new SimpleLiteral<>((R) type, false);
-			}
-		}
-		return super.getConvertedExpression(to);
-	}
-
-	@Override
-	public boolean setTime(int time) {
-		// Allows using 'past' / 'future' event-entitydata if they're registered
-		return entity.setTime(time);
-	}
-
 	@Override
 	public String toString(final @Nullable Event e, final boolean debug) {
 		return "the " + type;

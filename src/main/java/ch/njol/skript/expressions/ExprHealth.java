@@ -1,29 +1,53 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.expressions;
+
+import org.bukkit.entity.LivingEntity;
+import org.bukkit.event.Event;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.bukkitutil.HealthUtils;
 import ch.njol.skript.classes.Changer.ChangeMode;
-import ch.njol.skript.doc.*;
+import ch.njol.skript.doc.Description;
+import ch.njol.skript.doc.Events;
+import ch.njol.skript.doc.Examples;
+import ch.njol.skript.doc.Name;
+import ch.njol.skript.doc.Since;
 import ch.njol.skript.expressions.base.PropertyExpression;
 import ch.njol.skript.lang.Expression;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
+import ch.njol.skript.util.Getter;
 import ch.njol.util.Kleenean;
 import ch.njol.util.coll.CollectionUtils;
-import org.bukkit.entity.LivingEntity;
-import org.bukkit.event.Event;
-import org.jetbrains.annotations.Nullable;
 
 /**
  * @author Peter Güttinger
  */
 @Name("Health")
-@Description("The health of a creature, e.g. a player, mob, villager, etc. The minimum value is 0, and the maximum is the creature's max health (e.g. 10 for players).")
-@Example("message \"You have %health% HP left.\"")
+@Description("The health of a creature, e.g. a player, mob, villager, etc. from 0 to the creature's max health, e.g. 10 for players.")
+@Examples({"message \"You have %health% HP left.\""})
 @Since("1.0")
 @Events("damage")
-public class ExprHealth extends PropertyExpression<LivingEntity, Number> {
-	
+public class ExprHealth extends PropertyExpression<LivingEntity, Double> {
 	static {
-		register(ExprHealth.class, Number.class, "health", "livingentities");
+		register(ExprHealth.class, Double.class, "health", "livingentities");
 	}
 	
 	@SuppressWarnings({"unchecked", "null"})
@@ -34,16 +58,22 @@ public class ExprHealth extends PropertyExpression<LivingEntity, Number> {
 	}
 	
 	@Override
-	protected Number[] get(final Event e, final LivingEntity[] source) {
+	protected Double[] get(final Event e, final LivingEntity[] source) {
 //		if (e instanceof EntityDamageEvent && getTime() > 0 && entities.getSource() instanceof ExprAttacked && !Delay.isDelayed(e)) {
-//			return ConverterUtils.convert(entities.getArray(e), Number.class, new Getter<Number, LivingEntity>() {
+//			return ConverterUtils.convert(entities.getArray(e), Float.class, new Getter<Float, LivingEntity>() {
 //				@Override
-//				public Number get(final LivingEntity entity) {
-//					return 0.5f * (entity.getHealth() - ((EntityDamageEvent) e).getDamage());
+//				public Float get(final LivingEntity entity) {
+//					return Float.valueOf(0.5f * (entity.getHealth() - ((EntityDamageEvent) e).getDamage()));
 //				}
 //			});
 //		}
-		return get(source, HealthUtils::getHealth);
+		return get(source, new Getter<Double, LivingEntity>() {
+			@SuppressWarnings("null")
+			@Override
+			public Double get(final LivingEntity entity) {
+				return Double.valueOf(HealthUtils.getHealth(entity));
+			}
+		});
 	}
 	
 	@Override
@@ -67,6 +97,7 @@ public class ExprHealth extends PropertyExpression<LivingEntity, Number> {
 //		});
 //	}
 	
+	@SuppressWarnings("unchecked")
 	@Override
 	@Nullable
 	public Class<?>[] acceptChange(final ChangeMode mode) {
@@ -107,8 +138,8 @@ public class ExprHealth extends PropertyExpression<LivingEntity, Number> {
 	}
 	
 	@Override
-	public Class<? extends Number> getReturnType() {
-		return Number.class;
+	public Class<Double> getReturnType() {
+		return Double.class;
 	}
 	
 //	@Override

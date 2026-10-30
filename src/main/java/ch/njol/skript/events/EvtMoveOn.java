@@ -1,182 +1,260 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.events;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map.Entry;
+
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.block.Block;
+import org.bukkit.event.Event;
+import org.bukkit.event.EventException;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.plugin.EventExecutor;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.SkriptConfig;
 import ch.njol.skript.SkriptEventHandler;
-import ch.njol.skript.aliases.Aliases;
 import ch.njol.skript.aliases.ItemData;
 import ch.njol.skript.aliases.ItemType;
-import ch.njol.skript.bukkitutil.ItemUtils;
 import ch.njol.skript.lang.Literal;
-import ch.njol.skript.lang.SkriptEvent;
+import ch.njol.skript.lang.SelfRegisteringSkriptEvent;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.skript.lang.Trigger;
 import ch.njol.skript.registrations.Classes;
-import org.bukkit.Bukkit;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.Tag;
-import org.bukkit.block.Block;
-import org.bukkit.event.Event;
-import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerMoveEvent;
-import org.bukkit.plugin.EventExecutor;
-import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
+/**
+ * @author Peter Güttinger
+ */
+@SuppressWarnings("deprecation")
+public class EvtMoveOn extends SelfRegisteringSkriptEvent { // TODO on jump
 
-public class EvtMoveOn extends SkriptEvent {
+//	private final static class BlockLocation {
+//		final World world;
+//		final int x, y, z;
+//
+//		BlockLocation(final World world, final int x, final int y, final int z) {
+//			this.world = world;
+//			this.x = x;
+//			this.y = y;
+//			this.z = z;
+//		}
+//
+//		@Override
+//		public boolean equals(final Object obj) {
+//			if (obj == this)
+//				return true;
+//			if (!(obj instanceof BlockLocation))
+//				return false;
+//			final BlockLocation other = (BlockLocation) obj;
+//			return world == other.world && x == other.x && y == other.y && z == other.z;
+//		}
+//
+//		@Override
+//		public int hashCode() {
+//			return world.hashCode() + 29 * (x + 17 * (y + 31 * z));
+//		}
+//	}
 	
 	static {
-		// Register EvtPressurePlate before EvtMoveOn, https://github.com/SkriptLang/Skript/issues/2555
-		new EvtPressurePlate();
-
+//		Skript.registerEvent(EvtMoveOn.class, PlayerMoveEvent.class, "(step|walk) on <.+>");
 		Skript.registerEvent("Move On", EvtMoveOn.class, PlayerMoveEvent.class, "(step|walk)[ing] (on|over) %*itemtypes%")
-			.description(
-				"Called when a player moves onto a certain type of block.",
-				"Please note that using this event can cause lag if there are many players online."
-			).examples(
-				"on walking on dirt or grass:",
-				"on stepping on stone:"
-			).since("2.0");
+				.description("Called when a player moves onto a certain type of block. Please note that using this event can cause lag if there are many players online.")
+				.examples("on walking on dirt or grass", "on stepping on stone")
+				.since("2.0");
 	}
 	
-	private static final Map<Material, List<Trigger>> ITEM_TYPE_TRIGGERS = new ConcurrentHashMap<>();
+//	private final static HashMap<BlockLocation, List<Trigger>> blockTriggers = new HashMap<BlockLocation, List<Trigger>>();
+	final static HashMap<Integer, List<Trigger>> itemTypeTriggers = new HashMap<>();
+	@SuppressWarnings("null")
+	ItemType[] types = null;
+//	private World world;
+//	private int x, y, z;
 	
-	private static final AtomicBoolean REGISTERED_EXECUTOR = new AtomicBoolean();
-
-	private static final EventExecutor EXECUTOR = (listener, e) -> {
-		PlayerMoveEvent event = (PlayerMoveEvent) e;
-		Location from = event.getFrom(), to = event.getTo();
-
-		if (!ITEM_TYPE_TRIGGERS.isEmpty()) {
-			Block block = getOnBlock(to);
-			if (block == null || ItemUtils.isAir(block.getType()))
+	private static boolean registeredExecutor = false;
+	private final static EventExecutor executor = new EventExecutor() {
+		@SuppressWarnings("null")
+		@Override
+		public void execute(final @Nullable Listener l, final @Nullable Event event) throws EventException {
+			if (event == null)
 				return;
-
-			Material id = block.getType();
-			List<Trigger> triggers = ITEM_TYPE_TRIGGERS.get(id);
-			if (triggers == null)
-				return;
-
-			int y = getBlockY(to.getY(), block);
-			if (to.getWorld().equals(from.getWorld()) && to.getBlockX() == from.getBlockX() && to.getBlockZ() == from.getBlockZ()) {
-				Block fromOnBlock = getOnBlock(from);
-				if (fromOnBlock != null && y == getBlockY(from.getY(), fromOnBlock) && fromOnBlock.getType() == id)
+			final PlayerMoveEvent e = (PlayerMoveEvent) event;
+			final Location from = e.getFrom(), to = e.getTo();
+//			if (!blockTriggers.isEmpty()) {
+//				final List<Trigger> ts = blockTriggers.get(new BlockLocation(to.getWorld(), to.getBlockX(), to.getBlockY(), to.getBlockZ()));
+//				if (ts != null) {
+//					for (final Trigger t : ts) {
+//						SkriptEventHandler.logTriggerStart(t);
+//						t.start(e);
+//						SkriptEventHandler.logTriggerEnd(t);
+//					}
+//				}
+//			}
+			if (!itemTypeTriggers.isEmpty()) {
+				final int id = getOnBlock(to);
+				if (id == 0)
 					return;
-			}
-
-			SkriptEventHandler.logEventStart(event);
-			for (Trigger trigger : triggers) {
-				for (ItemType type : ((EvtMoveOn) trigger.getEvent()).types) {
-					if (type.isOfType(block)) {
-						SkriptEventHandler.logTriggerStart(trigger);
-						trigger.execute(event);
-						SkriptEventHandler.logTriggerEnd(trigger);
-						break;
+				final List<Trigger> ts = itemTypeTriggers.get(id);
+				if (ts == null)
+					return;
+				final int y = getBlockY(to.getY(), id);
+				if (to.getWorld().equals(from.getWorld()) && to.getBlockX() == from.getBlockX() && to.getBlockZ() == from.getBlockZ() && y == getBlockY(from.getY(), getOnBlock(from)) && getOnBlock(from) == id)
+					return;
+				SkriptEventHandler.logEventStart(e);
+				final byte data = to.getWorld().getBlockAt(to.getBlockX(), y, to.getBlockZ()).getData();
+				triggersLoop: for (final Trigger t : ts) {
+					final EvtMoveOn se = (EvtMoveOn) t.getEvent();
+					for (final ItemType i : se.types) {
+						if (i.isOfType(id, data)) {
+							SkriptEventHandler.logTriggerStart(t);
+							t.execute(e);
+							SkriptEventHandler.logTriggerEnd(t);
+							continue triggersLoop;
+						}
 					}
 				}
+				SkriptEventHandler.logEventEnd();
 			}
-			SkriptEventHandler.logEventEnd();
 		}
 	};
-
-	@Nullable
-	private static Block getOnBlock(Location location) {
-		Block block = location.getWorld().getBlockAt(location.getBlockX(), (int) (Math.ceil(location.getY()) - 1), location.getBlockZ());
-		if (block.getType() == Material.AIR && Math.abs((location.getY() - location.getBlockY()) - 0.5) < Skript.EPSILON) { // Fences
-			block = location.getWorld().getBlockAt(location.getBlockX(), location.getBlockY() - 1, location.getBlockZ());
-			if (!ItemUtils.isFence(block))
-				return null;
+	
+	final static int getOnBlock(final Location l) {
+		int id = l.getWorld().getBlockTypeIdAt(l.getBlockX(), (int) Math.ceil(l.getY()) - 1, l.getBlockZ());
+		if (id == 0 && Math.abs((l.getY() - l.getBlockY()) - 0.5) < Skript.EPSILON) { // fences
+			id = l.getWorld().getBlockTypeIdAt(l.getBlockX(), l.getBlockY() - 1, l.getBlockZ());
+			if (id != Material.FENCE.getId() && id != 107 && id != 113) // fence gate // nether fence
+				return 0;
 		}
-		return block;
+		return id;
 	}
 	
-	private static int getBlockY(double y, Block block) {
-		if (ItemUtils.isFence(block) && Math.abs((y - Math.floor(y)) - 0.5) < Skript.EPSILON)
+	final static int getBlockY(final double y, final int id) {
+		if ((id == Material.FENCE.getId() || id == 107 || id == 113) && Math.abs((y - Math.floor(y)) - 0.5) < Skript.EPSILON) // fence gate // nether fence
 			return (int) Math.floor(y) - 1;
 		return (int) Math.ceil(y) - 1;
 	}
-
-	@SuppressWarnings("NotNullFieldNotInitialized")
-	private ItemType[] types;
 	
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings("null")
+	public final static Block getBlock(final PlayerMoveEvent e) {
+		return e.getTo().clone().subtract(0, 0.5, 0).getBlock();
+	}
+	
 	@Override
-	public boolean init(Literal<?>[] args, int matchedPattern, ParseResult parseResult) {
-		Literal<? extends ItemType> types = (Literal<? extends ItemType>) args[0];
-		if (types == null)
+	public boolean init(final Literal<?>[] args, final int matchedPattern, final ParseResult parser) {
+//		if (parser.regexes.get(0).group().equalsIgnoreCase("<block>")/* && isValidatingInput*/)
+//			return true;
+//		final Matcher m = Pattern.compile("<block:(.+)>").matcher(parser.regexes.get(0).group());
+//		if (m.matches()) {
+//			final Block b = (Block) Skript.deserialize("block", m.group(1));
+//			if (b == null)
+//				return false;
+//			world = b.getWorld();
+//			x = b.getX();
+//			y = b.getY();
+//			z = b.getZ();
+//		} else {
+		@SuppressWarnings("unchecked")
+		final Literal<? extends ItemType> l = (Literal<? extends ItemType>) args[0];//SkriptParser.parseLiteral(parser.regexes.get(0).group(), ItemType.class, ParseContext.EVENT);
+		if (l == null)
 			return false;
-		this.types = types.getAll();
-
-		for (ItemType type : this.types) {
-			if (type.isAll()) {
-				Skript.error("Can't use an 'on walk' event with an alias that matches all blocks");
-				return false;
-			}
-			for (ItemData data : type) { // Check for illegal types
-				if (!data.getType().isBlock() || ItemUtils.isAir(data.getType())) {
-					Skript.error(type + " is not a block and can thus not be walked on");
+		types = l.getAll();
+		for (final ItemType t : types) {
+			boolean hasBlock = false;
+			for (final ItemData d : t) {
+				if (d.getId() == -1) {
+					Skript.error("Can't use an 'on walk' event with an alias that matches all blocks");
 					return false;
 				}
+				if (d.getId() <= Skript.MAXBLOCKID && d.getId() != 0) // don't allow air
+					hasBlock = true;
+			}
+			if (!hasBlock) {
+				Skript.error(t + " is not a block and can thus not be walked on");
+				return false;
 			}
 		}
-
+//		}
 		return true;
 	}
-
+	
 	@Override
-	public boolean postLoad() {
-		Set<Material> materialSet = new HashSet<>();
-		for (ItemType type : types) { // Get unique materials
-			for (ItemData data : type)
-				materialSet.add(data.getType());
-		}
-
-		for (Material material : materialSet)
-			ITEM_TYPE_TRIGGERS.computeIfAbsent(material, k -> new ArrayList<>()).add(trigger);
-
-		if (REGISTERED_EXECUTOR.compareAndSet(false, true)) {
-			Bukkit.getPluginManager().registerEvent(
-				PlayerMoveEvent.class, new Listener(){}, SkriptConfig.defaultEventPriority.value(), EXECUTOR, Skript.getInstance(), true
-			);
-		}
-
-		return true;
-	}
-
-	@Override
-	public void unload() {
-		Iterator<Entry<Material, List<Trigger>>> iterator = ITEM_TYPE_TRIGGERS.entrySet().iterator();
-		while (iterator.hasNext()) {
-			List<Trigger> triggers = iterator.next().getValue();
-			triggers.remove(trigger);
-			if (triggers.isEmpty())
-				iterator.remove();
-		}
-	}
-
-	@Override
-	public boolean check(Event event) {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public boolean isEventPrioritySupported() {
-		return false;
-	}
-
-	@Override
-	public String toString(@Nullable Event event, boolean debug) {
+	public String toString(final @Nullable Event e, final boolean debug) {
 		return "walk on " + Classes.toString(types, false);
+//		return "walk on " + (types != null ? Skript.toString(types, false) : "<block:" + world.getName() + ":" + x + "," + y + "," + z + ">");
 	}
-
+	
+	@Override
+	public void register(final Trigger trigger) {
+//		if (types == null) {
+//			final BlockLocation l = new BlockLocation(world, x, y, z);
+//			List<Trigger> ts = blockTriggers.get(l);
+//			if (ts == null)
+//				blockTriggers.put(l, ts = new ArrayList<Trigger>());
+//			ts.add(trigger);
+//		} else {
+		for (final ItemType t : types) {
+			for (final ItemData d : t) {
+				if (d.getId() > Skript.MAXBLOCKID)
+					continue;
+				List<Trigger> ts = itemTypeTriggers.get(d.getId());
+				if (ts == null)
+					itemTypeTriggers.put(d.getId(), ts = new ArrayList<>());
+				ts.add(trigger);
+			}
+		}
+//		}
+		if (!registeredExecutor) {
+			Bukkit.getPluginManager().registerEvent(PlayerMoveEvent.class, new Listener() {}, SkriptConfig.defaultEventPriority.value(), executor, Skript.getInstance(), true);
+			registeredExecutor = true;
+		}
+	}
+	
+	@Override
+	public void unregister(final Trigger t) {
+//		final Iterator<Entry<BlockLocation, List<Trigger>>> i = blockTriggers.entrySet().iterator();
+//		while (i.hasNext()) {
+//			final List<Trigger> ts = i.next().getValue();
+//			ts.remove(t);
+//			if (ts.isEmpty())
+//				i.remove();
+//		}
+		final Iterator<Entry<Integer, List<Trigger>>> i2 = itemTypeTriggers.entrySet().iterator();
+		while (i2.hasNext()) {
+			final List<Trigger> ts = i2.next().getValue();
+			ts.remove(t);
+			if (ts.isEmpty())
+				i2.remove();
+		}
+	}
+	
+	@Override
+	public void unregisterAll() {
+//		blockTriggers.clear();
+		itemTypeTriggers.clear();
+	}
+	
 }

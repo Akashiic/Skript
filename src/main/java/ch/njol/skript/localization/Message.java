@@ -1,10 +1,29 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.localization;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Locale;
 
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
 
@@ -15,36 +34,41 @@ import ch.njol.skript.Skript;
  */
 public class Message {
 	
-	// This is most likely faster than registering a listener for each Message
-	private static final Collection<Message> messages = new ArrayList<>(50);
-	private static boolean firstChange = true;
+	// this is most likely faster than registering a listener for each Message
+	final static Collection<Message> messages = new ArrayList<>(50);
+	static boolean firstChange = true;
 	static {
-		Language.addListener(() -> {
-			for (final Message m : messages) {
-				synchronized (m) {
-					m.revalidate = true;
+		Language.addListener(new LanguageChangeListener() {
+			@Override
+			public void onLanguageChange() {
+				for (final Message m : messages) {
+					synchronized (m) {
+						m.revalidate = true;
+					}
+					if (firstChange && Skript.testing()) {
+						if (!Language.english.containsKey(m.key))
+							Language.missingEntryError(m.key);
+					}
 				}
-				if (firstChange && Skript.debug() && !Language.keyExists(m.key)) {
-					Language.missingEntryError(m.key);
-				}
+				firstChange = false;
 			}
-			firstChange = false;
 		});
 	}
-
+	
 	public final String key;
 	@Nullable
 	private String value;
 	boolean revalidate = true;
-
+	
 	public Message(final String key) {
 		this.key = "" + key.toLowerCase(Locale.ENGLISH);
 		messages.add(this);
-
-		if (Skript.debug() && Language.isInitialized() && !Language.keyExists(this.key))
-			Language.missingEntryError(this.key);
+		if (Skript.testing() && !Language.english.isEmpty()) {
+			if (!Language.english.containsKey(this.key))
+				Language.missingEntryError(this.key);
+		}
 	}
-
+	
 	/**
 	 * @return The value of this message in the current language
 	 */
@@ -60,22 +84,11 @@ public class Message {
 	 * @return This message's value or null if it doesn't exist.
 	 */
 	@Nullable
-	public final String getValue() {
+	protected final String getValue() {
 		validate();
 		return value;
 	}
-
-	/**
-	 * Gets the text this Message refers to. If value is null returns a default value.
-	 *
-	 * @param defaultValue The string this method refers to if value is null
-	 * @return This message's value or default value if null
-	 */
-	public final String getValueOrDefault(String defaultValue) {
-		validate();
-		return value == null ? defaultValue : value;
-	}
-
+	
 	/**
 	 * Checks whether this value is set in the current language or the english default.
 	 * 

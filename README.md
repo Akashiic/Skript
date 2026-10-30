@@ -1,47 +1,50 @@
-![Skript Language](.github/assets/Cover.jpg)
-
----
-
 # Skript
-**Skript** is a Minecraft plugin for Paper, which allows server owners and other people
+Skript is plugin for Bukkit/Spigot, which allows server owners and other people
 to modify their servers without learning Java. It can also be useful if you
 *do* know Java; some tasks are quicker to do with Skript, and so it can be used
 for prototyping etc.
 
-This Github fork of Skript is based on Mirreski's improvements which was built
-on Njol's original Skript.
-
-## Requirements
-Skript requires **Paper** to work. You heard it right, **Spigot** does *not* work.
-
-Skript supports the last 18 months of Minecraft versions, counting from the release date of Skript's newest version.
-For example, this means that 1.20.4 is supported, but 1.20.3 is *not*.
-
-New Minecraft versions will be supported as soon as possible.
-
-## Download
-You can find the downloads for each version with their release notes in the [releases page](https://github.com/SkriptLang/Skript/releases).
-
-Two major feature updates are expected each year in January and July, with monthly patches occurring in between. For full details, please review our [release model](CLOCKWORK_RELEASE_MODEL.md).
+This Github fork fork of Skript is based on Mirreski's improvements on original
+Njol's Skript. It is supported for **Spigot** (not Bukkit) versions for
+Minecraft 1.9-1.12. Other versions might work, but no guarantees. **Paper** is
+recommended, but not mandatory - without it, timings of scripts will not work.
 
 ## Documentation
-Documentation is available [here](https://docs.skriptlang.org/) for the
-latest version of Skript.
+Documentation is available [here](http://bensku.github.io/Skript/) for latest
+version of Skript.
 
 ## Reporting Issues
-Please see our [contribution guidelines](https://github.com/SkriptLang/Skript/blob/master/.github/contributing.md)
-before reporting issues.
+You should use Github [issue tracker](https://github.com/bensku/Skript/issues)
+for all bug reports, feature requests and such. If you are not sure if something
+is a bug, please still report it.
 
-## Help Us Test
-Wanting to help test Skript's new features and releases?
-You can head on over to our [Official Testing Discord](https://discord.gg/ZPsZAg6ygu), and whenever we start testing new features/releases you will be the first to know.
+Please use search to see if issue has been reported already. Duplicates will be
+closed and ignored. If the issue is indeed not yet reported, please really
+use common sense: what might Skript developer need to know to solve your issue?
 
-Please note this is not a help Discord.
-If you require assistance with how to use Skript please check out the [Relevant Links](https://github.com/SkriptLang/Skript#relevant-links) section for a list of available resources to assist you.
+If issue has been reported before, and is open, you can comment to it to ask if there
+has been progress or provide more information. If it has been closed, you can do
+same thing, but then it might be good idea to ping `@bensku` and/or `@Snow-Pyon`
+since closed issues are not often checked.
 
-## A Note About Add-ons
-We don't support add-ons here, even though some of Skript developers have also
-developed their own add-ons.
+Finally, there is no guarantee that issue will be resolved. Sometimes it might be
+harder than it sounds to you; in other cases, no one has time to take look at it.
+
+If your having a aliases issue please report that
+[here](https://github.com/tim740/skAliases/issues) instead.
+
+## A Note About Addons
+I cannot provide support for third-party addons of Skript. If you encounter issues
+with them, contact the author of that addon. Also, when reporting issues which seem
+to be unrelated to addons, you may be asked to test without any addons
+(and you should do so to get your issue resolved).
+
+That being said, if the **addon developer** thinks that some bug is caused by Skript,
+they should report it. I just do not want everyone who has an issue with addon to
+clutter Skript's issue tracker; in *most* cases, I cannot do anything to help.
+
+As side note, I really, really, discourage making addons closed-source. After all,
+Skript has been licensed under GPLv3 for ages...
 
 ## Compiling
 Skript uses Gradle for compilation. Use your command prompt of preference and
@@ -53,123 +56,99 @@ and package Skript for you:
 gradlew clean build # on Windows
 ```
 
-You can get source code from the [releases page](https://github.com/SkriptLang/Skript/releases).
-You may also clone this repository, but that code may or may not be stable.
+You can get source code from the [releases](https://github.com/bensku/Skript/releases) page. You may also clone this
+repository, but that code might or might not be stable.
 
-### Compiling Modules
-Parts of Skript are provided as Gradle subprojects. They require Skript, so
-they are compiled *after* it has been built. For this reason, if you want them
-embedded in Skript jar, you must re-package it after compiling once. For example:
+### Importing to Eclipse
+With new Eclipse versions, there is integrated Gradle support. And it actually works now.
+So, first get latest Eclipse, then import Skript as any Gradle project. Just
+make sure to **keep** the configuration when importer asks that!
 
-```
-./gradlew jar
-```
+If you encounter strange issues, make sure you followed the instructions above and
+actually downloaded latest Eclipse or updated your installation correctly. Skript's
+new Gradle version (starting from dev26) does not work very well with older Eclipse
+versions. Also, do *not* use Gradle STS; it is outdated.
 
-Note that modules are not necessary for Skript to work. Currently, they are
-only used to provide compatibility with old WorldGuard versions.
-
-### Testing
-Skript has some tests written in Skript. Running them requires a Minecraft
-server, but our build script will create one for you. Running the tests is easy:
-
-```
-./gradlew (quickTest|skriptTest|skriptTestJava21)
-```
-
-<code>quickTest</code> runs the test suite on newest supported server version.
-<code>skriptTestJava21</code> (1.21.4+) runs the tests on Java 21 supported versions.
-<code>skriptTest</code> runs the tests on all versions (currently identical to the Java 21 test).
-
-By running the tests, you agree to Mojang's End User License Agreement.
-
-### Releasing
-```
-./gradlew clean build
-./gradlew <flavor>Release
-```
-Available flavors are github and spigot. Please do not abuse flavors by
-compiling your own test builds as releases.
+### Importing to IDEA
+Skript relies heavily on use of nullness annotations and the way how Eclipse
+interprets them. Thus, using IDEA is not easy. However, if you have truly
+exceptional new feature work in progress, I might be able to complete code
+with applicable nullness rules. Note that this really means *exceptional*;
+adding some expressions and stuff like that do not count.
 
 ## Contributing
-Please review our [contribution guidelines](https://github.com/SkriptLang/Skript/blob/master/.github/contributing.md).
-In addition to that, if you are contributing Java code, check our
-[coding conventions](https://github.com/SkriptLang/Skript/blob/master/code-conventions.md).
+Code guidelines can be found below. You should also see CONTRIBUTING.md for
+a lot of useful information.
 
-## Maven Repository
+## Code Guidelines
+So, you want to work with Skript's codebase? There are a few guidelines for you:
+* Understand Java as a language (Skript is not good learning project)
+* Use Eclipse as your IDE for Skript *or* get your own IDE to support Eclipse's nullness annotations
+* Not alter Eclipse nullness annotation settings; they affect even the compiler
+* Use tabs as indentation (Eclipse settings provided will do this)
+* Try to write code that looks similar to
+* **DO NOT** use NMS code
+
+Of course, these are just recommendations. However, not following them may get
+your pull requests rejected.
+
+### Maven repository
 If you use Skript as (soft) dependency for your plugin, and use maven or Gradle,
 this is for you.
 
-First, you need to add the Maven repository at the **END** of all your repositories. Skript is not available in Maven Central.
-```gradle
-repositories {
-    maven {
-        url 'https://repo.skriptlang.org/releases'
-    }
-}
+First, you need the repository. Skript is not in Maven Central.
 ```
-
-Or, if you use Maven:
-```maven
-<repositories>
-    <repository>
-        <id>skript-releases</id>
-        <name>Skript Repository</name>
-        <url>https://repo.skriptlang.org/releases</url>
-    </repository>
-</repositories>
-```
-
-For versions of Skript after dev37 you might need to add the paper-api repository to prevent build issues.
-
-```gradle
 maven {
-    url 'https://repo.destroystokyo.com/repository/maven-public/'
+    url "https://raw.githubusercontent.com/bensku/mvn-repo/master"
 }
 ```
 
 Or, if you use Maven:
-```maven
+```
 <repository>
-    <id>destroystokyo-repo</id>
-    <url>https://repo.destroystokyo.com/content/repositories/snapshots/</url>
+    <id>bensku-repo</id>
+    <url>https://raw.githubusercontent.com/bensku/mvn-repo/master</url>
 </repository>
 ```
 
-Then you will also need to add Skript as a dependency.
-```gradle
-dependencies {
-    implementation 'com.github.SkriptLang:Skript:[versionTag]'
-}
+Then you alse need to add Skript as dependency.
 ```
-
-An example of the version tag would be ```2.8.5```.
-
-> Note: If Gradle isn't able to resolve Skript's dependencies, just [disable the resolution of transitive dependencies](https://docs.gradle.org/current/userguide/resolution_rules.html#sec:disabling_resolution_transitive_dependencies) for Skript in your project.
+compile "ch.njol:Skript:2.2-RELEASE_TAG"
+```
 
 Or, if you use Maven:
 ```
 <dependency>
-    <groupId>com.github.SkriptLang</groupId>
+    <groupId>ch.njol</groupId>
     <artifactId>Skript</artifactId>
-    <version>[versionTag]</version>
-    <scope>provided</scope>
+    <version>2.2-RELEASE_TAG</version>
 </dependency>
 ```
 
-## Relevant Links
-* [skUnity forums](https://forums.skunity.com)
-* [skUnity addon releases](https://forums.skunity.com/forums/addon-releases)
-* [skUnity Discord invite](https://discord.gg/0l3WlzBPKX7WNjkf)
-* [Skript Chat Discord invite](https://discord.gg/0lx4QhQvwelCZbEX)
-* [Skript Hub](https://skripthub.net)
-* [Original Skript at Bukkit](https://dev.bukkit.org/bukkit-plugins/skript) (inactive)
+Note that these repositories are provided as-is, for now. I cannot currently spend time to add nice, but not mandatory, features like Javadoc.
 
-Note that these resources are not maintained by Skript's developers. Don't
-contact us about any problems you might have with them.
+## Relevant Links
+* [SkUnity Forums](https://forums.skunity.com/)
+* [Original Skript at BukkitDev](https://dev.bukkit.org/bukkit-plugins/skript/) (inactive)
+* [Addon Releases @SkUnity](https://forums.skunity.com/forums/addon-releases/)
+* [Skript Chat Discord invite](https://discord.gg/0lx4QhQvwelCZbEX)
+* [Skript Hub](https://skripthub.net/)
+
+Note that these resources are not maintained by me. If you notice something wrong in them, do not contact me.
 
 ## Developers
-You can find all contributors [here](https://github.com/SkriptLang/Skript/graphs/contributors).
+Current team behind Skript:
 
-All code is owned by its writer, licensed for others under GPLv3 (see [LICENSE](LICENSE)).
-Some contributors may choose to release their code under the MIT License.
-Further information can be found within [LICENSING.md](LICENSING.md).
+* [bensku](https://github.com/bensku) (Skript maintainer/developer)
+* [Snow-Pyon](https://github.com/Snow-Pyon) (Skript developer)
+* [TheBentoBox](https://github.com/TheBentoBox) (issue tracker manager)
+
+Also, of course, we should thank [Njol](https://github.com/Njol) for creating
+Skript and [Mirreski](https://github.com/Mirreski) for maintaining it for a
+long time.
+
+In addition to that, Skript has received a lot of pull requests over time.
+You can find all contributors [here](https://github.com/bensku/Skript/graphs/contributors).
+
+All code is owned by its writer, licensed for others under GPLv3 (see LICENSE)
+unless otherwise specified.

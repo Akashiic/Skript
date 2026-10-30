@@ -1,6 +1,23 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.util;
-
-import java.util.Locale;
 
 /**
  * A three-valued logic type (true, unknown, false), named after Stephen Cole Kleene.
@@ -23,7 +40,7 @@ public enum Kleenean {
 	
 	@Override
 	public final String toString() {
-		return "" + name().toLowerCase(Locale.ENGLISH);
+		return "" + name().toLowerCase();
 	}
 	
 	public final Kleenean is(final Kleenean other) {
@@ -91,7 +108,7 @@ public enum Kleenean {
 	 * @param b
 	 * @return <tt>b ? TRUE : FALSE</tt>
 	 */
-	public static Kleenean get(final boolean b) {
+	public final static Kleenean get(final boolean b) {
 		return b ? TRUE : FALSE;
 	}
 	
@@ -99,7 +116,7 @@ public enum Kleenean {
 	 * @param i
 	 * @return <tt>i > 0 ? TRUE : i < 0 ? FALSE : UNKNOWN</tt>
 	 */
-	public static Kleenean get(final int i) {
+	public final static Kleenean get(final int i) {
 		return i > 0 ? TRUE : i < 0 ? FALSE : UNKNOWN;
 	}
 	
@@ -107,7 +124,7 @@ public enum Kleenean {
 	 * @param d
 	 * @return <tt>return d > 0 ? TRUE : d < 0 ? FALSE : UNKNOWN</tt>
 	 */
-	public static Kleenean get(final double d) {
+	public final static Kleenean get(final double d) {
 		return d > 0 ? TRUE : d < 0 ? FALSE : UNKNOWN;
 	}
 	

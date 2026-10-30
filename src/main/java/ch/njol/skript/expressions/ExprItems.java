@@ -1,9 +1,37 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.expressions;
+
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+
+import org.bukkit.Material;
+import org.bukkit.event.Event;
+import org.bukkit.inventory.ItemStack;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.aliases.ItemType;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.lang.Expression;
@@ -12,120 +40,149 @@ import ch.njol.skript.lang.Literal;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.skript.lang.util.SimpleExpression;
 import ch.njol.util.Kleenean;
-import com.google.common.collect.Iterables;
-import org.bukkit.Material;
-import org.bukkit.event.Event;
-import org.bukkit.inventory.ItemStack;
-import org.jetbrains.annotations.Nullable;
+import ch.njol.util.NullableChecker;
+import ch.njol.util.coll.iterator.ArrayIterator;
+import ch.njol.util.coll.iterator.CheckedIterator;
+import ch.njol.util.coll.iterator.IteratorIterable;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-import java.util.stream.StreamSupport;
-
+/**
+ * @author Peter Güttinger
+ */
 @Name("Items")
 @Description("Items or blocks of a specific type, useful for looping.")
-@Example("""
-	loop tag values of tag "diamond_ores" and tag values of tag "oak_logs":
-		block contains loop-item
-		message "Theres at least one %loop-item% in this block"
-	""")
-@Example("drop all blocks at the player # drops one of every block at the player")
-@Since("1.0 pre-5")
-public class ExprItems extends SimpleExpression<ItemType> {
-
-	private static final ItemType[] ALL_BLOCKS = Arrays.stream(Material.values())
-		.filter(material -> !material.isLegacy() && material.isBlock())
-		.map(ItemType::new)
-		.toArray(ItemType[]::new);
-
+@Examples({"loop items of type ore and log:",
+		"	block contains loop-item",
+		"	message \"Theres at least one %loop-item% in this block\"",
+		"drop all blocks at the player # drops one of every block at the player"})
+@Since("<i>unknown</i> (before 2.1)")
+public class ExprItems extends SimpleExpression<ItemStack> {
+	
 	static {
-		Skript.registerExpression(ExprItems.class, ItemType.class, ExpressionType.COMBINED,
-			"[all [[of] the]|the] block[[ ]type]s",
-			"every block[[ ]type]",
-			"[all [[of] the]|the|every] block[s] of type[s] %itemtypes%",
-			"[all [[of] the]|the|every] item[s] of type[s] %itemtypes%"
-		);
+		Skript.registerExpression(ExprItems.class, ItemStack.class, ExpressionType.COMBINED,
+				"[(all|every)] item(s|[ ]types)", "items of type[s] %itemtypes%",
+				"[(all|every)] block(s|[ ]types)", "blocks of type[s] %itemtypes%");
 	}
-
+	
 	@Nullable
-	private Expression<ItemType> itemTypeExpr;
-	private boolean items;
-	private ItemType[] buffer = null;
-
-	@Override
+	Expression<ItemType> types = null;
+	private boolean blocks = false;
+	
 	@SuppressWarnings("unchecked")
-	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult) {
-		items = matchedPattern == 3;
-		itemTypeExpr = matchedPattern == 0 || matchedPattern == 1 ? null : (Expression<ItemType>) exprs[0];
-		if (itemTypeExpr instanceof Literal) {
-			for (ItemType itemType : ((Literal<ItemType>) itemTypeExpr).getAll())
-				itemType.setAll(true);
+	@Override
+	public boolean init(final Expression<?>[] vars, final int matchedPattern, final Kleenean isDelayed, final ParseResult parser) {
+		if (vars.length > 0)
+			types = (Expression<ItemType>) vars[0];
+		blocks = matchedPattern >= 2;
+		if (types instanceof Literal) {
+			for (final ItemType t : ((Literal<ItemType>) types).getAll())
+				t.setAll(true);
 		}
 		return true;
 	}
-
-	@Override
+	
 	@Nullable
-	protected ItemType[] get(Event event) {
+	private ItemStack[] buffer = null;
+	
+	@SuppressWarnings("null")
+	@Override
+	protected ItemStack[] get(final Event e) {
 		if (buffer != null)
 			return buffer;
-		List<ItemType> items = new ArrayList<>();
-		iterator(event).forEachRemaining(items::add);
-		ItemType[] itemTypes = items.toArray(new ItemType[0]);
-		if (itemTypeExpr instanceof Literal)
-			buffer = itemTypes;
-		return itemTypes;
+		final ArrayList<ItemStack> r = new ArrayList<>();
+		for (final ItemStack is : new IteratorIterable<>(iterator(e)))
+			r.add(is);
+		if (types instanceof Literal)
+			return buffer = r.toArray(new ItemStack[r.size()]);
+		return r.toArray(new ItemStack[r.size()]);
 	}
-
+	
 	@Override
 	@Nullable
-	@SuppressWarnings("unchecked")
-	public Iterator<ItemType> iterator(Event event) {
-		if (!items && itemTypeExpr == null)
-			return Arrays.stream(ALL_BLOCKS)
-				.map(ItemType::clone)
-				.iterator();
-
-		Iterable<ItemStack> itemStackIterable = Iterables.concat(itemTypeExpr.stream(event)
-			.map(ItemType::getAll)
-			.toArray(Iterable[]::new));
-
-		if (items) {
-			return StreamSupport.stream(itemStackIterable.spliterator(), false)
-				.map(ItemType::new)
-				.iterator();
+	public Iterator<ItemStack> iterator(final Event e) {
+		Iterator<ItemStack> iter;
+		if (types == null) {
+			iter = new Iterator<ItemStack>() {
+				
+				private final Iterator<Material> iter = new ArrayIterator<>(Material.values());
+				
+				@Override
+				public boolean hasNext() {
+					return iter.hasNext();
+				}
+				
+				@Override
+				public ItemStack next() {
+					return new ItemStack(iter.next());
+				}
+				
+				@Override
+				public void remove() {}
+				
+			};
 		} else {
-			return StreamSupport.stream(itemStackIterable.spliterator(), false)
-				.filter(itemStack -> itemStack.getType().isBlock())
-				.map(ItemType::new)
-				.iterator();
+			@SuppressWarnings("null")
+			final Iterator<ItemType> it = new ArrayIterator<>(types.getArray(e));
+			if (!it.hasNext())
+				return null;
+			iter = new Iterator<ItemStack>() {
+				
+				@SuppressWarnings("null")
+				Iterator<ItemStack> current = it.next().getAll().iterator();
+				
+				@SuppressWarnings("null")
+				@Override
+				public boolean hasNext() {
+					while (!current.hasNext() && it.hasNext()) {
+						current = it.next().getAll().iterator();
+					}
+					return current.hasNext();
+				}
+				
+				@SuppressWarnings("null")
+				@Override
+				public ItemStack next() {
+					if (!hasNext())
+						throw new NoSuchElementException();
+					return current.next();
+				}
+				
+				@Override
+				public void remove() {}
+				
+			};
 		}
+		
+		if (!blocks)
+			return iter;
+		
+		return new CheckedIterator<>(iter, new NullableChecker<ItemStack>() {
+			@SuppressWarnings("deprecation")
+			@Override
+			public boolean check(final @Nullable ItemStack is) {
+				return is != null && is.getTypeId() <= Skript.MAXBLOCKID;
+			}
+		});
 	}
-
+	
 	@Override
-	public Class<? extends ItemType> getReturnType() {
-		return ItemType.class;
+	public Class<? extends ItemStack> getReturnType() {
+		return ItemStack.class;
 	}
-
+	
+	@Override
+	public String toString(final @Nullable Event e, final boolean debug) {
+		final Expression<ItemType> types = this.types;
+		return (blocks ? "blocks" : "items") + (types != null ? " of type" + (types.isSingle() ? "" : "s") + " " + types.toString(e, debug) : "");
+	}
+	
 	@Override
 	public boolean isSingle() {
 		return false;
 	}
-
+	
 	@Override
-	public String toString(@Nullable Event event, boolean debug) {
-		return "all of the " + (items ? "items" : "blocks") + (itemTypeExpr != null ? " of type " + itemTypeExpr.toString(event, debug) : "");
+	public boolean isLoopOf(final String s) {
+		return blocks && s.equalsIgnoreCase("block") || !blocks && s.equalsIgnoreCase("item");
 	}
-
-	@Override
-	public boolean isLoopOf(String input) {
-		if (items) {
-			return input.equals("item");
-		} else {
-			return input.equals("block");
-		}
-	}
-
+	
 }

@@ -1,132 +1,97 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
+ */
 package ch.njol.skript.expressions;
 
+import org.bukkit.event.Event;
+import org.bukkit.inventory.ItemStack;
+import org.eclipse.jdt.annotation.Nullable;
+
 import ch.njol.skript.Skript;
-import ch.njol.skript.aliases.ItemType;
+import ch.njol.skript.classes.Converter;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
-import ch.njol.skript.doc.Keywords;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
+import ch.njol.skript.entity.EntityType;
 import ch.njol.skript.expressions.base.PropertyExpression;
 import ch.njol.skript.lang.Expression;
 import ch.njol.skript.lang.ExpressionType;
 import ch.njol.skript.lang.Literal;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
-import ch.njol.skript.lang.simplification.SimplifiedLiteral;
 import ch.njol.util.Kleenean;
-import org.bukkit.event.Event;
-import org.bukkit.inventory.ItemStack;
-import org.jetbrains.annotations.Nullable;
-import org.skriptlang.skript.bukkit.entity.EntityType;
-import org.skriptlang.skript.bukkit.particles.particleeffects.ParticleEffect;
 
-import java.lang.reflect.Array;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-@Name("X of Item/Entity Type")
-@Description("An expression for using an item or entity type with a different amount.")
-@Example("give level of player of iron pickaxes to the player")
+/**
+ * @author Peter Güttinger
+ */
+@Name("X of Item")
+@Description("An expression to be able to use a certain amount of items where the amount can be any expression. Please note that is expression is not stable and might be replaced in the future.")
+@Examples("give level of player of pickaxes to the player")
 @Since("1.2")
-@Keywords("amount")
 public class ExprXOf extends PropertyExpression<Object, Object> {
-
 	static {
-		Skript.registerExpression(ExprXOf.class, Object.class, ExpressionType.PATTERN_MATCHES_EVERYTHING,
-			"%number% of %itemstacks/itemtypes/entitytypes/particles%");
+		Skript.registerExpression(ExprXOf.class, Object.class, ExpressionType.PATTERN_MATCHES_EVERYTHING, "%number% of %itemstacks/entitytype%");
 	}
-
-	private Class<?>[] possibleReturnTypes;
-	private Expression<Number> amount;
-
+	
+	@SuppressWarnings("null")
+	Expression<Number> amount;
+	
+	@SuppressWarnings({"unchecked", "null"})
 	@Override
-	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult) {
-		//noinspection unchecked
+	public boolean init(final Expression<?>[] exprs, final int matchedPattern, final Kleenean isDelayed, final ParseResult parseResult) {
+		setExpr(exprs[1]);
 		amount = (Expression<Number>) exprs[0];
-		Expression<?> type = exprs[1];
-		setExpr(type);
-
-		// "x of y" is also an ItemType syntax.
-		// But we want to allow 5 of <particle>.
-		// Todo: this should be handled better. Fix the original issue of needing to use the itemtype parser.
-		if (amount instanceof Literal && amount.getSource() instanceof Literal
-			&& type instanceof Literal && type.getSource() instanceof Literal
-			&& type.canReturnAnyOf(ItemStack.class, ItemType.class)
-		) {
+		if (amount instanceof Literal && getExpr() instanceof Literal)// "x of y" is also an ItemType syntax
 			return false;
-		}
-
-		// build possible return types
-		List<Class<?>> possibleReturnTypes = new ArrayList<>();
-		if (type.canReturn(ItemStack.class)) {
-			possibleReturnTypes.add(ItemStack.class);
-		}
-		if (type.canReturn(ItemType.class)) {
-			possibleReturnTypes.add(ItemType.class);
-		}
-		if (type.canReturn(EntityType.class)) {
-			possibleReturnTypes.add(EntityType.class);
-		}
-		if (type.canReturn(ParticleEffect.class)) {
-			possibleReturnTypes.add(ParticleEffect.class);
-		}
-		this.possibleReturnTypes = possibleReturnTypes.toArray(new Class[0]);
-
 		return true;
 	}
-
+	
 	@Override
-	protected Object[] get(Event event, Object[] source) {
-		Number amount = this.amount.getSingle(event);
-		if (amount == null)
-			return (Object[]) Array.newInstance(getReturnType(), 0);
-
-		long absAmount = Math.max(amount.longValue(), 0);
-
-		return get(source, object -> {
-			if (object instanceof ItemStack itemStack) {
-				itemStack = itemStack.clone();
-				itemStack.setAmount((int) absAmount);
-				return itemStack;
-			} else if (object instanceof ItemType itemType) {
-				ItemType type = itemType.clone();
-				type.setAmount(absAmount);
-				return type;
-			} else if (object instanceof EntityType ogType) {
-				EntityType entityType = ogType.clone();
-				entityType.setAmount((int) absAmount);
-				return entityType;
-			} else if (object instanceof ParticleEffect particleEffect) {
-				ParticleEffect effect = particleEffect.copy();
-				effect.count((int) absAmount);
-				return effect;
+	public Class<? extends Object> getReturnType() {
+		return getExpr().getReturnType();
+	}
+	
+	@Override
+	protected Object[] get(final Event e, final Object[] source) {
+		return get(source, new Converter<Object, Object>() {
+			@Override
+			@Nullable
+			public Object convert(final Object o) {
+				final Number a = amount.getSingle(e);
+				if (a == null)
+					return null;
+				if (o instanceof ItemStack) {
+					final ItemStack is = ((ItemStack) o).clone();
+					is.setAmount(a.intValue());
+					return is;
+				} else {
+					final EntityType t = ((EntityType) o).clone();
+					t.amount = a.intValue();
+					return t;
+				}
 			}
-			return null;
 		});
 	}
-
+	
 	@Override
-	public Class<?> getReturnType() {
-		return possibleReturnTypes.length == 1 ? possibleReturnTypes[0] : Object.class;
+	public String toString(final @Nullable Event e, final boolean debug) {
+		return amount.toString(e, debug) + " of " + getExpr().toString(e, debug);
 	}
-
-	@Override
-	public Class<?>[] possibleReturnTypes() {
-		return Arrays.copyOf(possibleReturnTypes, possibleReturnTypes.length);
-	}
-
-	@Override
-	public String toString(@Nullable Event event, boolean debug) {
-		return amount.toString(event, debug) + " of " + getExpr().toString(event, debug);
-	}
-
-	@Override
-	public Expression<?> simplify() {
-		if (amount instanceof Literal && getExpr() instanceof Literal) {
-			return SimplifiedLiteral.fromExpression(this);
-		}
-		return super.simplify();
-	}
-
+	
 }

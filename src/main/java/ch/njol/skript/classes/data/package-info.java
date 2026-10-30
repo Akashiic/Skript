@@ -14,13 +14,16 @@
  *  You should have received a copy of the GNU General Public License
  *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright Peter Güttinger, SkriptLang team and contributors
+ *
+ * Copyright 2011-2017 Peter Güttinger and contributors
  */
 /**
  * Contains definitions and other data of all types supported by Skript by default.
  * 
  * @author Peter Güttinger
  */
+@NonNullByDefault
 package ch.njol.skript.classes.data;
 
+import org.eclipse.jdt.annotation.NonNullByDefault;
 
