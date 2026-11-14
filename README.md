@@ -28,12 +28,86 @@ Além dos aliases normais (`diamond sword`, `red wool`...), este build entende:
 
 Biomas, entidades e encantamentos que os mods adicionam também recebem nomes gerados automaticamente.
 
+## Hooks: Crucible, NecroTempus, Et Futurum Requiem, Netherlicious e Kunftig
+
+Cada grupo de sintaxe só carrega quando o servidor tem o que ele precisa; o log mostra, por exemplo,
+`Loaded support for: Crucible APIs, Forge mods, Kunftig`. Sem eles, o mesmo jar roda num 1.7.10 comum.
+
+### Crucible (e NecroTempus)
+
+Funciona só com o Crucible:
+
+```
+on mount:                                  # e "on dismount"; expressão "the mount"
+on item damage:                            # "the item damage" (set/add/remove), event-item
+send "%ping of player%ms"
+if victim is invulnerable:
+send "<link:https://exemplo.com>clique aqui<reset> ou <tooltip:dica>passe o mouse" to player
+```
+
+Mensagens com `<link:...>`, `<cmd:...>`, `<suggest:...>` e `<tooltip:...>` saem como JSON clicável.
+
+Precisa do mod **NecroTempus** no servidor e no cliente (ele implementa essas APIs do Crucible):
+
+```
+send title "&6Bem-vindo" with subtitle "&7%player%" to player for 3 seconds
+reset title of player
+send action bar "&a+10 moedas" to player
+set tab list header of player to "&lMeu Servidor"
+set tab list footer of player to "&7online: %size of all players%"
+set {_bar} to a new boss bar named "Chefe" colored red with style 10 segments with progress 100
+add player to boss bar players of {_bar}
+set boss bar progress of {_bar} to 50
+remove boss bar {_bar}
+```
+
+Sem o NecroTempus, o console avisa uma vez: o título vira mensagem no chat e a action bar não é enviada.
+
+### Mods Forge (Et Futurum Requiem, Netherlicious e qualquer outro)
+
+* **Entidades de mod** são tipos de entidade do Skript: `<modid> <nome>` (`etfuturum rabbit`) e o nome simples
+  quando nenhuma entidade vanilla usa esse nome (`rabbit`, `armor stand`, `shulker`, `polar bear`, `hoglin`...).
+  Com o Et Futurum, os nomes modernos apontam para as entidades dele.
+
+  ```
+  spawn a polar bear at player
+  on death of a rabbit:
+  if target entity of player is an armor stand:
+  loop all foxes:
+  ```
+* **Aliases do Et Futurum** (`skript-aliases/mods/etfuturum.sk`, só carrega com o mod): prismarine, granite,
+  diorite, andesite, coarse dirt, red sandstone, concrete, banners, deepslate, copper, netherite, madeiras novas,
+  mutton, rabbit stew, totem, elytra, tipped arrows...
+* **Itens de qualquer mod** (inclusive Netherlicious) ganham aliases legíveis a partir do nome do item no
+  servidor e do nome de registro: `crimson stem`, `netherlicious crimson stem`. Nunca sobrescrevem um alias existente.
+* Arquivos de aliases podem usar a condição `mod = <modid>` para só carregar com um mod instalado.
+
+### Kunftig
+
+```
+play 10 end rod with offset of 0.3, 0.5, 0.3 and speed 0.01 at player   # partículas modernas
+play 20 red dust at player
+set persistent data "coins" of player's tool to 5                          # dados persistentes em itens
+set item model of player's tool to "teof:tucunare"                         # ícone próprio (CustomModelData)
+give player diamond sword with item model "teof:excalibur"
+on fishing bite:                                                           # pesca do 1.21.1
+	send "Fisgou!" to player
+on fishing state of lured or reel in:
+create a hologram with lines "Olá" and "Mundo" at player's location
+show hud text "Combo x3" with id "combo" to player anchored to top for 2 seconds
+```
+
+Outros eventos de pesca: `on fishing lured`, `on fishing failed attempt`, `on fishing reel in`. No `on fish` e
+nos estados há os valores do anzol moderno (`fishing wait time`, `lure time`, `bite time`, `is in open water`...).
+Partículas modernas, modelos de item, hologramas e HUD só aparecem para clientes com o Kunftig (as partículas
+são desenhadas pelo Et Futurum Requiem; os outros jogadores veem a partícula 1.7.10 mais próxima). Dados
+persistentes de itens guardados em variáveis sobrevivem a reinícios.
+
 ## O que mudou em relação ao Skript 2.6.3
 
-* Removido tudo que não existe na 1.7.10: entidades, eventos e blocos da 1.8+ (armor stand, coelho,
-  guardian, shulker...), BlockData, mão secundária, partículas (`Particle`), atributos, títulos e
-  action bar, componentes de chat JSON (mensagens com clique/hover viram texto comum), resource packs,
-  boss bars, game rules como classe, eventos e APIs do Paper/Spigot, bStats e timings.
+* Removido do Skript base o que não existe no Bukkit 1.7.10: entidades, eventos e blocos da 1.8+,
+  BlockData, mão secundária, atributos, resource packs, game rules como classe, APIs do Paper, bStats e
+  timings. Boa parte volta pelos hooks abaixo quando o servidor tem o Crucible e os mods.
 * Hooks de região (WorldGuard 7, GriefPrevention, Residence, PreciousStones) foram removidos.
   O hook do Vault continua.
 * O Skript reconhece Crucible/Thermos/KCauldron como plataforma suportada e não se desativa.
@@ -50,7 +124,9 @@ Precisa de Java 17+ para rodar o Gradle (o projeto gera bytecode Java 8):
 ./gradlew build
 ```
 
-A API Bukkit 1.7.10 vem do JitPack (`com.github.Bukkit:Bukkit:f210234`, o último commit do Bukkit).
+O projeto compila contra `lib/crucible-bukkit-api.jar`, a API Bukkit 1.7.10 como o Crucible a entrega
+(gerada a partir do código e dos patches do Crucible por `scripts/build-crucible-api.sh`), e contra
+`lib/kunftig-api.jar` (módulo `api/` do [Kunftig](https://github.com/Akashiic/Kunftig)).
 
 ---
 
