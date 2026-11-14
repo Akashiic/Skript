@@ -1,0 +1,22 @@
+# Default language entries of the crucible hook (merged into default.lang, same format)
+
+types:
+	bossbar: boss bar¦s @a
+	bossbarcolor: boss bar color¦s @a
+	bossbarstyle: boss bar style¦s @a
+
+boss bar colors:
+	pink: pink
+	blue: blue
+	red: red
+	green: green
+	yellow: yellow
+	purple: purple
+	white: white
+
+boss bar styles:
+	solid: solid, no segments, progress
+	segmented_6: 6 segments, segmented 6, notched 6
+	segmented_10: 10 segments, segmented 10, notched 10
+	segmented_12: 12 segments, segmented 12, notched 12
+	segmented_20: 20 segments, segmented 20, notched 20

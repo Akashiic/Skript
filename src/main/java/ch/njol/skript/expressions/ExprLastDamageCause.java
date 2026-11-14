@@ -1,21 +1,40 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.expressions;
 
 import ch.njol.skript.bukkitutil.HealthUtils;
 import ch.njol.skript.classes.Changer.ChangeMode;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.expressions.base.PropertyExpression;
 import ch.njol.skript.lang.Expression;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
+import ch.njol.skript.util.Getter;
 import ch.njol.util.Kleenean;
 import ch.njol.util.coll.CollectionUtils;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.event.Event;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
 /**
  * @author bensku
@@ -23,7 +42,7 @@ import org.jetbrains.annotations.Nullable;
  */
 @Name("Last Damage Cause")
 @Description("Cause of last damage done to an entity")
-@Example("set last damage cause of event-entity to fire tick")
+@Examples({"set last damage cause of event-entity to fire tick"})
 @Since("2.2-Fixes-V10")
 public class ExprLastDamageCause extends PropertyExpression<LivingEntity, DamageCause>{
 	
@@ -40,10 +59,13 @@ public class ExprLastDamageCause extends PropertyExpression<LivingEntity, Damage
 	
 	@Override
 	protected DamageCause[] get(Event e, LivingEntity[] source) {
-		return get(source, entity -> {
-			EntityDamageEvent dmgEvt = entity.getLastDamageCause();
-			if (dmgEvt == null) return DamageCause.CUSTOM;
-			return dmgEvt.getCause();
+		return get(source, new Getter<DamageCause, LivingEntity>() {
+			@Override
+			public DamageCause get(LivingEntity entity) {
+				EntityDamageEvent dmgEvt = entity.getLastDamageCause();
+				if (dmgEvt == null) return DamageCause.CUSTOM;
+				return dmgEvt.getCause();
+			}
 		});
 	}
 	

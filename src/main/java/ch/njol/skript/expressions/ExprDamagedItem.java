@@ -1,12 +1,30 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.expressions;
 
 import org.bukkit.event.Event;
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.aliases.ItemType;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.expressions.base.PropertyExpression;
@@ -17,10 +35,10 @@ import ch.njol.util.Kleenean;
 
 @Name("Damaged Item")
 @Description("Directly damages an item. In MC versions 1.12.2 and lower, this can be used to apply data values to items/blocks")
-@Example("give player diamond sword with damage value 100")
-@Example("set player's tool to diamond hoe damaged by 250")
-@Example("give player diamond sword with damage 700 named \"BROKEN SWORD\"")
-@Example("set {_item} to diamond hoe with damage value 50 named \"SAD HOE\"")
+@Examples({"give player diamond sword with damage value 100", "set player's tool to diamond hoe damaged by 250",
+	"give player diamond sword with damage 700 named \"BROKEN SWORD\"",
+	"set {_item} to diamond hoe with damage value 50 named \"SAD HOE\"",
+	"set target block of player to wool with data value 1", "set target block of player to potato plant with data value 7"})
 @Since("2.4")
 public class ExprDamagedItem extends PropertyExpression<ItemType, ItemType> {
 	

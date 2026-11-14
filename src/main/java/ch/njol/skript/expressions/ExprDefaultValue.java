@@ -1,95 +1,119 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.expressions;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.lang.Expression;
 import ch.njol.skript.lang.ExpressionType;
-import ch.njol.skript.lang.Literal;
 import ch.njol.skript.lang.SkriptParser;
-import ch.njol.skript.lang.simplification.SimplifiedLiteral;
 import ch.njol.skript.lang.util.SimpleExpression;
+import ch.njol.skript.registrations.Converters;
 import ch.njol.skript.util.LiteralUtils;
 import ch.njol.skript.util.Utils;
 import ch.njol.util.Kleenean;
 import org.bukkit.event.Event;
+import org.eclipse.jdt.annotation.Nullable;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import java.lang.reflect.Array;
 
 @Name("Default Value")
 @Description("A shorthand expression for giving things a default value. If the first thing isn't set, the second thing will be returned.")
-@Example("broadcast {score::%player's uuid%} otherwise \"%player% has no score!\"")
+@Examples({"broadcast {score::%player's uuid%} otherwise \"%player% has no score!\""})
 @Since("2.2-dev36")
-public class ExprDefaultValue extends SimpleExpression<Object> {
+@SuppressWarnings("null")
+public class ExprDefaultValue<T> extends SimpleExpression<T> {
 
 	static {
 		Skript.registerExpression(ExprDefaultValue.class, Object.class, ExpressionType.COMBINED,
 				"%objects% (otherwise|?) %objects%");
 	}
 
-	private Class<?>[] types;
-	private Class<?> superType;
+	private final ExprDefaultValue<?> source;
+	private final Class<? extends T>[] types;
+	private final Class<T> superType;
+	@Nullable
+	private Expression<Object> first;
+	@Nullable
+	private Expression<Object> second;
 
-	private Expression<Object> values;
-	private Expression<Object> defaultValues;
+	@SuppressWarnings("unchecked")
+	public ExprDefaultValue() {
+		this(null, (Class<? extends T>) Object.class);
+	}
+
+	@SuppressWarnings("unchecked")
+	private ExprDefaultValue(ExprDefaultValue<?> source, Class<? extends T>... types) {
+		this.source = source;
+		if (source != null) {
+			this.first = source.first;
+			this.second = source.second;
+		}
+		this.types = types;
+		this.superType = (Class<T>) Utils.getSuperType(types);
+	}
 
 	@Override
 	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, SkriptParser.ParseResult parseResult) {
-		values = LiteralUtils.defendExpression(exprs[0]);
-		defaultValues = LiteralUtils.defendExpression(exprs[1]);
-		if (!LiteralUtils.canInitSafely(values, defaultValues)) {
-			return false;
+		first = LiteralUtils.defendExpression(exprs[0]);
+		second = LiteralUtils.defendExpression(exprs[1]);
+		return LiteralUtils.canInitSafely(first, second);
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	protected T[] get(Event e) {
+		Object[] first = this.first.getArray(e);
+		Object values[] = first.length != 0 ? first : second.getArray(e);
+		try {
+			return Converters.convertArray(values, types, superType);
+		} catch (ClassCastException e1) {
+			return (T[]) Array.newInstance(superType, 0);
 		}
-
-		Set<Class<?>> types = new HashSet<>();
-		Collections.addAll(types, values.possibleReturnTypes());
-		Collections.addAll(types, defaultValues.possibleReturnTypes());
-		this.types = types.toArray(new Class<?>[0]);
-		this.superType = Utils.getSuperType(this.types);
-
-		return true;
 	}
 
 	@Override
-	protected Object[] get(Event event) {
-		Object[] values = this.values.getArray(event);
-		if (values.length != 0) {
-			return values;
-		}
-		return defaultValues.getArray(event);
+	public <R> Expression<? extends R> getConvertedExpression(Class<R>... to) {
+		return new ExprDefaultValue<>(this, to);
 	}
 
 	@Override
-	public boolean isSingle() {
-		return values.isSingle() && defaultValues.isSingle();
+	public Expression<?> getSource() {
+		return source == null ? this : source;
 	}
 
 	@Override
-	public Class<?> getReturnType() {
+	public Class<? extends T> getReturnType() {
 		return superType;
 	}
 
 	@Override
-	public Class<?>[] possibleReturnTypes() {
-		return Arrays.copyOf(types, types.length);
+	public boolean isSingle() {
+		return first.isSingle() && second.isSingle();
 	}
 
 	@Override
-	public Expression<?> simplify() {
-		if (values instanceof Literal<Object> literal
-			&& (defaultValues instanceof Literal<Object> || literal.getAll().length > 0))
-			return SimplifiedLiteral.fromExpression(this);
-		return this;
-	}
-
-	@Override
-	public String toString(Event event, boolean debug) {
-		return values.toString(event, debug) + " or else " + defaultValues.toString(event, debug);
+	public String toString(Event e, boolean debug) {
+		return first.toString(e, debug) + " or else " + second.toString(e, debug);
 	}
 
 }

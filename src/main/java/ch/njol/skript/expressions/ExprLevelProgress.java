@@ -1,13 +1,31 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.expressions;
 
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.classes.Changer.ChangeMode;
 import ch.njol.skript.doc.Description;
 import ch.njol.skript.doc.Events;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.expressions.base.SimplePropertyExpression;
@@ -21,21 +39,19 @@ import ch.njol.util.Math2;
 		"Please note that this value is between 0 and 1 (e.g. 0.5 = half experience bar).",
 		"Changing this value can cause the player's level to change if the resulting level progess is negative or larger than 1, e.g. " +
 				"<code>increase the player's level progress by 0.5</code> will make the player gain a level if their progress was more than 50%."})
-@Example("""
-	# use the exp bar as mana
-	on rightclick with a blaze rod:
-		player's level progress is larger than 0.2
-		shoot a fireball from the player
-		reduce the player's level progress by 0.2
-	every 2 seconds:
-		loop all players:
-			level progress of loop-player is smaller than 0.9:
-				increase level progress of the loop-player by 0.1
-			else:
-				set level progress of the loop-player to 0.99
-	on xp spawn:
-		cancel event
-	""")
+@Examples({"# use the exp bar as mana",
+		"on rightclick with a blaze rod:",
+		"\tplayer's level progress is larger than 0.2",
+		"\tshoot a fireball from the player",
+		"\treduce the player's level progress by 0.2",
+		"every 2 seconds:",
+		"\tloop all players:",
+		"\t\tlevel progress of loop-player is smaller than 0.9:",
+		"\t\t\tincrease level progress of the loop-player by 0.1",
+		"\t\telse:",
+		"\t\t\tset level progress of the loop-player to 0.99",
+		"on xp spawn:",
+		"\tcancel event"})
 @Since("2.0")
 @Events("level change")
 public class ExprLevelProgress extends SimplePropertyExpression<Player, Number> {

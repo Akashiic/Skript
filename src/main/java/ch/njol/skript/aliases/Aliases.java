@@ -1,87 +1,90 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.aliases;
-
-import ch.njol.skript.Skript;
-import ch.njol.skript.SkriptAddon;
-import ch.njol.skript.SkriptConfig;
-import ch.njol.skript.bukkitutil.ItemUtils;
-import ch.njol.skript.config.Config;
-import ch.njol.skript.config.Node;
-import ch.njol.skript.config.SectionNode;
-import org.skriptlang.skript.bukkit.entity.EntityData;
-import ch.njol.skript.lang.parser.ParserInstance;
-import ch.njol.skript.localization.*;
-import ch.njol.skript.log.BlockingLogHandler;
-import ch.njol.skript.util.EnchantmentType;
-import ch.njol.skript.util.Utils;
-import ch.njol.skript.util.Version;
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
-import org.bukkit.Registry;
-import org.bukkit.inventory.ItemStack;
-import org.jetbrains.annotations.Nullable;
-import org.skriptlang.skript.lang.script.Script;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.file.*;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.Set;
+import java.util.List;
+import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import org.bukkit.ChatColor;
+import org.bukkit.Material;
+import org.eclipse.jdt.annotation.Nullable;
+
+import ch.njol.skript.Skript;
+import ch.njol.skript.bukkitutil.BukkitUnsafe;
+import ch.njol.skript.SkriptAddon;
+import ch.njol.skript.SkriptConfig;
+import ch.njol.skript.config.Config;
+import ch.njol.skript.config.Node;
+import ch.njol.skript.config.SectionNode;
+import ch.njol.skript.entity.EntityData;
+import ch.njol.skript.hooks.ModHooks;
+import ch.njol.skript.hooks.forge.ForgeRegistry;
+import ch.njol.skript.localization.ArgsMessage;
+import ch.njol.skript.localization.Language;
+import ch.njol.skript.localization.Message;
+import ch.njol.skript.localization.Noun;
+import ch.njol.skript.localization.RegexMessage;
+import ch.njol.skript.log.BlockingLogHandler;
+import ch.njol.skript.log.SkriptLogger;
+import ch.njol.skript.util.EnchantmentType;
+import ch.njol.skript.util.Utils;
+import ch.njol.skript.util.Version;
 
 public abstract class Aliases {
 
 	private static final AliasesProvider provider = createProvider(10000, null);
 	private static final AliasesParser parser = createParser(provider);
-	// this is not an alias!
-	private final static ItemType everything = new ItemType();
-	private final static Message m_empty_string = new Message("aliases.empty string");
-	private final static ArgsMessage m_invalid_item_type = new ArgsMessage("aliases.invalid item type");
-	private final static Message m_outside_section = new Message("aliases.outside section");
-	private final static RegexMessage p_any = new RegexMessage("aliases.any", "", " (.+)", Pattern.CASE_INSENSITIVE);
-	private final static RegexMessage p_every = new RegexMessage("aliases.every", "", " (.+)", Pattern.CASE_INSENSITIVE);
-	private final static RegexMessage p_of_every = new RegexMessage("aliases.of every", "(\\d+) ", " (.+)", Pattern.CASE_INSENSITIVE);
-	private final static RegexMessage p_of = new RegexMessage("aliases.of", "(\\d+) (?:", " )?(.+)", Pattern.CASE_INSENSITIVE);
-
+	
 	/**
-	 * Go through these whenever aliases are reloaded, and update them.
+	 * Current script aliases.
 	 */
-	private static final Map<String, ItemType> trackedTypes = new HashMap<>();
-
-	/**
-	 * If user had an obscure config option set, don't crash due to missing
-	 * Java item types.
-	 */
-	private static final boolean noHardExceptions = SkriptConfig.apiSoftExceptions.value();
-	static String itemSingular = "item";
-	static String itemPlural = "items";
-	static String blockSingular = "block";
-	static String blockPlural = "blocks";
-
-	static {
-		everything.setAll(true);
-		ItemData all = new ItemData(Material.AIR);
-		all.isAnything = true;
-		everything.add(all);
-	}
-
+	@Nullable
+	private static ScriptAliases scriptAliases;
+	
 	@Nullable
 	private static ItemType getAlias_i(final String s) {
 		// Check script aliases first
-		ScriptAliases aliases = getScriptAliases();
+		ScriptAliases aliases = scriptAliases;
 		if (aliases != null) {
 			return aliases.provider.getAlias(s); // Delegates to global provider if needed
 		}
-
+			
 		return provider.getAlias(s);
 	}
-
+	
 	/**
 	 * Creates an aliases provider with Skript's default configuration.
 	 * @param expectedCount Expected alias count.
@@ -91,15 +94,17 @@ public abstract class Aliases {
 	private static AliasesProvider createProvider(int expectedCount, @Nullable AliasesProvider parent) {
 		return new AliasesProvider(expectedCount, parent);
 	}
-
+	
 	/**
 	 * Creates an aliases parser with Skript's default configuration.
 	 * @return Aliases parser.
 	 */
 	private static AliasesParser createParser(AliasesProvider provider) {
 		AliasesParser parser = new AliasesParser(provider);
-
+		
 		// Register standard conditions
+		// 'mod = etfuturum': the section only loads when that Forge mod is installed (Crucible/Thermos/KCauldron)
+		parser.registerCondition("mod", ModHooks::isModLoaded);
 		parser.registerCondition("minecraft version", (str) -> {
 			int orNewer = str.indexOf("or newer"); // For example: 1.12 or newer
 			if (orNewer != -1) {
@@ -107,14 +112,14 @@ public abstract class Aliases {
 				Version ver = new Version(str.substring(0, orNewer - 1));
 				return Skript.getMinecraftVersion().compareTo(ver) >= 0;
 			}
-
+			
 			int orOlder = str.indexOf("or older"); // For example: 1.11 or older
 			if (orOlder != -1) {
 				@SuppressWarnings("null")
 				Version ver = new Version(str.substring(0, orOlder - 1));
 				return Skript.getMinecraftVersion().compareTo(ver) <= 0;
 			}
-
+			
 			int to = str.indexOf("to"); // For example: 1.11 to 1.12
 			if (to != -1) {
 				@SuppressWarnings("null")
@@ -124,17 +129,39 @@ public abstract class Aliases {
 				Version current = Skript.getMinecraftVersion();
 				return current.compareTo(first) >= 0 && current.compareTo(second) <= 0;
 			}
-
+			
 			return Skript.getMinecraftVersion().equals(new Version(str));
 		});
-
+		
 		return parser;
 	}
 
+	static String itemSingular = "item";
+	static String itemPlural = "items";
+	@Nullable
+	static String itemGender = null;
+	static String blockSingular = "block";
+	static String blockPlural = "blocks";
+	@Nullable
+	static String blockGender = null;
+	
+	// this is not an alias!
+	private final static ItemType everything = new ItemType();
+	static {
+		everything.setAll(true);
+		ItemData all = new ItemData(Material.AIR);
+		all.isAnything = true;
+		everything.add(all);
+	}
+	
+	private final static Message m_empty_string = new Message("aliases.empty string");
+	private final static ArgsMessage m_invalid_item_type = new ArgsMessage("aliases.invalid item type");
+	private final static Message m_outside_section = new Message("aliases.outside section");
+	
 	/**
 	 * Concatenates parts of an alias's name. This currently 'lowercases' the first character of any part if there's no space in front of it. It also replaces double spaces with a
 	 * single one and trims the resulting string.
-	 *
+	 * 
 	 * @param parts
 	 */
 	static String concatenate(final String... parts) {
@@ -156,19 +183,19 @@ public abstract class Aliases {
 		}
 		return "" + b.toString().replace("  ", " ").trim();
 	}
-
+	
 	@Nullable
 	private static MaterialName getMaterialNameData(ItemData type) {
 		// Check script aliases first
-		ScriptAliases aliases = getScriptAliases();
+		ScriptAliases aliases = scriptAliases;
 		if (aliases != null) {
 			return aliases.provider.getMaterialName(type);
 		}
-
+		
 		// Then global aliases
 		return provider.getMaterialName(type);
 	}
-
+	
 	public static String getMaterialName(ItemData type, boolean plural) {
 		MaterialName name = getMaterialNameData(type);
 		if (name == null) {
@@ -176,7 +203,7 @@ public abstract class Aliases {
 		}
 		return name.toString(plural);
 	}
-
+	
 	/**
 	 * @return The item's gender or -1 if no name is found
 	 */
@@ -186,10 +213,10 @@ public abstract class Aliases {
 			return n.gender;
 		return -1;
 	}
-
+	
 	/**
 	 * Parses an ItemType to be used as an alias, i.e. it doesn't parse 'all'/'every' and the amount.
-	 *
+	 * 
 	 * @param s mixed case string
 	 * @return A new ItemType representing the given value
 	 */
@@ -201,23 +228,28 @@ public abstract class Aliases {
 		}
 		if (s.equals("*"))
 			return everything;
-
+		
 		final ItemType t = new ItemType();
-
+		
 		final String[] types = s.split("\\s*,\\s*");
 		for (final String type : types) {
 			if (type == null || parseType(type, t, true) == null)
 				return null;
 		}
-
+		
 		return t;
 	}
-
+	
+	private final static RegexMessage p_any = new RegexMessage("aliases.any", "", " (.+)", Pattern.CASE_INSENSITIVE);
+	private final static RegexMessage p_every = new RegexMessage("aliases.every", "", " (.+)", Pattern.CASE_INSENSITIVE);
+	private final static RegexMessage p_of_every = new RegexMessage("aliases.of every", "(\\d+) ", " (.+)", Pattern.CASE_INSENSITIVE);
+	private final static RegexMessage p_of = new RegexMessage("aliases.of", "(\\d+) (?:", " )?(.+)", Pattern.CASE_INSENSITIVE);
+	
 	/**
 	 * Parses an ItemType.
 	 * <p>
 	 * Prints errors.
-	 *
+	 * 
 	 * @param s
 	 * @return The parsed ItemType or null if the input is invalid.
 	 */
@@ -225,10 +257,10 @@ public abstract class Aliases {
 	public static ItemType parseItemType(String s) {
 		if (s.isEmpty())
 			return null;
-		s = s.trim();
-
+		s = "" + s.trim();
+		
 		final ItemType t = new ItemType();
-
+		
 		Matcher m;
 		if ((m = p_of_every.matcher(s)).matches()) {
 			t.setAmount(Utils.parseInt("" + m.group(1)));
@@ -246,12 +278,11 @@ public abstract class Aliases {
 			if (s.length() != l) // had indefinite article
 				t.setAmount(1);
 		}
-
+		
 		String lc = s.toLowerCase(Locale.ENGLISH);
-		String of = Language.getSpaced("of").toLowerCase();
+		String of = Language.getSpaced("enchantments.of").toLowerCase();
 		int c = -1;
-		outer:
-		while ((c = lc.indexOf(of, c + 1)) != -1) {
+		outer: while ((c = lc.indexOf(of, c + 1)) != -1) {
 			ItemType t2 = t.clone();
 			try (BlockingLogHandler ignored = new BlockingLogHandler().start()) {
 				if (parseType("" + s.substring(0, c), t2, false) == null)
@@ -268,19 +299,19 @@ public abstract class Aliases {
 			}
 			return t2;
 		}
-
+		
 		if (parseType(s, t, false) == null)
 			return null;
-
+		
 		if (t.numTypes() == 0)
 			return null;
-
+		
 		return t;
 	}
-
+	
 	/**
 	 * Prints errors.
-	 *
+	 * 
 	 * @param s The string holding the type, can be either a number or an alias, plus an optional data part. Case does not matter.
 	 * @param t The ItemType to add the parsed ItemData(s) to (i.e. this ItemType will be modified)
 	 * @param isAlias Whether this type is parsed for an alias.
@@ -299,83 +330,134 @@ public abstract class Aliases {
 				t.add(d.clone());
 			}
 			return t;
+		} else if ((i = parseDirectId(s)) != null) {
+			for (ItemData d : i) {
+				t.add(d);
+			}
+			return t;
 		}
 		if (isAlias)
 			Skript.error(m_invalid_item_type.toString(s));
 		return null;
 	}
-
+	
+	/**
+	 * {@code id:<number>[:<data>]}, e.g. {@code id:35:14} or {@code id:4096}.
+	 */
+	private static final Pattern p_numeric_id = Pattern.compile("(?i)id:(\\d+)(?::(\\d+))?");
+	
+	/**
+	 * {@code <namespace>:<name>[:<data>]}, e.g. {@code minecraft:wool:14} or {@code IC2:itemCable:3}.
+	 * Forge registry names may contain dots, dashes and pipes.
+	 */
+	private static final Pattern p_registry_id = Pattern.compile("([A-Za-z][A-Za-z0-9_.\\-]*:[A-Za-z0-9_.\\-|]+)(?::(\\d+))?");
+	
+	/**
+	 * Parses an item written directly by its id, which is mainly useful for modded items
+	 * on Crucible/Thermos/KCauldron that have no aliases:
+	 * <ul>
+	 * <li>{@code id:4096} or {@code id:4096:2} (numeric id and optional data value)</li>
+	 * <li>{@code IC2:itemCable} or {@code IC2:itemCable:2} (Forge registry name and optional data value)</li>
+	 * <li>{@code minecraft:wool:14}</li>
+	 * </ul>
+	 * Materials generated by Crucible for mods also get regular aliases (e.g. {@code ic2 itemcable}),
+	 * see {@link #loadMissingAliases()}.
+	 * @param s Text to parse.
+	 * @return Item type or null if the text is not a valid id.
+	 */
+	@Nullable
+	@SuppressWarnings("deprecation")
+	private static ItemType parseDirectId(String s) {
+		Material material;
+		String data;
+		Matcher m;
+		if ((m = p_numeric_id.matcher(s)).matches()) {
+			try {
+				material = Material.getMaterial(Integer.parseInt(m.group(1)));
+			} catch (NumberFormatException e) {
+				return null;
+			}
+			data = m.group(2);
+		} else if ((m = p_registry_id.matcher(s)).matches()) {
+			String id = m.group(1);
+			material = BukkitUnsafe.getMaterialFromMinecraftId(id);
+			if (material == null && !id.startsWith("minecraft:")) // Registry names are case-sensitive, but users might not write them that way
+				material = BukkitUnsafe.getMaterialFromMinecraftId(id.toLowerCase(Locale.ENGLISH));
+			data = m.group(2);
+		} else {
+			return null;
+		}
+		if (material == null)
+			return null;
+		ItemData itemData = new ItemData(material);
+		if (data != null) {
+			try {
+				itemData.setDurability(Integer.parseInt(data));
+			} catch (NumberFormatException e) {
+				return null;
+			}
+		}
+		ItemType type = new ItemType();
+		type.add(itemData);
+		return type;
+	}
+	
 	/**
 	 * Gets an alias from the aliases defined in the config.
-	 *
-	 * @param rawInput The alias to get, case does not matter
+	 * 
+	 * @param s The alias to get, case does not matter
 	 * @return A copy of the ItemType represented by the given alias or null if no such alias exists.
 	 */
 	@Nullable
-	private static ItemType getAlias(final String rawInput) {
-		String input = rawInput.toLowerCase(Locale.ENGLISH).trim();
-		ItemType itemType = getAlias_i(input);
-		if (itemType != null)
-			return itemType.clone();
-
-		// Try to parse as Minecraft key `minecraft:some_item` or `some_item`
-		if ((input.contains(":") || input.contains("_")) && !input.contains(" ")) {
-			NamespacedKey namespacedKey = NamespacedKey.fromString(input);
-			if (namespacedKey != null) {
-				Material material = Registry.MATERIAL.get(namespacedKey);
-				if (material != null)
-					return new ItemType(material);
-			}
+	private static ItemType getAlias(final String s) {
+		ItemType i;
+		String lc = "" + s.toLowerCase(Locale.ENGLISH);
+		final Matcher m = p_any.matcher(lc);
+		if (m.matches()) {
+			lc = "" + m.group(m.groupCount());
 		}
-		// try to parse `ACTUALNAME block` as ACTUALNAME
-		if (input.endsWith(" " + blockSingular) || input.endsWith(" " + blockPlural)) {
-			String stripped = input.substring(0, input.lastIndexOf(" "));
-			itemType = getAlias_i(stripped);
-			if (itemType != null) {
-				itemType = itemType.clone();
-				// remove all non-block datas and types that already end with "block"
-				for (int j = 0; j < itemType.numTypes(); j++) {
-					ItemData d = itemType.getTypes().get(j);
-					if (!d.getType().isBlock() || d.getType().getKey().getKey().endsWith(blockSingular)) {
-						itemType.remove(d);
+		if ((i = getAlias_i(lc)) != null)
+			return i.clone();
+		boolean b;
+		if ((b = lc.endsWith(" " + blockSingular)) || lc.endsWith(" " + blockPlural)) {
+			if ((i = getAlias_i("" + s.substring(0, s.length() - (b ? blockSingular.length() : blockPlural.length()) - 1))) != null) {
+				i = i.clone();
+				for (int j = 0; j < i.numTypes(); j++) {
+					final ItemData d = i.getTypes().get(j);
+					if (d.getType().isBlock()) {
+						i.remove(d);
 						j--;
 					}
 				}
-				// if no block itemdatas were found, return null
-				if (itemType.getTypes().isEmpty())
+				if (i.getTypes().isEmpty())
 					return null;
-				return itemType;
+				return i;
 			}
-		// do the same for items
-		} else if (input.endsWith(" " + itemSingular) || input.endsWith(" " + itemPlural)) {
-			String stripped = input.substring(0, input.lastIndexOf(" "));
-			itemType = getAlias_i(stripped);
-			if (itemType != null) {
-				itemType = itemType.clone();
-				// remove all non-item datas
-				for (int j = 0; j < itemType.numTypes(); j++) {
-					ItemData data = itemType.getTypes().get(j);
-					if (!data.isAnything && !data.getType().isItem()) {
-						itemType.remove(data);
-						--j;
+		} else if ((b = lc.endsWith(" " + itemSingular)) || lc.endsWith(" " + itemPlural)) {
+			if ((i = getAlias_i("" + s.substring(0, s.length() - (b ? itemSingular.length() : itemPlural.length()) - 1))) != null) {
+				i = i.clone();
+				for (int j = 0; j < i.numTypes(); j++) {
+					final ItemData d = i.getTypes().get(j);
+					if (!d.isAnything && d.getType().isBlock()) {
+						i.remove(d);
+						j--;
 					}
 				}
-				// if no item itemdatas were found, return null
-				if (itemType.getTypes().isEmpty())
+				if (i.getTypes().isEmpty())
 					return null;
-				return itemType;
+				return i;
 			}
 		}
 		return null;
 	}
-
+	
 	/**
 	 * Clears aliases. Make sure to load them after this!
 	 */
 	public static void clear() {
 		provider.clearAliases();
 	}
-
+	
 	/**
 	 * Loads aliases from Skript's standard locations.
 	 * Exceptions will be logged, but not thrown.
@@ -391,83 +473,147 @@ public abstract class Aliases {
 	}
 
 	/**
-	 * Loads aliases from Skript's standard locations asynchronously.
-	 * Exceptions will be logged, but not thrown.
-	 *
-	 * @return A future that completes when the aliases are loaded.
-	 * The returned value is true if the loading was successful, false otherwise.
+	 * Creates an alias for every material which doesn't have an alias yet.
+	 * On Crucible this includes the materials generated for modded items and blocks,
+	 * e.g. {@code IC2_ITEMCABLE} becomes usable as {@code ic2 itemcable}.
 	 */
-	public static CompletableFuture<Boolean> loadAsync() {
-		// Argument provider service will not load correctly if that load occurs from another thread
-		// Make a call now to force it to load
-		// See https://github.com/PaperMC/Paper/pull/12829
-		ItemUtils.applyComponentData(ItemStack.empty(), "[]");
-		return CompletableFuture.supplyAsync(() -> {
-			try {
-				long start = System.currentTimeMillis();
-				loadInternal();
-				Skript.info("Loaded " + provider.getAliasCount() + " aliases in " + (System.currentTimeMillis() - start) + "ms");
-				return true;
-			} catch (StackOverflowError e) {
-				/*
-				 * Returns true if the underlying installed Java/JVM is 32-bit, false otherwise.
-				 * Note that this depends on a internal system property and these can always be overridden by user using -D JVM options,
-				 * more specifically, this method will return false on non OracleJDK/OpenJDK based JVMs, that don't include bit information in java.vm.name system property
-				 */
-				if (System.getProperty("java.vm.name").contains("32")) {
-					Skript.error("");
-					Skript.error("There was a StackOverflowError that occurred while loading aliases.");
-					Skript.error("As you are currently using 32-bit Java, please update to 64-bit Java to resolve the error.");
-					Skript.error("Please report this issue to our GitHub only if updating to 64-bit Java does not fix the issue.");
-					Skript.error("");
-				} else {
-					Skript.exception(e);
-					Bukkit.getPluginManager().disablePlugin(Skript.getInstance());
-				}
-				return false;
-			} catch (IOException e) {
-				Skript.exception(e);
-				return false;
-			}
-		});
-	}
-
 	/**
-	 * Temporarily create an alias for materials which do not have aliases yet.
+	 * Creates aliases for materials that don't have any, which on Forge/Bukkit hybrids (Crucible, Thermos...)
+	 * are the blocks and items of mods. With Forge, names come from the server's name for each item (and each
+	 * data value of items with subtypes, e.g. "crimson planks"), then from the Forge registry name
+	 * ("netherlicious:CrimsonStem" -> "crimson stem"). Plain names are taken in mod priority order (Et Futurum
+	 * Requiem, Netherlicious, then the others alphabetically) and never override an existing alias; every item
+	 * also gets the names prefixed with its mod id ("netherlicious crimson stem"), which are always unique.
+	 * Without Forge, or when that fails, materials without any alias get their Bukkit material name ("ic2 itemcable").
 	 */
 	private static void loadMissingAliases() {
-		if (!Skript.methodExists(Material.class, "getKey"))
-			return;
-		boolean modItemRegistered = false;
+		List<Material> missing = new ArrayList<>();
 		for (Material material : Material.values()) {
-			if (!material.isLegacy() && !provider.hasAliasForMaterial(material)) {
-				NamespacedKey key = material.getKey();
-				// mod:an_item -> (mod's an item) | (an item from mod)
-				// minecraft:dirt -> dirt
-				if (NamespacedKey.MINECRAFT.equals(key.getNamespace())) {
-					parser.loadAlias(key.getKey().replace("_", " ") + "¦s", key.toString());
-				} else {
-					if (!modItemRegistered) modItemRegistered = true;
-					parser.loadAlias((key.getNamespace() + "'s " + key.getKey() + "¦s").replace("_", " "), key.toString());
-					parser.loadAlias((key.getKey() + "¦s from " + key.getNamespace()).replace("_", " "), key.toString());
-				}
-				Skript.debug(ChatColor.YELLOW + "Creating temporary alias for: " + key);
+			if (!provider.hasAliasForMaterial(material))
+				missing.add(material);
+		}
+		
+		if (ModHooks.isForge()) {
+			try {
+				// All mod materials, also the ones with aliases from alias files (e.g. mods/etfuturum.sk): their
+				// data values that the files don't name still get names, existing names are never touched
+				loadModAliases(Arrays.asList(Material.values()));
+			} catch (RuntimeException | LinkageError e) {
+				Skript.exception(e, "Could not create aliases for mod items");
 			}
 		}
-
-		if (modItemRegistered) {
-			Skript.warning("==============================================================");
-			Skript.warning("Some materials were found that seem to be modded.");
-			Skript.warning("An item that has the id 'mod:item' can be used as 'mod's item' or 'item from mod'.");
-			Skript.warning("WARNING: Skript does not officially support any modded servers.");
-			Skript.warning("Any issues you encounter related to modded items will be your responsibility to fix.");
-			Skript.warning("==============================================================");
+		
+		for (Material material : missing) {
+			if (provider.hasAliasForMaterial(material))
+				continue;
+			String name = material.name().toLowerCase(Locale.ENGLISH).replace('_', ' ').trim();
+			if (name.isEmpty() || provider.getAlias(name) != null)
+				continue; // Never override a real alias with the same name
+			try {
+				parser.loadAlias(name + "¦s", material.name());
+				Skript.debug(ChatColor.YELLOW + "Creating temporary alias for: " + material.name());
+			} catch (Exception e) {
+				Skript.debug("Could not create alias for material " + material.name() + ": " + e);
+			}
 		}
 	}
-
+	
+	/**
+	 * Name of a generated alias for a mod item, with the data value it is for (-1: any).
+	 */
+	private static final class GeneratedName {
+		final String name;
+		final short data;
+		
+		GeneratedName(String name, short data) {
+			this.name = name;
+			this.data = data;
+		}
+	}
+	
+	private static void loadModAliases(List<Material> materials) {
+		final class ModItem {
+			final Material material;
+			final ForgeRegistry.RegistryName registryName;
+			final List<GeneratedName> names = new ArrayList<>();
+			
+			ModItem(Material material, ForgeRegistry.RegistryName registryName) {
+				this.material = material;
+				this.registryName = registryName;
+			}
+		}
+		
+		List<ModItem> items = new ArrayList<>();
+		for (Material material : materials) {
+			ForgeRegistry.RegistryName registryName = ForgeRegistry.getRegistryName(material);
+			if (registryName == null || registryName.modId.equalsIgnoreCase("minecraft"))
+				continue;
+			ModItem item = new ModItem(material, registryName);
+			// Names the server gives the item, one per data value for items with subtypes
+			Set<String> seen = new HashSet<>();
+			if (ForgeRegistry.hasSubtypes(material)) {
+				for (short data = 0; data < 16; data++) {
+					String name = ForgeRegistry.getDisplayName(material, data);
+					if (name == null)
+						continue;
+					name = ForgeRegistry.toWords(name);
+					if (seen.add(name))
+						item.names.add(new GeneratedName(name, data));
+				}
+			} else {
+				String name = ForgeRegistry.getDisplayName(material, (short) 0);
+				if (name != null && seen.add(ForgeRegistry.toWords(name)))
+					item.names.add(new GeneratedName(ForgeRegistry.toWords(name), (short) -1));
+			}
+			// The registry name, for any data value
+			String registryWords = ForgeRegistry.toWords(registryName.name);
+			if (seen.add(registryWords))
+				item.names.add(new GeneratedName(registryWords, (short) -1));
+			items.add(item);
+		}
+		items.sort((a, b) -> {
+			int c = ForgeRegistry.priorityKey(a.registryName.modId).compareTo(ForgeRegistry.priorityKey(b.registryName.modId));
+			return c != 0 ? c : a.registryName.name.compareToIgnoreCase(b.registryName.name);
+		});
+		
+		int count = 0;
+		// The first alias of an item is the name Skript displays it with, so plain names go first...
+		for (ModItem item : items) {
+			for (GeneratedName name : item.names) {
+				if (loadGeneratedAlias(name.name, item.material, name.data))
+					count++;
+			}
+		}
+		// ... then the ones with the mod id, which only clash if a mod registers the same name twice
+		for (ModItem item : items) {
+			String modId = ForgeRegistry.toWords(item.registryName.modId);
+			for (GeneratedName name : item.names) {
+				if (!name.name.startsWith(modId + " ") && loadGeneratedAlias(modId + " " + name.name, item.material, name.data))
+					count++;
+			}
+		}
+		if (count > 0)
+			Skript.debug("Created " + count + " aliases for " + items.size() + " mod items");
+	}
+	
+	private static boolean loadGeneratedAlias(String name, Material material, short data) {
+		// Words only; must not start with a number (that would read as an amount)
+		if (!name.matches("[a-z][a-z0-9' ]*") || provider.getAlias(name) != null)
+			return false;
+		try {
+			String id = material.name() + (data >= 0 ? " {Damage:" + data + "}" : "");
+			parser.loadAlias(name.endsWith("s") ? name : name + "¦s", id);
+			return true;
+		} catch (Exception e) {
+			Skript.debug("Could not create alias '" + name + "' for " + material + ": " + e);
+			return false;
+		}
+	}
+	
 	private static void loadInternal() throws IOException {
 		Path dataFolder = Skript.getInstance().getDataFolder().toPath();
-
+		AliasesParser.invalidIdCount = 0;
+		
 		// Load aliases.zip OR aliases from jar (never both)
 		Path zipPath = dataFolder.resolve("aliases-english.zip");
 		if (!SkriptConfig.loadDefaultAliases.value()) {
@@ -491,31 +637,36 @@ public abstract class Aliases {
 			} catch (URISyntaxException e) {
 				assert false;
 			}
-
+			
 		}
-
+		
 		// Load everything from aliases folder (user aliases)
 		Path aliasesFolder = dataFolder.resolve("aliases");
 		if (Files.exists(aliasesFolder)) {
 			assert aliasesFolder != null;
 			loadDirectory(aliasesFolder);
 		}
-
-		// generate aliases from item names for any missing items
+		
+		if (AliasesParser.invalidIdCount > 0) {
+			Skript.info(AliasesParser.invalidIdCount + " aliases were skipped because their items don't exist on Minecraft "
+					+ Skript.getMinecraftVersion() + " (set verbosity to debug in config.sk to list them)");
+		}
+		
+		// Generate aliases for remaining materials (e.g. modded items on Crucible)
 		loadMissingAliases();
-
+		
 		// Update tracked item types
 		for (Map.Entry<String, ItemType> entry : trackedTypes.entrySet()) {
 			@SuppressWarnings("null") // No null keys in this map
 			ItemType type = parseItemType(entry.getKey());
 			if (type == null)
 				Skript.warning("Alias '" + entry.getKey() + "' is required by Skript, but does not exist anymore. "
-								   + "Make sure to fix this before restarting the server.");
+						+ "Make sure to fix this before restarting the server.");
 			else
 				entry.getValue().setTo(type);
 		}
 	}
-
+	
 	/**
 	 * Loads aliases from given directory.
 	 * @param dir Directory of aliases.
@@ -539,7 +690,7 @@ public abstract class Aliases {
 			throw e.getCause();
 		}
 	}
-
+	
 	/**
 	 * Loads aliases from given path.
 	 * @param f Path of alias file.
@@ -549,7 +700,7 @@ public abstract class Aliases {
 		Config config = new Config(f, false, false, "=");
 		load(config);
 	}
-
+	
 	/**
 	 * Loads aliases from configuration.
 	 * @param config Configuration containing the aliases.
@@ -560,7 +711,7 @@ public abstract class Aliases {
 				Skript.error(m_outside_section.toString());
 				continue;
 			}
-
+			
 			parser.load((SectionNode) n);
 		}
 	}
@@ -572,13 +723,13 @@ public abstract class Aliases {
 	 */
 	@Nullable
 	public static String getMinecraftId(ItemData data) {
-		ScriptAliases aliases = getScriptAliases();
+		ScriptAliases aliases = scriptAliases;
 		if (aliases != null) {
 			return aliases.provider.getMinecraftId(data);
 		}
 		return provider.getMinecraftId(data);
 	}
-
+	
 	/**
 	 * Gets an entity type related to given item. For example, an armor stand
 	 * item is related with armor stand entity.
@@ -587,30 +738,35 @@ public abstract class Aliases {
 	 */
 	@Nullable
 	public static EntityData<?> getRelatedEntity(ItemData data) {
-		ScriptAliases aliases = getScriptAliases();
+		ScriptAliases aliases = scriptAliases;
 		if (aliases != null) {
 			return aliases.provider.getRelatedEntity(data);
 		}
 		return provider.getRelatedEntity(data);
 	}
-
+	
+	/**
+	 * Go through these whenever aliases are reloaded, and update them.
+	 */
+	private static final Map<String, ItemType> trackedTypes = new HashMap<>();
+	
+	/**
+	 * If user had an obscure config option set, don't crash due to missing
+	 * Java item types.
+	 */
+	private static final boolean noHardExceptions = SkriptConfig.apiSoftExceptions.value();
+	
 	/**
 	 * Gets an item type that matches the given name.
 	 * If it doesn't exist, an exception is thrown instead.
-	 *
+	 * 
 	 * <p>Item types provided by this method are updated when aliases are
 	 * reloaded. However, this also means they are tracked by aliases system
 	 * and NOT necessarily garbage-collected.
-	 *
-	 * <p>Relying on this method to create item types is not safe,
-	 * as users can change aliases at any point. ItemTypes should instead be created
-	 * via {@link Material}s, {@link org.bukkit.Tag}s, or any other manual method.
-	 *
 	 * @param name Name of item to search from aliases.
 	 * @return An item.
 	 * @throws IllegalArgumentException When item is not found.
 	 */
-	@Deprecated(since = "2.9.0", forRemoval = true)
 	public static ItemType javaItemType(String name) {
 		ItemType type = parseItemType(name);
 		if (type == null) {
@@ -624,7 +780,7 @@ public abstract class Aliases {
 		trackedTypes.put(name, type);
 		return type;
 	}
-
+	
 	/**
 	 * Creates an aliases provider to be used by given addon. It can be used to
 	 * register aliases and variations to be used in scripts.
@@ -635,42 +791,26 @@ public abstract class Aliases {
 		if (addon == null) {
 			throw new IllegalArgumentException("addon needed");
 		}
-
+		
 		// TODO in future, maybe record and allow unloading addon-provided aliases?
 		return provider; // For now, just allow loading aliases easily
 	}
-
+	
 	/**
-	 * Creates script aliases for the provided Script.
-	 * @return Script aliases that are ready to be added to.
+	 * Creates script aliases.
+	 * @return Script aliases, ready to be added to.
 	 */
-	public static ScriptAliases createScriptAliases(Script script) {
+	public static ScriptAliases createScriptAliases() {
 		AliasesProvider localProvider = createProvider(10, provider);
-		ScriptAliases aliases = new ScriptAliases(localProvider, createParser(localProvider));
-		script.addData(aliases);
-		return aliases;
+		return new ScriptAliases(localProvider, createParser(localProvider));
 	}
-
+	
 	/**
-	 * Internal method for obtaining ScriptAliases. Checks {@link ParserInstance#isActive()}.
-	 * @return The obtained aliases, or null if the script has no custom aliases.
+	 * Sets script aliases to be used for lookups. Remember to set them to
+	 * null when the script changes.
+	 * @param aliases Script aliases.
 	 */
-	@Nullable
-	private static ScriptAliases getScriptAliases() {
-		ParserInstance parser = ParserInstance.get();
-		if (parser.isActive())
-			return getScriptAliases(parser.getCurrentScript());
-		return null;
+	public static void setScriptAliases(@Nullable ScriptAliases aliases) {
+		scriptAliases = aliases;
 	}
-
-	/**
-	 * Method for obtaining the ScriptAliases instance of a {@link Script}.
-	 * @param script The script to obtain aliases from.
-	 * @return The obtained aliases, or null if the script has no custom aliases.
-	 */
-	@Nullable
-	public static ScriptAliases getScriptAliases(Script script) {
-		return script.getData(ScriptAliases.class);
-	}
-
 }

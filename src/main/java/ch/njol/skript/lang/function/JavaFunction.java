@@ -1,121 +1,51 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.lang.function;
 
-import ch.njol.skript.classes.ClassInfo;
-import ch.njol.skript.doc.Documentable;
-import ch.njol.skript.lang.Expression;
-import ch.njol.skript.util.Contract;
-import org.jetbrains.annotations.ApiStatus;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-import org.jetbrains.annotations.Unmodifiable;
-import org.skriptlang.skript.common.function.DefaultFunction;
-import org.skriptlang.skript.common.function.FunctionArguments;
-import org.skriptlang.skript.common.function.Parameters;
+import org.eclipse.jdt.annotation.Nullable;
 
-import java.util.Collections;
-import java.util.List;
+import ch.njol.skript.classes.ClassInfo;
 
 /**
- * @deprecated Use {@link DefaultFunction} instead.
+ * @author Peter Güttinger
  */
-@Deprecated(since = "2.13", forRemoval = true)
-public abstract class JavaFunction<T> extends Function<T> implements Documentable {
-
-	private @NotNull String @Nullable [] returnedKeys;
-
+public abstract class JavaFunction<T> extends Function<T> {
+	
 	public JavaFunction(Signature<T> sign) {
 		super(sign);
 	}
-
+	
 	public JavaFunction(String name, Parameter<?>[] parameters, ClassInfo<T> returnType, boolean single) {
-		this(name, parameters, returnType, single, null);
+		this(new Signature<>("none", name, parameters, returnType, single));
 	}
-
-	@ApiStatus.Internal
-	JavaFunction(String script, String name, Parameter<?>[] parameters, ClassInfo<T> returnType, boolean single) {
-		this(script, name, parameters, returnType, single, true, null);
-	}
-
-	public JavaFunction(String name, Parameter<?>[] parameters, ClassInfo<T> returnType, boolean single, @Nullable Contract contract) {
-		this(null, name, parameters, returnType, single, false, contract);
-	}
-
-	@ApiStatus.Internal
-	JavaFunction(String script, String name, Parameter<?>[] parameters, ClassInfo<T> returnType, boolean single, boolean local, @Nullable Contract contract) {
-		this(new Signature<>(script, name, parameters, local, returnType, single, Thread.currentThread().getStackTrace()[3].getClassName(), contract));
-	}
-
+	
 	@Override
-	public abstract T @Nullable [] execute(FunctionEvent<?> event, Object[][] params);
-
-	@Override
-	public final T execute(@NotNull FunctionEvent<?> event, @NotNull FunctionArguments arguments) {
-		Parameters parameters = getSignature().parameters();
-
-		// old params
-		Object[][] params = new Object[parameters.size()][];
-		for (int i = 0; i < parameters.size(); i++) {
-			Parameter<?> parameter = (Parameter<?>) parameters.get(i);
-			Object object = arguments.get(parameter.name());
-
-			if (object != null && object.getClass().isArray()) {
-				// if arg is array, just set the param
-				params[i] = (Object[]) object;
-			} else if (object == null) {
-				// use default if object is null
-				Expression<?> defaultExpression = parameter.getDefaultExpression();
-
-				if (defaultExpression == null) {
-					return null;
-				}
-
-				if (parameter.isSingle()) {
-					params[i] = new Object[] { defaultExpression.getSingle(event) };
-				} else {
-					params[i] = defaultExpression.getArray(event);
-				}
-			} else {
-				// if arg is not array, wrap object with array
-				params[i] = new Object[] { object };
-			}
-		}
-
-		T[] execute = execute(event, params);
-		if (execute == null || execute.length == 0) {
-			return null;
-		} else if (execute.length == 1) {
-			return execute[0];
-		} else {
-			//noinspection unchecked
-			return (T) execute;
-		}
-	}
-
-	@Override
-	public @NotNull String @Nullable [] returnedKeys() {
-		return returnedKeys;
-	}
-
-	/**
-	 * Sets the keys that will be returned by this function.
-	 * <br>
-	 * Note: The length of the keys array must match the number of return values.
-	 *
-	 * @param keys An array of keys to be returned by the function. Can be null.
-	 * @throws IllegalStateException If the function is returns a single value.
-	 */
-	public void setReturnedKeys(@NotNull String @Nullable [] keys) {
-		if (isSingle())
-			throw new IllegalStateException("Cannot return keys for a single return function");
-		assert this.returnedKeys == null;
-		this.returnedKeys = keys;
-	}
-
-	private String @Nullable [] description = null;
-	private String @Nullable [] examples = null;
-	private String @Nullable [] keywords;
-	private @Nullable String since = null;
-
+	@Nullable
+	public abstract T[] execute(FunctionEvent<?> e, Object[][] params);
+	
+	@Nullable
+	private String[] description = null;
+	@Nullable
+	private String[] examples = null;
+	@Nullable
+	private String since = null;
+	
 	/**
 	 * Only used for Skript's documentation.
 	 *
@@ -126,7 +56,7 @@ public abstract class JavaFunction<T> extends Function<T> implements Documentabl
 		this.description = description;
 		return this;
 	}
-
+	
 	/**
 	 * Only used for Skript's documentation.
 	 *
@@ -137,19 +67,7 @@ public abstract class JavaFunction<T> extends Function<T> implements Documentabl
 		this.examples = examples;
 		return this;
 	}
-
-	/**
-	 * Only used for Skript's documentation.
-	 *
-	 * @param keywords
-	 * @return This JavaFunction object
-	 */
-	public JavaFunction<T> keywords(final String... keywords) {
-		assert this.keywords == null;
-		this.keywords = keywords;
-		return this;
-	}
-
+	
 	/**
 	 * Only used for Skript's documentation.
 	 *
@@ -160,57 +78,25 @@ public abstract class JavaFunction<T> extends Function<T> implements Documentabl
 		this.since = since;
 		return this;
 	}
-
-	public String @Nullable [] getDescription() {
+	
+	@Nullable
+	public String[] getDescription() {
 		return description;
 	}
-
-	public String @Nullable [] getExamples() {
+	
+	@Nullable
+	public String[] getExamples() {
 		return examples;
 	}
-
-	public String @Nullable [] getKeywords() {
-		return keywords;
-	}
-
-	public @Nullable String getSince() {
+	
+	@Nullable
+	public String getSince() {
 		return since;
 	}
 
 	@Override
 	public boolean resetReturnValue() {
-		returnedKeys = null;
 		return true;
-	}
-
-	@Override
-	public @NotNull String name() {
-		return getName();
-	}
-
-	@Override
-	public @Unmodifiable @NotNull List<String> description() {
-		return description != null ? List.of(description) : Collections.emptyList();
-	}
-
-	@Override
-	public @Unmodifiable @NotNull List<String> since() {
-		return since != null ? List.of(since) : Collections.emptyList();
-	}
-
-	@Override
-	public @Unmodifiable @NotNull List<String> examples() {
-		return examples != null ? List.of(examples) : Collections.emptyList();
-	}
-
-	@Override
-	public @Unmodifiable @NotNull List<String> keywords() {
-		return keywords != null ? List.of(keywords) : Collections.emptyList();
-	}
-
-	@Override
-	public @Unmodifiable @NotNull List<String> requires() {
-		return Collections.emptyList();
 	}
 
 }

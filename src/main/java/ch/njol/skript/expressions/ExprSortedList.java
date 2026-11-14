@@ -1,136 +1,85 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.expressions;
+
+import java.lang.reflect.Array;
+import java.util.Arrays;
+
+import ch.njol.skript.util.LiteralUtils;
+import org.bukkit.event.Event;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
-import ch.njol.skript.lang.*;
+import ch.njol.skript.lang.Expression;
+import ch.njol.skript.lang.ExpressionType;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
-import ch.njol.skript.lang.simplification.SimplifiedLiteral;
 import ch.njol.skript.lang.util.SimpleExpression;
-import ch.njol.skript.util.LiteralUtils;
 import ch.njol.util.Kleenean;
-import ch.njol.util.coll.CollectionUtils;
-import ch.njol.util.coll.iterator.EmptyIterator;
-import org.bukkit.event.Event;
-import org.jetbrains.annotations.Nullable;
-import org.skriptlang.skript.lang.comparator.Comparator;
-import org.skriptlang.skript.lang.comparator.Comparators;
-import org.skriptlang.skript.lang.comparator.Relation;
-
-import java.lang.reflect.Array;
-import java.util.Iterator;
 
 @Name("Sorted List")
-@Description("Sorts given list in natural order. All objects in list must be comparable; if they're not, this expression will return nothing.")
-@Example("set {_sorted::*} to sorted {_players::*}")
-@Example("""
-	command /leaderboard:
-		trigger:
-			loop reversed sorted {most-kills::*}:
-				send "%loop-counter%. %loop-index% with %loop-value% kills" to sender
-	""")
-@Since("2.2-dev19, 2.14 (retain indices when looping)")
-public class ExprSortedList extends SimpleExpression<Object> implements KeyedIterableExpression<Object> {
+@Description({"Sorts given list in natural order. All objects in list must be comparable;",
+	"if they're not, this expression will return nothing."
+})
+@Examples({"set {_sorted::*} to sorted {_players::*}"})
+@Since("2.2-dev19")
+public class ExprSortedList extends SimpleExpression<Object> {
 
-	static {
-		Skript.registerExpression(ExprSortedList.class, Object.class, ExpressionType.PROPERTY, "sorted %objects%");
+	static{
+		Skript.registerExpression(ExprSortedList.class, Object.class, ExpressionType.COMBINED, "sorted %objects%");
 	}
 
+	@SuppressWarnings("NotNullFieldNotInitialized")
 	private Expression<?> list;
-	private boolean keyed;
-
-	public ExprSortedList() {
-	}
-
-	public ExprSortedList(Expression<?> list) {
-		this.list = list;
-		this.keyed = KeyedIterableExpression.canIterateWithKeys(list);
-	}
 
 	@Override
-	public boolean init(Expression<?>[] expressions, int matchedPattern, Kleenean isDelayed, ParseResult parseResult) {
-		list = LiteralUtils.defendExpression(expressions[0]);
-		if (list.isSingle()) {
-			Skript.error("A single object cannot be sorted.");
-			return false;
-		}
-		keyed = KeyedIterableExpression.canIterateWithKeys(list);
+	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult) {
+		list = LiteralUtils.defendExpression(exprs[0]);
 		return LiteralUtils.canInitSafely(list);
 	}
 
 	@Override
-	protected Object @Nullable [] get(Event event) {
-		try {
-			return list.stream(event)
-					.sorted(ExprSortedList::compare)
-					.toArray();
-		} catch (IllegalArgumentException | ClassCastException e) {
-			return (Object[]) Array.newInstance(getReturnType(), 0);
+	@Nullable
+	protected Object[] get(Event e) {
+		Object[] unsorted = list.getArray(e);
+		Object[] sorted = (Object[]) Array.newInstance(getReturnType(), unsorted.length); // Not yet sorted...
+		
+		for (int i = 0; i < sorted.length; i++) {
+			Object value = unsorted[i];
+			if (value instanceof Long) {
+				// Hope it fits to the double...
+				sorted[i] = Double.valueOf(((Long) value).longValue());
+			} else {
+				// No conversion needed
+				sorted[i] = value;
+			}
 		}
-	}
-
-	@Override
-	public boolean canIterateWithKeys() {
-		return keyed;
-	}
-
-	@Override
-	public Iterator<KeyedValue<Object>> keyedIterator(Event event) {
-		if (!keyed)
-			throw new UnsupportedOperationException();
+		
 		try {
-			//noinspection unchecked,rawtypes
-			return (Iterator) ((KeyedIterableExpression<?>) list).keyedStream(event)
-				.sorted((a, b) -> compare(a.value(), b.value()))
-				.iterator();
-		} catch (IllegalArgumentException | ClassCastException e) {
-			return EmptyIterator.get();
+			Arrays.sort(sorted); // Now sorted
+		} catch (IllegalArgumentException | ClassCastException ex) { // In case elements are not comparable
+			return new Object[]{}; // We don't have a sorted array available
 		}
-	}
-
-	public static <A, B> int compare(A a, B b) throws IllegalArgumentException, ClassCastException {
-		if (a instanceof String && b instanceof String)
-			return Relation.get(((String) a).compareToIgnoreCase((String) b)).getRelation();
-		//noinspection unchecked
-		Comparator<A, B> comparator = Comparators.getComparator((Class<A>) a.getClass(), (Class<B>) b.getClass());
-        if (comparator != null && comparator.supportsOrdering())
-			return comparator.compare(a, b).getRelation();
-		if (!(a instanceof Comparable))
-			throw new IllegalArgumentException("Cannot compare " + a.getClass());
-		//noinspection unchecked
-		return ((Comparable<B>) a).compareTo(b);
-    }
-
-	@Override
-	@SafeVarargs
-	public final <R> @Nullable Expression<? extends R> getConvertedExpression(Class<R>... to) {
-		if (CollectionUtils.containsSuperclass(to, getReturnType()))
-			//noinspection unchecked
-			return (Expression<? extends R>) this;
-
-		Expression<? extends R> convertedList = list.getConvertedExpression(to);
-		if (convertedList != null)
-			//noinspection unchecked
-			return (Expression<? extends R>) new ExprSortedList(convertedList);
-
-		return null;
-	}
-
-	@Override
-	public Class<?> getReturnType() {
-		return list.getReturnType();
-	}
-
-	@Override
-	public Class<?>[] possibleReturnTypes() {
-		return list.possibleReturnTypes();
-	}
-
-	@Override
-	public boolean canReturn(Class<?> returnType) {
-		return list.canReturn(returnType);
+		return sorted;
 	}
 
 	@Override
@@ -139,27 +88,13 @@ public class ExprSortedList extends SimpleExpression<Object> implements KeyedIte
 	}
 
 	@Override
-	public boolean isIndexLoop(String input) {
-		if (!keyed)
-			throw new IllegalStateException();
-		return ((KeyedIterableExpression<?>) list).isIndexLoop(input);
+	public Class<?> getReturnType() {
+		return list.getReturnType();
 	}
 
 	@Override
-	public boolean isLoopOf(String input) {
-		return list.isLoopOf(input);
-	}
-
-	@Override
-	public Expression<?> simplify() {
-		if (list instanceof Literal<?>)
-			return SimplifiedLiteral.fromExpression(this);
-		return this;
-	}
-
-	@Override
-	public String toString(@Nullable Event event, boolean debug) {
-		return "sorted " + list.toString(event, debug);
+	public String toString(@Nullable Event e, boolean debug) {
+		return "sorted " + list.toString(e, debug);
 	}
 
 }

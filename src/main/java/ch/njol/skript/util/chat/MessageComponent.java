@@ -1,24 +1,39 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.util.chat;
 
 import java.lang.reflect.Type;
 import java.util.Locale;
 
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 
-import net.md_5.bungee.api.ChatColor;
-import org.skriptlang.skript.bukkit.text.TextComponentParser;
+import org.bukkit.ChatColor;
 
 /**
  * Component for chat messages. This can be serialized with GSON and then
  * sent to client.
- * @deprecated See {@link TextComponentParser}.
  */
-@Deprecated(since = "2.15", forRemoval = true)
 public class MessageComponent {
 	
 	public String text = "";
@@ -74,13 +89,7 @@ public class MessageComponent {
 	 */
 	@Nullable
 	public String font;
-
-	@Nullable
-	public String translation;
-
-	@Nullable
-	public String keybind;
-
+	
 	public static class ClickEvent {
 		public ClickEvent(ClickEvent.Action action, String value) {
 			this.action = action;
@@ -94,9 +103,7 @@ public class MessageComponent {
 			
 			suggest_command,
 			
-			change_page,
-
-			copy_to_clipboard;
+			change_page;
 			
 			public final String spigotName;
 			
@@ -143,6 +150,16 @@ public class MessageComponent {
 	@Nullable
 	public HoverEvent hoverEvent;
 	
+	/**
+	 * Serializes Bukkit chat colors using their Vanilla JSON names (e.g. {@code dark_red}).
+	 */
+	public static class ColorSerializer implements JsonSerializer<ChatColor> {
+		@Override
+		public @Nullable JsonElement serialize(@Nullable ChatColor src, @Nullable Type typeOfSrc, @Nullable JsonSerializationContext context) {
+			return src == null ? null : new JsonPrimitive(src.name().toLowerCase(Locale.ENGLISH));
+		}
+	}
+
 	public static class BooleanSerializer implements JsonSerializer<Boolean> {
 		@Override
 		public @Nullable JsonElement serialize(@Nullable Boolean src, @Nullable Type typeOfSrc, @Nullable JsonSerializationContext context) {
@@ -164,8 +181,6 @@ public class MessageComponent {
 		messageComponent.clickEvent = this.clickEvent;
 		messageComponent.font = this.font;
 		messageComponent.hoverEvent = this.hoverEvent;
-		messageComponent.translation = translation;
-		messageComponent.keybind = keybind;
 		return messageComponent;
 	}
 

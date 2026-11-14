@@ -1,0 +1,181 @@
+# Default language entries of the kunftig hook (merged into default.lang, same format)
+
+types:
+	kunftigfishstate: fishing state¦s @a
+	hologram: hologram¦s @a
+
+# -- Fishing states of Minecraft 1.21.1 (Kunftig) --
+kunftig fish states:
+	lured: lured, lure, approach
+	bite: bite, biting
+	failed_attempt: failed attempt, failed, escape
+	reel_in: reel in, reeling in
+
+# -- Particles of the Kunftig mod --
+# Played with Skript's visual effect syntax, e.g. 'play 10 end rod with offset of 0.3, 0.5, 0.3 and speed 0.01 at player'.
+# Modern particles (from 'end_rod' down) are drawn by clients with Kunftig and Et Futurum Requiem;
+# everyone else sees the closest 1.7.10 particle. A pattern's expression (color, item, note) is the particle's data.
+visual effects:
+	kunftigparticle:
+		poof:
+			name: poof @a
+			pattern: (poof|small explosion)
+		explosion:
+			name: large explosion @a
+			pattern: large explosion
+		explosion_emitter:
+			name: huge explosion @a
+			pattern: huge explosion
+		firework:
+			name: firework's spark @-
+			pattern: firework['s] spark
+		bubble:
+			name: bubble @a
+			pattern: [water] bubble[s]
+		splash:
+			name: water splash @a
+			pattern: [water] splash
+		fishing:
+			name: fishing wake @a
+			pattern: (fishing [wake]|water wake|bobber wake)
+		underwater:
+			name: underwater particle @an
+			pattern: (underwater|suspended) particle[s]
+		depth_suspend:
+			name: void fog @-
+			pattern: void fog
+		crit:
+			name: critical hit @a
+			pattern: (critical hit|crit) [spark]
+		enchanted_hit:
+			name: magical critical hit @a
+			pattern: (magic[al]|blue|enchanted) (critical hit|crit|hit) [spark]
+		smoke:
+			name: smoke particle @a
+			pattern: smoke particle
+		large_smoke:
+			name: large smoke @-
+			pattern: large smoke
+		effect:
+			name: spell @a
+			pattern: (spell|thrown potion)
+		instant_effect:
+			name: instant spell @an
+			pattern: instant (spell|thrown potion)
+		entity_effect:
+			name: potion swirl @a
+			pattern: [%-color%] potion swirl
+		ambient_entity_effect:
+			name: transparent potion swirl @a
+			pattern: [%-color%] transparent potion swirl
+		witch:
+			name: witch spell @a
+			pattern: (witch spell|purple spark)
+		dripping_water:
+			name: water drip @a
+			pattern: (water drip|dripping water)
+		dripping_lava:
+			name: lava drip @a
+			pattern: (lava drip|dripping lava)
+		angry_villager:
+			name: angry villager @an
+			pattern: (angry villager|thundercloud)
+		happy_villager:
+			name: happy villager @a
+			pattern: (happy villager|green spark)
+		mycelium:
+			name: small smoke @-
+			pattern: (small smoke|town aura|mycelium)
+		note:
+			name: note @a
+			pattern: note [(of|with) [colo[u]r] %-number%]
+		portal:
+			name: portal @a
+			pattern: [nether] portal
+		enchant:
+			name: flying glyph @a
+			pattern: (flying (glyph|letter)|enchantment table|enchant)
+		flame:
+			name: flame @-
+			pattern: (flame|fire)
+		lava:
+			name: lava pop @a
+			pattern: lava pop
+		footstep:
+			name: footstep @x
+			pattern: footsteps
+		cloud:
+			name: cloud @a
+			pattern: cloud
+		dust:
+			name: coloured dust @-
+			pattern: [%-color%] [colo[u]red] dust
+		item_snowball:
+			name: snowball break @a
+			pattern: snowball (break|poof)
+		snow_shovel:
+			name: snow shovel @a
+			pattern: snow shovel
+		item_slime:
+			name: slime @-
+			pattern: slime
+		heart:
+			name: heart @a
+			pattern: heart[s]
+		item:
+			name: item break @an
+			pattern: item (break|crack)[ing] [of %-itemtype%]
+		block:
+			name: block break @a
+			pattern: block (break|crack)[ing] [of %-itemtype%]
+		block_dust:
+			name: block dust @-
+			pattern: block dust [of %-itemtype%]
+		end_rod:
+			name: end rod @an
+			pattern: end rod[s]
+		soul_fire_flame:
+			name: soul fire flame @a
+			pattern: soul [fire] flame
+		falling_dust:
+			name: falling dust @-
+			pattern: [%-color%] falling dust
+		dripping_honey:
+			name: dripping honey @-
+			pattern: [%-color%] (dripping honey|honey drip)
+		dripping_obsidian_tear:
+			name: dripping obsidian tear @a
+			pattern: [%-color%] (dripping obsidian tear|obsidian tear drip)
+		cherry_leaves:
+			name: cherry leaves @x
+			pattern: cherry leaves
+		crimson_spore:
+			name: crimson spore @a
+			pattern: crimson spore[s]
+		warped_spore:
+			name: warped spore @a
+			pattern: warped spore[s]
+		ash:
+			name: ash @-
+			pattern: ash
+		bubble_column_up:
+			name: bubble column @a
+			pattern: bubble column [up]
+		current_down:
+			name: current down @-
+			pattern: (current down|bubble column down)
+		falling_nectar:
+			name: falling nectar @-
+			pattern: falling nectar
+		damage_indicator:
+			name: damage indicator @a
+			pattern: damage indicator
+		wax_on:
+			name: wax on @-
+			pattern: wax on
+		wax_off:
+			name: wax off @-
+			pattern: wax off
+		scrape:
+			name: scrape @a
+			pattern: scrape

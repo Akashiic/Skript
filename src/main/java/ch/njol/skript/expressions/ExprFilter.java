@@ -1,187 +1,258 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.expressions;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.classes.ClassInfo;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
-import ch.njol.skript.lang.*;
-import ch.njol.skript.lang.KeyedValue.UnzippedKeyValues;
+import ch.njol.skript.lang.Condition;
+import ch.njol.skript.lang.Expression;
+import ch.njol.skript.lang.ExpressionType;
+import ch.njol.skript.lang.Literal;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
-import ch.njol.skript.lang.parser.ParserInstance;
 import ch.njol.skript.lang.util.SimpleExpression;
+import ch.njol.skript.registrations.Converters;
 import ch.njol.skript.util.LiteralUtils;
+import ch.njol.skript.util.Utils;
 import ch.njol.util.Kleenean;
+import ch.njol.util.coll.iterator.ArrayIterator;
 import com.google.common.collect.Iterators;
 import org.bukkit.event.Event;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-import org.jetbrains.annotations.UnknownNullability;
-import org.skriptlang.skript.lang.converter.Converters;
+import org.eclipse.jdt.annotation.NonNull;
+import org.eclipse.jdt.annotation.Nullable;
 
-import java.util.*;
-import java.util.stream.StreamSupport;
+import java.lang.reflect.Array;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.regex.Pattern;
 
 @Name("Filter")
-@Description({
-	"Filters a list based on a condition. ",
-	"For example, if you ran 'broadcast \"something\" and \"something else\" where [string input is \"something\"]', ",
-	"only \"something\" would be broadcast as it is the only string that matched the condition."
-})
-@Example("send \"congrats on being staff!\" to all players where [player input has permission \"staff\"]")
-@Example("loop (all blocks in radius 5 of player) where [block input is not air]:")
-@Since("2.2-dev36, 2.10 (parenthesis pattern)")
-public class ExprFilter extends SimpleExpression<Object> implements InputSource, KeyProviderExpression<Object> {
+@Description("Filters a list based on a condition. " +
+		"For example, if you ran 'broadcast \"something\" and \"something else\" where [string input is \"something\"]', " +
+		"only \"something\" would be broadcast as it is the only string that matched the condition.")
+@Examples("send \"congrats on being staff!\" to all players where [player input has permission \"staff\"]")
+@Since("2.2-dev36")
+@SuppressWarnings({"null", "unchecked"})
+public class ExprFilter extends SimpleExpression<Object> {
+
+	@Nullable
+	private static ExprFilter parsing;
 
 	static {
 		Skript.registerExpression(ExprFilter.class, Object.class, ExpressionType.COMBINED,
-				"%objects% (where|that match) \\[<.+>\\]",
-				"%objects% (where|that match) \\(<.+>\\)"
-			);
-		if (!ParserInstance.isRegistered(InputData.class))
-			ParserInstance.registerData(InputData.class, InputData::new);
+				"%objects% (where|that match) \\[<.+>\\]");
 	}
 
-	private final Map<Event, List<String>> cache = new WeakHashMap<>();
+	private Object current;
+	private List<ExprInput<?>> children = new ArrayList<>();
+	private Condition condition;
+	private String rawCond;
+	private Expression<Object> objects;
 
-	private boolean keyed;
-	private @UnknownNullability Condition filterCondition;
-	private @UnknownNullability String unparsedCondition;
-	private @UnknownNullability Expression<?> unfilteredObjects;
-	private final Set<ExprInput<?>> dependentInputs = new HashSet<>();
-
-	private @Nullable Object currentValue;
-	private @UnknownNullability String currentIndex;
-
-	@Override
-	public boolean init(Expression<?>[] expressions, int matchedPattern, Kleenean isDelayed, ParseResult parseResult) {
-		unfilteredObjects = LiteralUtils.defendExpression(expressions[0]);
-		if (unfilteredObjects.isSingle() || !LiteralUtils.canInitSafely(unfilteredObjects))
-			return false;
-		keyed = KeyProviderExpression.canReturnKeys(unfilteredObjects);
-		unparsedCondition = parseResult.regexes.get(0).group();
-		InputData inputData = getParser().getData(InputData.class);
-		InputSource originalSource = inputData.getSource();
-		inputData.setSource(this);
-		filterCondition = Condition.parse(unparsedCondition, "Can't understand this condition: " + unparsedCondition);
-		inputData.setSource(originalSource);
-		return filterCondition != null;
+	@Nullable
+	public static ExprFilter getParsing() {
+		return parsing;
 	}
 
 	@Override
-	public @NotNull Iterator<?> iterator(Event event) {
-		if (keyed)
-			return Iterators.transform(keyedIterator(event), KeyedValue::value);
+	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult) {
+		try {
+			parsing = this;
+			objects = LiteralUtils.defendExpression(exprs[0]);
+			if (objects.isSingle())
+				return false;
+			rawCond = parseResult.regexes.get(0).group();
+			condition = Condition.parse(rawCond, "Can't understand this condition: " + rawCond);
+		} finally {
+			parsing = null;
+		}
+		return condition != null && LiteralUtils.canInitSafely(objects);
+	}
 
-		// clear current index just to be safe
-		currentIndex = null;
-
-		Iterator<?> unfilteredObjectIterator = unfilteredObjects.iterator(event);
-		if (unfilteredObjectIterator == null)
-			return Collections.emptyIterator();
-		return Iterators.filter(unfilteredObjectIterator, candidateObject -> {
-			currentValue = candidateObject;
-			return filterCondition.check(event);
-		});
+	@NonNull
+	@Override
+	public Iterator<?> iterator(Event e) {
+		try {
+			return Iterators.filter(new ArrayIterator<>(this.objects.getArray(e)), object -> {
+				current = object;
+				return condition.check(e);
+			});
+		} finally {
+			current = null;
+		}
 	}
 
 	@Override
-	public Iterator<KeyedValue<Object>> keyedIterator(Event event) {
-		//noinspection unchecked
-		Iterator<KeyedValue<Object>> keyedIterator = ((KeyProviderExpression<Object>) unfilteredObjects).keyedIterator(event);
-		return StreamSupport.stream(Spliterators.spliteratorUnknownSize(keyedIterator, Spliterator.ORDERED), false)
-			.filter(keyedValue -> {
-				currentValue = keyedValue.value();
-				currentIndex = keyedValue.key();
-				return filterCondition.check(event);
-			})
-			.iterator();
+	protected Object[] get(Event e) {
+		try {
+			return Converters.convertStrictly(Iterators.toArray(iterator(e), Object.class), getReturnType());
+		} catch (ClassCastException e1) {
+			return null;
+		}
 	}
 
-	@Override
-	protected Object @Nullable [] get(Event event) {
-		if (!keyed)
-			return Converters.convertStrictly(Iterators.toArray(iterator(event), Object.class), getReturnType());
-		UnzippedKeyValues<Object> unzipped = KeyedValue.unzip(keyedIterator(event));
-		cache.put(event, unzipped.keys());
-		return Converters.convertStrictly(unzipped.values().toArray(), getReturnType());
+	public Object getCurrent() {
+		return current;
 	}
 
-	@Override
-	public @NotNull String @NotNull [] getArrayKeys(Event event) throws IllegalStateException {
-		if (!cache.containsKey(event))
-			throw new IllegalStateException();
-		return cache.remove(event).toArray(new String[0]);
+	private void addChild(ExprInput<?> child) {
+		children.add(child);
 	}
 
-	@Override
-	public boolean canReturnKeys() {
-		return keyed;
-	}
-
-	@Override
-	public boolean areKeysRecommended() {
-		return KeyProviderExpression.areKeysRecommended(unfilteredObjects);
-	}
-
-	@Override
-	public boolean isSingle() {
-		return false;
+	private void removeChild(ExprInput<?> child) {
+		children.remove(child);
 	}
 
 	@Override
 	public Class<?> getReturnType() {
-		return unfilteredObjects.getReturnType();
+		return objects.getReturnType();
 	}
 
 	@Override
-	public Class<?>[] possibleReturnTypes() {
-		return unfilteredObjects.possibleReturnTypes();
+	public boolean isSingle() {
+		return objects.isSingle();
 	}
 
 	@Override
-	public boolean canReturn(Class<?> returnType) {
-		return unfilteredObjects.canReturn(returnType);
+	public String toString(Event e, boolean debug) {
+		return String.format("%s where [%s]", objects.toString(e, debug), rawCond);
 	}
 
 	@Override
-	public String toString(@Nullable Event event, boolean debug) {
-		return unfilteredObjects.toString(event, debug) + " that match [" + unparsedCondition + "]";
-	}
+	public boolean isLoopOf(String s) {
+		for (ExprInput<?> child : children) { // if they used player input, let's assume loop-player is valid
+			if (child.getClassInfo() == null || child.getClassInfo().getUserInputPatterns() == null)
+				continue;
 
-	private boolean matchesAnySpecifiedTypes(String candidateString) {
-		for (ExprInput<?> dependentInput : dependentInputs) {
-			ClassInfo<?> specifiedType = dependentInput.getSpecifiedType();
-			if (specifiedType == null)
-				return false;
-			if (specifiedType.matchesUserInput(candidateString))
-				return true;
+			for (Pattern pattern : child.getClassInfo().getUserInputPatterns()) {
+				if (pattern.matcher(s).matches())
+					return true;
+			}
 		}
-		return false;
+		return objects.isLoopOf(s); // nothing matched, so we'll rely on the object expression's logic
 	}
 
-	@Override
-	public boolean isLoopOf(String candidateString) {
-		return unfilteredObjects.isLoopOf(candidateString) || matchesAnySpecifiedTypes(candidateString);
-	}
+	@Name("Filter Input")
+	@Description("Represents the input in a filter expression. " +
+			"For example, if you ran 'broadcast \"something\" and \"something else\" where [input is \"something\"]" +
+			"the condition would be checked twice, using \"something\" and \"something else\" as the inputs.")
+	@Examples("send \"congrats on being staff!\" to all players where [input has permission \"staff\"]")
+	@Since("2.2-dev36")
+	public static class ExprInput<T> extends SimpleExpression<T> {
 
-	public Set<ExprInput<?>> getDependentInputs() {
-		return dependentInputs;
-	}
+		static {
+			Skript.registerExpression(ExprInput.class, Object.class, ExpressionType.COMBINED,
+					"input",
+					"%*classinfo% input"
+			);
+		}
 
-	public @Nullable Object getCurrentValue() {
-		return currentValue;
-	}
+		@Nullable
+		private final ExprInput<?> source;
+		private final Class<? extends T>[] types;
+		private final Class<T> superType;
+		@SuppressWarnings("NotNullFieldNotInitialized")
+		private ExprFilter parent;
+		@Nullable
+		private ClassInfo<?> inputType;
 
-	@Override
-	public boolean hasIndices() {
-		return keyed;
-	}
+		public ExprInput() {
+			this(null, (Class<? extends T>) Object.class);
+		}
 
-	@Override
-	public @UnknownNullability String getCurrentIndex() {
-		return currentIndex;
+		public ExprInput(@Nullable ExprInput<?> source, Class<? extends T>... types) {
+			this.source = source;
+			if (source != null) {
+				this.parent = source.parent;
+				this.inputType = source.inputType;
+				parent.removeChild(source);
+				parent.addChild(this);
+			}
+
+			this.types = types;
+			this.superType = (Class<T>) Utils.getSuperType(types);
+		}
+
+		@Override
+		public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult) {
+			parent = ExprFilter.getParsing();
+
+			if (parent == null)
+				return false;
+
+			parent.addChild(this);
+			inputType = matchedPattern == 0 ? null : ((Literal<ClassInfo<?>>) exprs[0]).getSingle();
+			return true;
+		}
+
+		@Override
+		protected T[] get(Event e) {
+			Object current = parent.getCurrent();
+			if (inputType != null && !inputType.getC().isInstance(current)) {
+				return null;
+			}
+
+			try {
+				return Converters.convertArray(new Object[]{current}, types, superType);
+			} catch (ClassCastException e1) {
+				return (T[]) Array.newInstance(superType, 0);
+			}
+		}
+
+		public void setParent(ExprFilter parent) {
+			this.parent = parent;
+		}
+
+		@Override
+		public <R> Expression<? extends R> getConvertedExpression(Class<R>... to) {
+			return new ExprInput<>(this, to);
+		}
+
+		@Override
+		public Expression<?> getSource() {
+			return source == null ? this : source;
+		}
+
+		@Override
+		public Class<? extends T> getReturnType() {
+			return superType;
+		}
+
+		@Nullable
+		private ClassInfo<?> getClassInfo() {
+			return inputType;
+		}
+
+		@Override
+		public boolean isSingle() {
+			return true;
+		}
+
+		@Override
+		public String toString(Event e, boolean debug) {
+			return inputType == null ? "input" : inputType.getCodeName() + " input";
+		}
+
 	}
 
 }

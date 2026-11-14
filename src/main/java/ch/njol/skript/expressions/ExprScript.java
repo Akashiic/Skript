@@ -1,150 +1,93 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.expressions;
 
-import ch.njol.skript.ScriptLoader;
+import org.bukkit.event.Event;
+import org.eclipse.jdt.annotation.Nullable;
+
 import ch.njol.skript.Skript;
+import ch.njol.skript.config.Config;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Events;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.lang.Expression;
 import ch.njol.skript.lang.ExpressionType;
-import ch.njol.skript.lang.parser.ParserInstance;
-import org.jetbrains.annotations.Nullable;
-import org.skriptlang.skript.lang.script.Script;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.skript.lang.util.SimpleExpression;
 import ch.njol.util.Kleenean;
-import org.bukkit.event.Event;
+import ch.njol.util.coll.CollectionUtils;
 
-import java.io.File;
-import java.io.FileFilter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-
-@Name("Script")
-@Description({"The current script, or a script from its (file) name.",
-	"If the script is enabled or disabled (or reloaded) this reference will become invalid.",
-	"Therefore, it is recommended to obtain a script reference <em>when needed</em>."})
-@Example("""
-	on script load:
-		broadcast "Loaded %the current script%"
-	""")
-@Example("""
-	on script load:
-		set {running::%script%} to true
-	""")
-@Example("""
-	on script unload:
-		set {running::%script%} to false
-	""")
-@Example("set {script} to the script named \"weather.sk\"")
-@Example("""
-	loop the scripts in directory "quests/":
-		enable loop-value
-	""")
+/**
+ * @author Peter Güttinger
+ */
+@Name("Script Name")
+@Description("Holds the current script's name (the file name without '.sk').")
+@Examples({"on script load:",
+		"	set {running::%script%} to true",
+		"on script unload:",
+		"	set {running::%script%} to false"})
 @Since("2.0")
-public class ExprScript extends SimpleExpression<Script> {
-
+@Events("Script Load/Unload")
+public class ExprScript extends SimpleExpression<String> {
+	
 	static {
-		Skript.registerExpression(ExprScript.class, Script.class, ExpressionType.SIMPLE,
-			"[the] [current] script",
-			"[the] script[s] [named] %strings%",
-			"[the] scripts in [directory|folder] %string%"
-		);
+		Skript.registerExpression(ExprScript.class, String.class, ExpressionType.SIMPLE,
+				"[the] script[['s] name]", "name of [the] script");
 	}
-
-	private @Nullable Script script;
-	private @Nullable Expression<String> name;
-	private boolean isDirectory;
-
+	
+	@SuppressWarnings("null")
+	private String name;
+	
 	@Override
-	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult) {
-		this.isDirectory = matchedPattern == 2;
-		if (matchedPattern == 0) {
-			ParserInstance parser = this.getParser();
-			if (!parser.isActive()) {
-				Skript.error("'the current script' can only be used in a script.");
-				return false;
-			}
-			this.script = parser.getCurrentScript();
-		} else {
-			//noinspection unchecked
-			this.name = (Expression<String>) exprs[0];
+	public boolean init(final Expression<?>[] exprs, final int matchedPattern, final Kleenean isDelayed, final ParseResult parseResult) {
+		final Config script = getParser().getCurrentScript();
+		if (script == null) {
+			assert false;
+			return false;
 		}
+		String name = script.getFileName();
+		if (name.contains("."))
+			name = "" + name.substring(0, name.lastIndexOf('.'));
+		this.name = name;
 		return true;
 	}
-
+	
 	@Override
-	protected Script[] get(Event event) {
-		if (script != null)
-			return new Script[]{script};
-		assert name != null;
-		if (isDirectory) {
-			@Nullable String string = name.getSingle(event);
-			if (string == null)
-				return new Script[0];
-			File folder = new File(Skript.getInstance().getScriptsFolder(), string);
-			List<Script> scripts = new ArrayList<>();
-			if (!folder.isDirectory())
-				return new Script[0];
-			this.getScripts(folder, scripts);
-			return scripts.toArray(new Script[0]);
-		}
-		return name.stream(event)
-				.map(ScriptLoader::getScriptFileFromName)
-				.map(ExprScript::getHandle)
-				.filter(Objects::nonNull)
-				.toArray(Script[]::new);
+	protected String[] get(final Event e) {
+		return CollectionUtils.array(name);
 	}
-
-	private void getScripts(File folder, List<Script> scripts) {
-		File[] files = folder.listFiles();
-		if (files == null)
-			return;
-		FileFilter loaded = ScriptLoader.getLoadedScriptsFilter();
-		FileFilter disabled = ScriptLoader.getDisabledScriptsFilter();
-		FileFilter filter = f -> loaded.accept(f) || disabled.accept(f);
-		for (File file : files) {
-			if (file.isDirectory()) {
-				this.getScripts(file, scripts);
-			} else if (filter.accept(file)) {
-				@Nullable Script handle = ExprScript.getHandle(file);
-				if (handle != null)
-					scripts.add(handle);
-			}
-		}
-	}
-
+	
 	@Override
 	public boolean isSingle() {
-		return script != null || name != null && name.isSingle() && !isDirectory;
+		return true;
 	}
-
+	
 	@Override
-	public Class<? extends Script> getReturnType() {
-		return Script.class;
+	public Class<? extends String> getReturnType() {
+		return String.class;
 	}
-
+	
 	@Override
-	public String toString(@Nullable Event event, boolean debug) {
-		if (script != null)
-			return "the current script";
-		assert name != null;
-		if (isDirectory)
-			return "the scripts in directory " + name.toString(event, debug);
-		if (name.isSingle())
-			return "the script named " + name.toString(event, debug);
-		return "the scripts named " + name.toString(event, debug);
+	public String toString(final @Nullable Event e, final boolean debug) {
+		return "the script's name";
 	}
-
-	static @Nullable Script getHandle(@Nullable File file) {
-		if (file == null || file.isDirectory())
-			return null;
-		Script script = ScriptLoader.getScript(file);
-		if (script != null)
-			return script;
-		return ScriptLoader.createDummyScript(file.getName(), file);
-	}
-
+	
 }

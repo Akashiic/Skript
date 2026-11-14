@@ -1,15 +1,32 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.conditions;
 
-import ch.njol.skript.classes.Changer.ChangeMode;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Explosive;
 import org.bukkit.event.Event;
 import org.bukkit.event.entity.ExplosionPrimeEvent;
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.lang.Condition;
@@ -20,11 +37,9 @@ import ch.njol.util.Kleenean;
 
 @Name("Is Incendiary")
 @Description("Checks if an entity will create fire when it explodes. This condition is also usable in an explosion prime event.")
-@Example("""
-	on explosion prime:
-		if the explosion is fiery:
-			broadcast "A fiery explosive has been ignited!"
-	""")
+@Examples({"on explosion prime:", 
+			"\tif the explosion is fiery:",
+			"\t\tbroadcast \"A fiery explosive has been ignited!\""})
 @Since("2.5")
 public class CondIncendiary extends Condition {
 
@@ -57,34 +72,9 @@ public class CondIncendiary extends Condition {
 
 	@Override
 	public boolean check(Event e) {
-		if (isEvent) {
-			if (!(e instanceof ExplosionPrimeEvent))
-				return isNegated();
-
+		if (isEvent)
 			return ((ExplosionPrimeEvent) e).getFire() ^ isNegated();
-		}
 		return entities.check(e, entity -> entity instanceof Explosive && ((Explosive) entity).isIncendiary(), isNegated());
-	}
-
-	@Override
-	public boolean acceptChange(ChangeMode mode) {
-		return mode == ChangeMode.SET;
-	}
-
-	@Override
-	public void change(Event event, boolean isIncendiary, ChangeMode mode) {
-		if (isEvent) {
-			if (event instanceof ExplosionPrimeEvent explosionPrimeEvent) {
-				explosionPrimeEvent.setFire(isIncendiary);
-			}
-			return;
-		}
-
-		for (Entity entity : entities.getArray(event)) {
-			if (entity instanceof Explosive explosive) {
-				explosive.setIsIncendiary(isIncendiary);
-			}
-		}
 	}
 
 	@Override

@@ -1,14 +1,30 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.expressions;
 
-import ch.njol.skript.lang.EventRestrictedSyntax;
-import ch.njol.util.coll.CollectionUtils;
 import org.bukkit.event.Event;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.lang.Expression;
@@ -18,13 +34,11 @@ import ch.njol.skript.lang.util.SimpleExpression;
 import ch.njol.util.Kleenean;
 
 @Name("Hotbar Button")
-@Description("The hotbar button clicked in an <a href='#inventory_click'>inventory click</a> event.")
-@Example("""
-	on inventory click:
-		send "You clicked the hotbar button %hotbar button%!"
-	""")
+@Description("The hotbar button clicked in an <a href='events.html#inventory_click'>inventory click</a> event.")
+@Examples({"on inventory click:",
+		"	send \"You clicked the hotbar button %hotbar button%!\""})
 @Since("2.5")
-public class ExprHotbarButton extends SimpleExpression<Long> implements EventRestrictedSyntax {
+public class ExprHotbarButton extends SimpleExpression<Long> {
 	
 	static {
 		Skript.registerExpression(ExprHotbarButton.class, Long.class, ExpressionType.SIMPLE, "[the] hotbar button");
@@ -32,12 +46,11 @@ public class ExprHotbarButton extends SimpleExpression<Long> implements EventRes
 	
 	@Override
 	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parser) {
+		if (!getParser().isCurrentEvent(InventoryClickEvent.class)) {
+			Skript.error("The 'hotbar button' expression may only be used in an inventory click event.");
+			return false;
+		}
 		return true;
-	}
-
-	@Override
-	public Class<? extends Event>[] supportedEvents() {
-		return CollectionUtils.array(InventoryClickEvent.class);
 	}
 	
 	@Nullable

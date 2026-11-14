@@ -1,833 +1,1132 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.classes.data;
 
 import ch.njol.skript.Skript;
+import ch.njol.skript.aliases.Aliases;
 import ch.njol.skript.aliases.ItemType;
-import ch.njol.skript.bukkitutil.InventoryUtils;
-import ch.njol.skript.classes.Changer.ChangeMode;
 import ch.njol.skript.command.CommandEvent;
-import org.skriptlang.skript.bukkit.entity.EntityData;
+import ch.njol.skript.events.EvtMoveOn;
 import ch.njol.skript.events.bukkit.ScriptEvent;
 import ch.njol.skript.events.bukkit.SkriptStartEvent;
 import ch.njol.skript.events.bukkit.SkriptStopEvent;
-import ch.njol.skript.util.*;
-import ch.njol.skript.util.Color;
+import ch.njol.skript.registrations.EventValues;
+import ch.njol.skript.util.BlockStateBlock;
+import ch.njol.skript.util.BlockUtils;
+import ch.njol.skript.util.DelayedChangeBlock;
+import ch.njol.skript.util.Direction;
+import ch.njol.skript.util.Getter;
 import ch.njol.skript.util.slot.InventorySlot;
 import ch.njol.skript.util.slot.Slot;
-import com.destroystokyo.paper.event.block.BeaconEffectEvent;
-import com.destroystokyo.paper.event.entity.EndermanAttackPlayerEvent;
-import com.destroystokyo.paper.event.entity.ProjectileCollideEvent;
-import com.destroystokyo.paper.event.inventory.PrepareResultEvent;
-import com.destroystokyo.paper.event.player.PlayerElytraBoostEvent;
-import io.papermc.paper.event.entity.EntityMoveEvent;
-import io.papermc.paper.event.player.*;
-import io.papermc.paper.event.world.border.WorldBorderBoundsChangeEvent;
-import io.papermc.paper.event.world.border.WorldBorderBoundsChangeFinishEvent;
-import io.papermc.paper.event.world.border.WorldBorderCenterChangeEvent;
-import io.papermc.paper.event.world.border.WorldBorderEvent;
-import net.kyori.adventure.text.Component;
-import org.bukkit.*;
+import org.bukkit.Bukkit;
+import org.bukkit.Chunk;
+import org.bukkit.FireworkEffect;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.BlockState;
-import org.bukkit.block.data.BlockData;
-import org.bukkit.command.BlockCommandSender;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.*;
-import org.bukkit.event.block.*;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.Firework;
+import org.bukkit.entity.Hanging;
+import org.bukkit.entity.HumanEntity;
+import org.bukkit.entity.Item;
+import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
+import org.bukkit.entity.Vehicle;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockCanBuildEvent;
+import org.bukkit.event.block.BlockDamageEvent;
+import org.bukkit.event.block.BlockDispenseEvent;
+import org.bukkit.event.block.BlockEvent;
+import org.bukkit.event.block.BlockFadeEvent;
+import org.bukkit.event.block.BlockFromToEvent;
+import org.bukkit.event.block.BlockGrowEvent;
+import org.bukkit.event.block.BlockIgniteEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.block.BlockSpreadEvent;
+import org.bukkit.event.block.SignChangeEvent;
 import org.bukkit.event.enchantment.EnchantItemEvent;
 import org.bukkit.event.enchantment.PrepareItemEnchantEvent;
-import org.bukkit.event.entity.*;
+import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
+import org.bukkit.event.entity.EntityChangeBlockEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
-import org.bukkit.event.entity.EntityRegainHealthEvent.RegainReason;
-import org.bukkit.event.entity.EntityTransformEvent.TransformReason;
+import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.entity.EntityEvent;
+import org.bukkit.event.entity.EntityTameEvent;
+import org.bukkit.event.entity.HorseJumpEvent;
+import org.bukkit.event.entity.ItemDespawnEvent;
+import org.bukkit.event.entity.ItemSpawnEvent;
+import org.bukkit.event.entity.ProjectileHitEvent;
+import org.bukkit.event.entity.ProjectileLaunchEvent;
 import org.bukkit.event.hanging.HangingBreakByEntityEvent;
 import org.bukkit.event.hanging.HangingBreakEvent;
 import org.bukkit.event.hanging.HangingEvent;
 import org.bukkit.event.hanging.HangingPlaceEvent;
-import org.bukkit.event.inventory.*;
-import org.bukkit.event.player.*;
-import org.bukkit.event.player.PlayerExpCooldownChangeEvent.ChangeReason;
-import org.bukkit.event.player.PlayerQuitEvent.QuitReason;
-import org.bukkit.event.player.PlayerRespawnEvent.RespawnReason;
+import org.bukkit.event.inventory.ClickType;
+import org.bukkit.event.inventory.CraftItemEvent;
+import org.bukkit.event.inventory.InventoryAction;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryOpenEvent;
+import org.bukkit.event.inventory.InventoryPickupItemEvent;
+import org.bukkit.event.inventory.PrepareItemCraftEvent;
+import org.bukkit.event.player.PlayerBedEnterEvent;
+import org.bukkit.event.player.PlayerBedLeaveEvent;
+import org.bukkit.event.player.PlayerBucketEmptyEvent;
+import org.bukkit.event.player.PlayerBucketFillEvent;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerEditBookEvent;
+import org.bukkit.event.player.PlayerEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerItemBreakEvent;
+import org.bukkit.event.player.PlayerItemConsumeEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerPickupItemEvent;
+import org.bukkit.event.player.PlayerShearEntityEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
+import org.bukkit.event.player.PlayerToggleFlightEvent;
 import org.bukkit.event.server.ServerCommandEvent;
-import org.bukkit.event.vehicle.*;
+import org.bukkit.event.vehicle.VehicleDamageEvent;
+import org.bukkit.event.vehicle.VehicleDestroyEvent;
+import org.bukkit.event.vehicle.VehicleEnterEvent;
+import org.bukkit.event.vehicle.VehicleEvent;
+import org.bukkit.event.vehicle.VehicleExitEvent;
 import org.bukkit.event.weather.LightningStrikeEvent;
 import org.bukkit.event.weather.WeatherEvent;
 import org.bukkit.event.world.ChunkEvent;
 import org.bukkit.event.world.PortalCreateEvent;
 import org.bukkit.event.world.StructureGrowEvent;
 import org.bukkit.event.world.WorldEvent;
-import org.bukkit.inventory.*;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.inventory.Recipe;
 import org.bukkit.potion.PotionEffectType;
-import org.bukkit.potion.PotionType;
-import org.skriptlang.skript.bukkit.item.book.elements.expressions.ExprBookPages;
-import org.skriptlang.skript.bukkit.lang.eventvalue.EventValue;
-import org.skriptlang.skript.bukkit.lang.eventvalue.EventValue.Time;
-import org.skriptlang.skript.bukkit.lang.eventvalue.EventValueRegistry;
-import org.skriptlang.skript.lang.converter.Converter;
+import org.eclipse.jdt.annotation.Nullable;
 
-import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
+/**
+ * @author Peter Güttinger
+ */
+@SuppressWarnings("deprecation")
 public final class BukkitEventValues {
-
+	
+	public BukkitEventValues() {}
+	
 	private static final ItemStack AIR_IS = new ItemStack(Material.AIR);
 
-	public static void register(EventValueRegistry registry) {
+	static {
+		
 		// === WorldEvents ===
-		registry.register(EventValue.simple(WorldEvent.class, World.class, WorldEvent::getWorld));
+		EventValues.registerEventValue(WorldEvent.class, World.class, new Getter<World, WorldEvent>() {
+			@Override
+			@Nullable
+			public World get(final WorldEvent e) {
+				return e.getWorld();
+			}
+		}, 0);
 		// StructureGrowEvent - a WorldEvent
-		registry.register(EventValue.simple(StructureGrowEvent.class, Block.class, event -> event.getLocation().getBlock()));
-
-		registry.register(EventValue.simple(StructureGrowEvent.class, Block[].class, event -> event.getBlocks().stream()
-			.map(BlockState::getBlock)
-			.toArray(Block[]::new)));
-		registry.register(EventValue.builder(StructureGrowEvent.class, Block.class)
-			.getter(event -> {
-				for (BlockState bs : event.getBlocks()) {
-					if (bs.getLocation().equals(event.getLocation()))
+		EventValues.registerEventValue(StructureGrowEvent.class, Block.class, new Getter<Block, StructureGrowEvent>() {
+			@Override
+			@Nullable
+			public Block get(final StructureGrowEvent e) {
+				return e.getLocation().getBlock();
+			}
+		}, 0);
+		EventValues.registerEventValue(StructureGrowEvent.class, Block.class, new Getter<Block, StructureGrowEvent>() {
+			@Override
+			@Nullable
+			public Block get(final StructureGrowEvent e) {
+				for (final BlockState bs : e.getBlocks()) {
+					if (bs.getLocation().equals(e.getLocation()))
 						return new BlockStateBlock(bs);
 				}
-				return event.getLocation().getBlock();
-			})
-			.time(Time.FUTURE)
-			.build());
-		registry.register(EventValue.builder(StructureGrowEvent.class, Block[].class)
-			.getter(event -> event.getBlocks().stream()
-				.map(BlockStateBlock::new)
-				.toArray(Block[]::new))
-			.time(Time.FUTURE)
-			.build());
-		// WeatherEvent - not a WorldEvent (wtf ô_Ô)
-		registry.register(EventValue.simple(WeatherEvent.class, World.class, WeatherEvent::getWorld));
-		// ChunkEvents
-		registry.register(EventValue.simple(ChunkEvent.class, Chunk.class, ChunkEvent::getChunk));
-
-		// === BlockEvents ===
-		registry.register(EventValue.simple(BlockEvent.class, Block.class, BlockEvent::getBlock));
-		registry.register(EventValue.simple(BlockEvent.class, World.class, event -> event.getBlock().getWorld()));
-		// REMIND workaround of the event's location being at the entity in block events that have an entity event value
-		registry.register(EventValue.simple(BlockEvent.class, Location.class, event -> BlockUtils.getLocation(event.getBlock())));
-		// BlockPlaceEvent
-		registry.register(EventValue.simple(BlockPlaceEvent.class, Player.class, BlockPlaceEvent::getPlayer));
-		registry.register(EventValue.builder(BlockPlaceEvent.class, ItemStack.class)
-			.getter(BlockPlaceEvent::getItemInHand)
-			.time(Time.PAST)
-			.build());
-		registry.register(EventValue.simple(BlockPlaceEvent.class, ItemStack.class, BlockPlaceEvent::getItemInHand));
-		registry.register(EventValue.builder(BlockPlaceEvent.class, ItemStack.class)
-			.getter(event -> {
-				ItemStack item = event.getItemInHand().clone();
-				if (event.getPlayer().getGameMode() != GameMode.CREATIVE)
-					item.setAmount(item.getAmount() - 1);
-				return item;
-			})
-			.time(Time.FUTURE)
-			.build());
-		registry.register(EventValue.builder(BlockPlaceEvent.class, Block.class)
-			.getter(event -> new BlockStateBlock(event.getBlockReplacedState()))
-			.time(Time.PAST)
-			.build());
-		registry.register(EventValue.simple(BlockPlaceEvent.class, Direction.class, event -> {
-			BlockFace bf = event.getBlockPlaced().getFace(event.getBlockAgainst());
-			if (bf != null) {
-				return new Direction(new double[]{bf.getModX(), bf.getModY(), bf.getModZ()});
+				return e.getLocation().getBlock();
 			}
-			return Direction.ZERO;
-		}));
+		}, 1);
+		// WeatherEvent - not a WorldEvent (wtf ô_Ô)
+		EventValues.registerEventValue(WeatherEvent.class, World.class, new Getter<World, WeatherEvent>() {
+			@Override
+			@Nullable
+			public World get(final WeatherEvent e) {
+				return e.getWorld();
+			}
+		}, 0);
+		// ChunkEvents
+		EventValues.registerEventValue(ChunkEvent.class, Chunk.class, new Getter<Chunk, ChunkEvent>() {
+			@Override
+			@Nullable
+			public Chunk get(final ChunkEvent e) {
+				return e.getChunk();
+			}
+		}, 0);
+		
+		// === BlockEvents ===
+		EventValues.registerEventValue(BlockEvent.class, Block.class, new Getter<Block, BlockEvent>() {
+			@Override
+			@Nullable
+			public Block get(final BlockEvent e) {
+				return e.getBlock();
+			}
+		}, 0);
+		EventValues.registerEventValue(BlockEvent.class, World.class, new Getter<World, BlockEvent>() {
+			@Override
+			@Nullable
+			public World get(final BlockEvent e) {
+				return e.getBlock().getWorld();
+			}
+		}, 0);
+		// REMIND workaround of the event's location being at the entity in block events that have an entity event value
+		EventValues.registerEventValue(BlockEvent.class, Location.class, new Getter<Location, BlockEvent>() {
+			@Override
+			@Nullable
+			public Location get(final BlockEvent e) {
+				return BlockUtils.getLocation(e.getBlock());
+			}
+		}, 0);
+		// BlockPlaceEvent
+		EventValues.registerEventValue(BlockPlaceEvent.class, Player.class, new Getter<Player, BlockPlaceEvent>() {
+			@Override
+			@Nullable
+			public Player get(final BlockPlaceEvent e) {
+				return e.getPlayer();
+			}
+		}, 0);
+		EventValues.registerEventValue(BlockPlaceEvent.class, Block.class, new Getter<Block, BlockPlaceEvent>() {
+			@Override
+			public Block get(final BlockPlaceEvent e) {
+				return new BlockStateBlock(e.getBlockReplacedState());
+			}
+		}, -1);
+		EventValues.registerEventValue(BlockPlaceEvent.class, Direction.class, new Getter<Direction, BlockPlaceEvent>() {
+			@Override
+			@Nullable
+			public Direction get(final BlockPlaceEvent e) {
+				BlockFace bf = e.getBlockPlaced().getFace(e.getBlockAgainst());
+				if (bf != null) {
+					return new Direction(new double[] {bf.getModX(), bf.getModY(), bf.getModZ()});
+				}
+				return Direction.ZERO;
+			}
+		}, 0);
 		// BlockFadeEvent
-		registry.register(EventValue.builder(BlockFadeEvent.class, Block.class)
-			.getter(BlockEvent::getBlock)
-			.time(Time.PAST)
-			.build());
-		registry.register(EventValue.simple(BlockFadeEvent.class, Block.class, event -> new DelayedChangeBlock(event.getBlock(), event.getNewState())));
-		registry.register(EventValue.builder(BlockFadeEvent.class, Block.class)
-			.getter(event -> new BlockStateBlock(event.getNewState()))
-			.time(Time.FUTURE)
-			.build());
+		EventValues.registerEventValue(BlockFadeEvent.class, Block.class, new Getter<Block, BlockFadeEvent>() {
+			@Override
+			@Nullable
+			public Block get(final BlockFadeEvent e) {
+				return e.getBlock();
+			}
+		}, -1);
+		EventValues.registerEventValue(BlockFadeEvent.class, Block.class, new Getter<Block, BlockFadeEvent>() {
+			@Override
+			public Block get(final BlockFadeEvent e) {
+				return new DelayedChangeBlock(e.getBlock(), e.getNewState());
+			}
+		}, 0);
+		EventValues.registerEventValue(BlockFadeEvent.class, Block.class, new Getter<Block, BlockFadeEvent>() {
+			@Override
+			public Block get(final BlockFadeEvent e) {
+				return new BlockStateBlock(e.getNewState());
+			}
+		}, 1);
 		// BlockGrowEvent (+ BlockFormEvent)
-		registry.register(EventValue.simple(BlockGrowEvent.class, Block.class, event -> new BlockStateBlock(event.getNewState())));
-		registry.register(EventValue.builder(BlockGrowEvent.class, Block.class)
-			.getter(BlockEvent::getBlock)
-			.time(Time.PAST)
-			.build());
+		EventValues.registerEventValue(BlockGrowEvent.class, Block.class, new Getter<Block, BlockGrowEvent>() {
+			@Override
+			@Nullable
+			public Block get(final BlockGrowEvent e) {
+				if (e instanceof BlockSpreadEvent)
+					return e.getBlock();
+				return new BlockStateBlock(e.getNewState());
+			}
+		}, 0);
+		EventValues.registerEventValue(BlockGrowEvent.class, Block.class, new Getter<Block, BlockGrowEvent>() {
+			@Override
+			@Nullable
+			public Block get(final BlockGrowEvent e) {
+				return e.getBlock();
+			}
+		}, -1);
 		// BlockDamageEvent
-		registry.register(EventValue.simple(BlockDamageEvent.class, Player.class, BlockDamageEvent::getPlayer));
+		EventValues.registerEventValue(BlockDamageEvent.class, Player.class, new Getter<Player, BlockDamageEvent>() {
+			@Override
+			@Nullable
+			public Player get(final BlockDamageEvent e) {
+				return e.getPlayer();
+			}
+		}, 0);
 		// BlockBreakEvent
-		registry.register(EventValue.simple(BlockBreakEvent.class, Player.class, BlockBreakEvent::getPlayer));
-		registry.register(EventValue.builder(BlockBreakEvent.class, Block.class)
-			.getter(BlockEvent::getBlock)
-			.time(Time.PAST)
-			.build());
-		registry.register(EventValue.simple(BlockBreakEvent.class, Block.class, event -> new DelayedChangeBlock(event.getBlock())));
+		EventValues.registerEventValue(BlockBreakEvent.class, Player.class, new Getter<Player, BlockBreakEvent>() {
+			@Override
+			@Nullable
+			public Player get(final BlockBreakEvent e) {
+				return e.getPlayer();
+			}
+		}, 0);
+		EventValues.registerEventValue(BlockBreakEvent.class, Block.class, new Getter<Block, BlockBreakEvent>() {
+			@Override
+			@Nullable
+			public Block get(final BlockBreakEvent e) {
+				return e.getBlock();
+			}
+		}, -1);
+		EventValues.registerEventValue(BlockBreakEvent.class, Block.class, new Getter<Block, BlockBreakEvent>() {
+			@Override
+			public Block get(final BlockBreakEvent e) {
+				return new DelayedChangeBlock(e.getBlock());
+			}
+		}, 0);
+		ItemType stationaryWater = Aliases.javaItemType("stationary water");
+		EventValues.registerEventValue(BlockBreakEvent.class, Block.class, new Getter<Block, BlockBreakEvent>() {
+			@Override
+			public Block get(final BlockBreakEvent e) {
+				final BlockState s = e.getBlock().getState();
+				s.setType(s.getType() == Material.ICE ? stationaryWater.getMaterial() : Material.AIR);
+				s.setRawData((byte) 0);
+				return new BlockStateBlock(s, true);
+			}
+		}, 1);
 		// BlockFromToEvent
-		registry.register(EventValue.builder(BlockFromToEvent.class, Block.class)
-			.getter(BlockFromToEvent::getToBlock)
-			.time(Time.FUTURE)
-			.build());
+		EventValues.registerEventValue(BlockFromToEvent.class, Block.class, new Getter<Block, BlockFromToEvent>() {
+			@Override
+			@Nullable
+			public Block get(final BlockFromToEvent e) {
+				return e.getToBlock();
+			}
+		}, 1);
 		// BlockIgniteEvent
-		registry.register(EventValue.simple(BlockIgniteEvent.class, Player.class, BlockIgniteEvent::getPlayer));
-		registry.register(EventValue.simple(BlockIgniteEvent.class, Block.class, BlockIgniteEvent::getBlock));
+		EventValues.registerEventValue(BlockIgniteEvent.class, Player.class, new Getter<Player, BlockIgniteEvent>() {
+			@Override
+			@Nullable
+			public Player get(final BlockIgniteEvent e) {
+				return e.getPlayer();
+			}
+		}, 0);
+		EventValues.registerEventValue(BlockIgniteEvent.class, Block.class, new Getter<Block, BlockIgniteEvent>() {
+			@Override
+			@Nullable
+			public Block get(final BlockIgniteEvent e) {
+				return e.getIgnitingBlock();
+			}
+		}, 0);
 		// BlockDispenseEvent
-		registry.register(EventValue.simple(BlockDispenseEvent.class, ItemStack.class, BlockDispenseEvent::getItem));
+		EventValues.registerEventValue(BlockDispenseEvent.class, ItemStack.class, new Getter<ItemStack, BlockDispenseEvent>() {
+			@Override
+			@Nullable
+			public ItemStack get(final BlockDispenseEvent e) {
+				return e.getItem();
+			}
+		}, 0);
 		// BlockCanBuildEvent
-		registry.register(EventValue.builder(BlockCanBuildEvent.class, Block.class)
-			.getter(BlockEvent::getBlock)
-			.time(Time.PAST)
-			.build());
-		registry.register(EventValue.simple(BlockCanBuildEvent.class, Block.class, event -> {
-			BlockState state = event.getBlock().getState();
-			state.setType(event.getMaterial());
-			return new BlockStateBlock(state, true);
-		}));
+		EventValues.registerEventValue(BlockCanBuildEvent.class, Block.class, new Getter<Block, BlockCanBuildEvent>() {
+			@Override
+			@Nullable
+			public Block get(final BlockCanBuildEvent e) {
+				return e.getBlock();
+			}
+		}, -1);
+		EventValues.registerEventValue(BlockCanBuildEvent.class, Block.class, new Getter<Block, BlockCanBuildEvent>() {
+			@Override
+			public Block get(final BlockCanBuildEvent e) {
+				final BlockState s = e.getBlock().getState();
+				s.setType(e.getMaterial());
+				return new BlockStateBlock(s, true);
+			}
+		}, 0);
 		// BlockCanBuildEvent#getPlayer was added in 1.13
-		if (Skript.methodExists(BlockCanBuildEvent.class, "getPlayer")) {
-			registry.register(EventValue.simple(BlockCanBuildEvent.class, Player.class, BlockCanBuildEvent::getPlayer));
-		}
-
+		// SignChangeEvent
+		EventValues.registerEventValue(SignChangeEvent.class, Player.class, new Getter<Player, SignChangeEvent>() {
+			@Override
+			@Nullable
+			public Player get(final SignChangeEvent e) {
+				return e.getPlayer();
+			}
+		}, 0);
+		
 		// === EntityEvents ===
-		registry.register(EventValue.builder(EntityEvent.class, Entity.class)
-			.getter(EntityEvent::getEntity)
-			.excludes(EntityDamageEvent.class, EntityDeathEvent.class)
-			.excludedErrorMessage("Use 'attacker' and/or 'victim' in damage/death events")
-			.build());
-		registry.register(EventValue.builder(EntityEvent.class, CommandSender.class)
-			.getter(EntityEvent::getEntity)
-			.excludes(EntityDamageEvent.class, EntityDeathEvent.class)
-			.excludedErrorMessage("Use 'attacker' and/or 'victim' in damage/death events")
-			.build());
-		registry.register(EventValue.simple(EntityEvent.class, World.class, event -> event.getEntity().getWorld()));
-		registry.register(EventValue.simple(EntityEvent.class, Location.class, event -> event.getEntity().getLocation()));
-		registry.register(EventValue.builder(EntityEvent.class, EntityData.class)
-			.getter(event -> EntityData.fromEntity(event.getEntity()))
-			.excludes(EntityDamageEvent.class, EntityDeathEvent.class)
-			.excludedErrorMessage("Use 'type of attacker/victim' in damage/death events.")
-			.build());
+		EventValues.registerEventValue(EntityEvent.class, Entity.class, new Getter<Entity, EntityEvent>() {
+			@Override
+			@Nullable
+			public Entity get(final EntityEvent e) {
+				return e.getEntity();
+			}
+		}, 0, "Use 'attacker' and/or 'victim' in damage/death events", EntityDamageEvent.class, EntityDeathEvent.class);
+		EventValues.registerEventValue(EntityEvent.class, World.class, new Getter<World, EntityEvent>() {
+			@Override
+			@Nullable
+			public World get(final EntityEvent e) {
+				return e.getEntity().getWorld();
+			}
+		}, 0);
+		EventValues.registerEventValue(EntityEvent.class, Location.class, new Getter<Location, EntityEvent>() {
+			@Override
+			@Nullable
+			public Location get(final EntityEvent e) {
+				return e.getEntity().getLocation();
+			}
+		}, 0);
 		// EntityDamageEvent
-		registry.register(EventValue.simple(EntityDamageEvent.class, DamageCause.class, EntityDamageEvent::getCause));
-		registry.register(EventValue.simple(EntityDamageByEntityEvent.class, Projectile.class, event -> {
-			if (event.getDamager() instanceof Projectile projectile)
-				return projectile;
-			return null;
-		}));
+		EventValues.registerEventValue(EntityDamageEvent.class, DamageCause.class, new Getter<DamageCause, EntityDamageEvent>() {
+			@Override
+			@Nullable
+			public DamageCause get(final EntityDamageEvent e) {
+				return e.getCause();
+			}
+		}, 0);
+		EventValues.registerEventValue(EntityDamageByEntityEvent.class, Projectile.class, new Getter<Projectile, EntityDamageByEntityEvent>() {
+			@Override
+			@Nullable
+			public Projectile get(final EntityDamageByEntityEvent e) {
+				if (e.getDamager() instanceof Projectile)
+					return (Projectile) e.getDamager();
+				return null;
+			}
+		}, 0);
 		// EntityDeathEvent
-		registry.register(EventValue.simple(EntityDeathEvent.class, ItemStack[].class, event -> event.getDrops().toArray(new ItemStack[0])));
-		registry.register(EventValue.simple(EntityDeathEvent.class, Projectile.class, event -> {
-			EntityDamageEvent damageEvent = event.getEntity().getLastDamageCause();
-			if (damageEvent instanceof EntityDamageByEntityEvent entityEvent && entityEvent.getDamager() instanceof Projectile projectile)
-				return projectile;
-			return null;
-		}));
-		registry.register(EventValue.simple(EntityDeathEvent.class, DamageCause.class, event -> {
-			EntityDamageEvent damageEvent = event.getEntity().getLastDamageCause();
-			return damageEvent == null ? null : damageEvent.getCause();
-		}));
-
+		EventValues.registerEventValue(EntityDeathEvent.class, Projectile.class, new Getter<Projectile, EntityDeathEvent>() {
+			@Override
+			@Nullable
+			public Projectile get(final EntityDeathEvent e) {
+				final EntityDamageEvent ldc = e.getEntity().getLastDamageCause();
+				if (ldc instanceof EntityDamageByEntityEvent && ((EntityDamageByEntityEvent) ldc).getDamager() instanceof Projectile)
+					return (Projectile) ((EntityDamageByEntityEvent) ldc).getDamager();
+				return null;
+			}
+		}, 0);
+		EventValues.registerEventValue(EntityDeathEvent.class, DamageCause.class, new Getter<DamageCause, EntityDeathEvent>() {
+			@Override
+			@Nullable
+			public DamageCause get(final EntityDeathEvent e) {
+				final EntityDamageEvent ldc = e.getEntity().getLastDamageCause();
+				return ldc == null ? null : ldc.getCause();
+			}
+		}, 0);
 		// ProjectileHitEvent
 		// ProjectileHitEvent#getHitBlock was added in 1.11
-		if (Skript.methodExists(ProjectileHitEvent.class, "getHitBlock"))
-			registry.register(EventValue.simple(ProjectileHitEvent.class, Block.class, ProjectileHitEvent::getHitBlock));
-		registry.register(EventValue.builder(ProjectileHitEvent.class, Entity.class)
-			.getter(event -> {
-				assert false;
-				return event.getEntity();
-			})
-			.excludes(ProjectileHitEvent.class)
-			.excludedErrorMessage("Use 'projectile' and/or 'shooter' in projectile hit events")
-			.build());
-		registry.register(EventValue.simple(ProjectileHitEvent.class, Projectile.class, ProjectileHitEvent::getEntity));
-		if (Skript.methodExists(ProjectileHitEvent.class, "getHitBlockFace")) {
-			registry.register(EventValue.simple(ProjectileHitEvent.class, Direction.class, event -> {
-				BlockFace theHitFace = event.getHitBlockFace();
-				if (theHitFace == null) return null;
-				return new Direction(theHitFace, 1);
-			}));
-		}
-		// ProjectileLaunchEvent
-		registry.register(EventValue.builder(ProjectileLaunchEvent.class, Entity.class)
-			.getter(event -> {
-				assert false;
-				return event.getEntity();
-			})
-			.excludes(ProjectileLaunchEvent.class)
-			.excludedErrorMessage("Use 'projectile' and/or 'shooter' in shoot events")
-			.build());
-		//ProjectileCollideEvent
-		if (Skript.classExists("com.destroystokyo.paper.event.entity.ProjectileCollideEvent")) {
-			registry.register(EventValue.simple(ProjectileCollideEvent.class, Projectile.class, ProjectileCollideEvent::getEntity));
-			registry.register(EventValue.simple(ProjectileCollideEvent.class, Entity.class, ProjectileCollideEvent::getCollidedWith));
-		}
-		registry.register(EventValue.simple(ProjectileLaunchEvent.class, Projectile.class, ProjectileLaunchEvent::getEntity));
-		// EntityTameEvent
-		registry.register(EventValue.simple(EntityTameEvent.class, Entity.class, EntityTameEvent::getEntity));
-
-		// EntityChangeBlockEvent
-		registry.register(EventValue.builder(EntityChangeBlockEvent.class, Block.class)
-			.getter(EntityChangeBlockEvent::getBlock)
-			.time(Time.PAST)
-			.build());
-		registry.register(EventValue.simple(EntityChangeBlockEvent.class, Block.class, EntityChangeBlockEvent::getBlock));
-		registry.register(EventValue.simple(EntityChangeBlockEvent.class, BlockData.class, EntityChangeBlockEvent::getBlockData));
-		registry.register(EventValue.builder(EntityChangeBlockEvent.class, BlockData.class)
-			.getter(EntityChangeBlockEvent::getBlockData)
-			.time(Time.FUTURE)
-			.build());
-
-		// AreaEffectCloudApplyEvent
-		registry.register(EventValue.simple(AreaEffectCloudApplyEvent.class, LivingEntity[].class, event -> event.getAffectedEntities().toArray(new LivingEntity[0])));
-		registry.register(EventValue.simple(AreaEffectCloudApplyEvent.class, PotionEffectType.class, new Converter<>() {
-			private final boolean HAS_POTION_TYPE_METHOD = Skript.methodExists(AreaEffectCloud.class, "getBasePotionType");
-
+		EventValues.registerEventValue(ProjectileHitEvent.class, Entity.class, new Getter<Entity, ProjectileHitEvent>() {
 			@Override
-			public PotionEffectType convert(AreaEffectCloudApplyEvent event) {
-				// TODO needs to be reworked to support multiple values (there can be multiple potion effects)
-				if (HAS_POTION_TYPE_METHOD) {
-					PotionType base = event.getEntity().getBasePotionType();
-					if (base != null)
-						return base.getEffectType();
-				} else {
-					return event.getEntity().getBasePotionData().getType().getEffectType();
-				}
-				return null;
+			@Nullable
+			public Entity get(final ProjectileHitEvent e) {
+				assert false;
+				return e.getEntity();
 			}
-		}));
+		}, 0, "Use 'projectile' and/or 'shooter' in projectile hit events", ProjectileHitEvent.class);
+		EventValues.registerEventValue(ProjectileHitEvent.class, Projectile.class, new Getter<Projectile, ProjectileHitEvent>() {
+			@Override
+			@Nullable
+			public Projectile get(final ProjectileHitEvent e) {
+				return e.getEntity();
+			}
+		}, 0);
+		// ProjectileLaunchEvent
+		EventValues.registerEventValue(ProjectileLaunchEvent.class, Entity.class, new Getter<Entity, ProjectileLaunchEvent>() {
+			@Override
+			@Nullable
+			public Entity get(final ProjectileLaunchEvent e) {
+				assert false;
+				return e.getEntity();
+			}
+		}, 0, "Use 'projectile' and/or 'shooter' in shoot events", ProjectileLaunchEvent.class);
+		//ProjectileCollideEvent
+		EventValues.registerEventValue(ProjectileLaunchEvent.class, Projectile.class, new Getter<Projectile, ProjectileLaunchEvent>() {
+			@Override
+			@Nullable
+			public Projectile get(final ProjectileLaunchEvent e) {
+				return e.getEntity();
+			}
+		}, 0);
+		// EntityTameEvent
+		EventValues.registerEventValue(EntityTameEvent.class, Entity.class, new Getter<Entity, EntityTameEvent>() {
+			@Override
+			@Nullable
+			public Entity get(final EntityTameEvent e) {
+				return e.getEntity();
+			}
+		}, 0);
+		// EntityChangeBlockEvent
+		EventValues.registerEventValue(EntityChangeBlockEvent.class, Block.class, new Getter<Block, EntityChangeBlockEvent>() {
+			@Override
+			@Nullable
+			public Block get(final EntityChangeBlockEvent e) {
+				return e.getBlock();
+			}
+		}, 0);
 		// ItemSpawnEvent
-		registry.register(EventValue.simple(ItemSpawnEvent.class, ItemStack.class, event -> event.getEntity().getItemStack()));
+		EventValues.registerEventValue(ItemSpawnEvent.class, ItemStack.class, new Getter<ItemStack, ItemSpawnEvent>() {
+			@Override
+			@Nullable
+			public ItemStack get(final ItemSpawnEvent e) {
+				return e.getEntity().getItemStack();
+			}
+		}, 0);
 		// LightningStrikeEvent
-		registry.register(EventValue.simple(LightningStrikeEvent.class, Entity.class, LightningStrikeEvent::getLightning));
-		// EndermanAttackPlayerEvent
-		if (Skript.classExists("com.destroystokyo.paper.event.entity.EndermanAttackPlayerEvent")) {
-			registry.register(EventValue.simple(EndermanAttackPlayerEvent.class, Player.class, EndermanAttackPlayerEvent::getPlayer));
-		}
-
+		EventValues.registerEventValue(LightningStrikeEvent.class, Entity.class, new Getter<Entity, LightningStrikeEvent>() {
+			@Override
+			public Entity get(LightningStrikeEvent event) {
+				return event.getLightning();
+			}
+		}, 0);
+		
 		// --- PlayerEvents ---
-		registry.register(EventValue.simple(PlayerEvent.class, Player.class, PlayerEvent::getPlayer));
-		registry.register(EventValue.simple(PlayerEvent.class, World.class, event -> event.getPlayer().getWorld()));
+		EventValues.registerEventValue(PlayerEvent.class, Player.class, new Getter<Player, PlayerEvent>() {
+			@Override
+			@Nullable
+			public Player get(final PlayerEvent e) {
+				return e.getPlayer();
+			}
+		}, 0);
+		EventValues.registerEventValue(PlayerEvent.class, World.class, new Getter<World, PlayerEvent>() {
+			@Override
+			@Nullable
+			public World get(final PlayerEvent e) {
+				return e.getPlayer().getWorld();
+			}
+		}, 0);
 		// PlayerBedEnterEvent
-		registry.register(EventValue.simple(PlayerBedEnterEvent.class, Block.class, PlayerBedEnterEvent::getBed));
+		EventValues.registerEventValue(PlayerBedEnterEvent.class, Block.class, new Getter<Block, PlayerBedEnterEvent>() {
+			@Override
+			@Nullable
+			public Block get(final PlayerBedEnterEvent e) {
+				return e.getBed();
+			}
+		}, 0);
 		// PlayerBedLeaveEvent
-		registry.register(EventValue.simple(PlayerBedLeaveEvent.class, Block.class, PlayerBedLeaveEvent::getBed));
+		EventValues.registerEventValue(PlayerBedLeaveEvent.class, Block.class, new Getter<Block, PlayerBedLeaveEvent>() {
+			@Override
+			@Nullable
+			public Block get(final PlayerBedLeaveEvent e) {
+				return e.getBed();
+			}
+		}, 0);
 		// PlayerBucketEvents
-		registry.register(EventValue.simple(PlayerBucketFillEvent.class, Block.class, PlayerBucketEvent::getBlockClicked));
-		registry.register(EventValue.builder(PlayerBucketFillEvent.class, Block.class)
-			.getter(event -> {
-				BlockState state = event.getBlockClicked().getState();
-				state.setType(Material.AIR);
-				return new BlockStateBlock(state, true);
-			})
-			.time(Time.FUTURE)
-			.build());
-		registry.register(EventValue.builder(PlayerBucketEmptyEvent.class, Block.class)
-			.getter(event -> event.getBlockClicked().getRelative(event.getBlockFace()))
-			.time(Time.PAST)
-			.build());
-		registry.register(EventValue.simple(PlayerBucketEmptyEvent.class, Block.class, event -> {
-			BlockState state = event.getBlockClicked().getRelative(event.getBlockFace()).getState();
-			state.setType(event.getBucket() == Material.WATER_BUCKET ? Material.WATER : Material.LAVA);
-			return new BlockStateBlock(state, true);
-		}));
+		EventValues.registerEventValue(PlayerBucketFillEvent.class, Block.class, new Getter<Block, PlayerBucketFillEvent>() {
+			@Override
+			@Nullable
+			public Block get(final PlayerBucketFillEvent e) {
+				return e.getBlockClicked().getRelative(e.getBlockFace());
+			}
+		}, 0);
+		EventValues.registerEventValue(PlayerBucketFillEvent.class, Block.class, new Getter<Block, PlayerBucketFillEvent>() {
+			@Override
+			@Nullable
+			public Block get(final PlayerBucketFillEvent e) {
+				final BlockState s = e.getBlockClicked().getRelative(e.getBlockFace()).getState();
+				s.setType(Material.AIR);
+				s.setRawData((byte) 0);
+				return new BlockStateBlock(s, true);
+			}
+		}, 1);
+		EventValues.registerEventValue(PlayerBucketEmptyEvent.class, Block.class, new Getter<Block, PlayerBucketEmptyEvent>() {
+			@Override
+			@Nullable
+			public Block get(final PlayerBucketEmptyEvent e) {
+				return e.getBlockClicked().getRelative(e.getBlockFace());
+			}
+		}, -1);
+		ItemType stationaryLava = Aliases.javaItemType("stationary lava");
+		EventValues.registerEventValue(PlayerBucketEmptyEvent.class, Block.class, new Getter<Block, PlayerBucketEmptyEvent>() {
+			@Override
+			public Block get(final PlayerBucketEmptyEvent e) {
+				final BlockState s = e.getBlockClicked().getRelative(e.getBlockFace()).getState();
+				s.setType(e.getBucket() == Material.WATER_BUCKET ? stationaryWater.getMaterial() : stationaryLava.getMaterial());
+				s.setRawData((byte) 0);
+				return new BlockStateBlock(s, true);
+			}
+		}, 0);
 		// PlayerDropItemEvent
-		registry.register(EventValue.simple(PlayerDropItemEvent.class, Player.class, PlayerEvent::getPlayer));
-		registry.register(EventValue.simple(PlayerDropItemEvent.class, Item.class, PlayerDropItemEvent::getItemDrop));
-		registry.register(EventValue.simple(PlayerDropItemEvent.class, ItemStack.class, event -> event.getItemDrop().getItemStack()));
-		registry.register(EventValue.simple(PlayerDropItemEvent.class, Entity.class, PlayerEvent::getPlayer));
-		// EntityDropItemEvent
-		registry.register(EventValue.simple(EntityDropItemEvent.class, Item.class, EntityDropItemEvent::getItemDrop));
-		registry.register(EventValue.simple(EntityDropItemEvent.class, ItemStack.class, event -> event.getItemDrop().getItemStack()));
+		EventValues.registerEventValue(PlayerDropItemEvent.class, Player.class, new Getter<Player, PlayerDropItemEvent>() {
+			@Override
+			@Nullable
+			public Player get(PlayerDropItemEvent e) {
+				return e.getPlayer();
+			}
+		}, 0);
+		EventValues.registerEventValue(PlayerDropItemEvent.class, Item.class, new Getter<Item, PlayerDropItemEvent>() {
+			@Override
+			@Nullable
+			public Item get(final PlayerDropItemEvent e) {
+				return e.getItemDrop();
+			}
+		}, 0);
+		EventValues.registerEventValue(PlayerDropItemEvent.class, ItemStack.class, new Getter<ItemStack, PlayerDropItemEvent>() {
+			@Override
+			@Nullable
+			public ItemStack get(final PlayerDropItemEvent e) {
+				return e.getItemDrop().getItemStack();
+			}
+		}, 0);
 		// PlayerPickupItemEvent
-		registry.register(EventValue.simple(PlayerPickupItemEvent.class, Player.class, PlayerEvent::getPlayer));
-		registry.register(EventValue.simple(PlayerPickupItemEvent.class, Item.class, PlayerPickupItemEvent::getItem));
-		registry.register(EventValue.simple(PlayerPickupItemEvent.class, ItemStack.class, event -> event.getItem().getItemStack()));
-		registry.register(EventValue.simple(PlayerPickupItemEvent.class, Entity.class, PlayerEvent::getPlayer));
-		registry.register(EventValue.simple(PlayerPickupItemEvent.class, Location.class, event -> event.getItem().getLocation()));
+		EventValues.registerEventValue(PlayerPickupItemEvent.class, Player.class, new Getter<Player, PlayerPickupItemEvent>() {
+			@Override
+			@Nullable
+			public Player get(PlayerPickupItemEvent e) {
+				return e.getPlayer();
+			}
+		}, 0);
+		EventValues.registerEventValue(PlayerPickupItemEvent.class, Item.class, new Getter<Item, PlayerPickupItemEvent>() {
+			@Override
+			@Nullable
+			public Item get(final PlayerPickupItemEvent e) {
+				return e.getItem();
+			}
+		}, 0);
+		EventValues.registerEventValue(PlayerPickupItemEvent.class, ItemStack.class, new Getter<ItemStack, PlayerPickupItemEvent>() {
+			@Override
+			@Nullable
+			public ItemStack get(final PlayerPickupItemEvent e) {
+				return e.getItem().getItemStack();
+			}
+		}, 0);
 		// EntityPickupItemEvent
-		registry.register(EventValue.simple(EntityPickupItemEvent.class, Entity.class, EntityPickupItemEvent::getEntity));
-		registry.register(EventValue.simple(EntityPickupItemEvent.class, Item.class, EntityPickupItemEvent::getItem));
-		registry.register(EventValue.simple(EntityPickupItemEvent.class, ItemType.class, event -> new ItemType(event.getItem().getItemStack())));
-		registry.register(EventValue.simple(EntityPickupItemEvent.class, Location.class, event -> event.getItem().getLocation()));
 		// PlayerItemConsumeEvent
-		registry.register(EventValue.builder(PlayerItemConsumeEvent.class, ItemStack.class)
-			.getter(PlayerItemConsumeEvent::getItem)
-			.registerChanger(ChangeMode.SET, PlayerItemConsumeEvent::setItem)
-			.build());
+		if (Skript.supports("org.bukkit.event.player.PlayerItemConsumeEvent")) {
+			EventValues.registerEventValue(PlayerItemConsumeEvent.class, ItemStack.class, new Getter<ItemStack, PlayerItemConsumeEvent>() {
+				@Override
+				@Nullable
+				public ItemStack get(final PlayerItemConsumeEvent e) {
+					return e.getItem();
+				}
+			}, 0);
+		}
 		// PlayerItemBreakEvent
-		registry.register(EventValue.simple(PlayerItemBreakEvent.class, ItemStack.class, PlayerItemBreakEvent::getBrokenItem));
+		if (Skript.supports("org.bukkit.event.player.PlayerItemBreakEvent")) {
+			EventValues.registerEventValue(PlayerItemBreakEvent.class, ItemStack.class, new Getter<ItemStack, PlayerItemBreakEvent>() {
+				@Override
+				@Nullable
+				public ItemStack get(final PlayerItemBreakEvent e) {
+					return e.getBrokenItem();
+				}
+			}, 0);
+		}
 		// PlayerInteractEntityEvent
-		registry.register(EventValue.simple(PlayerInteractEntityEvent.class, Entity.class, PlayerInteractEntityEvent::getRightClicked));
-		registry.register(EventValue.simple(PlayerInteractEntityEvent.class, ItemStack.class, event -> {
-			EquipmentSlot hand = event.getHand();
-			if (hand == EquipmentSlot.HAND)
-				return event.getPlayer().getInventory().getItemInMainHand();
-			else if (hand == EquipmentSlot.OFF_HAND)
-				return event.getPlayer().getInventory().getItemInOffHand();
-			else
-				return null;
-		}));
+		EventValues.registerEventValue(PlayerInteractEntityEvent.class, Entity.class, new Getter<Entity, PlayerInteractEntityEvent>() {
+			@Override
+			@Nullable
+			public Entity get(final PlayerInteractEntityEvent e) {
+				return e.getRightClicked();
+			}
+		}, 0);
+		EventValues.registerEventValue(PlayerInteractEntityEvent.class, ItemStack.class, new Getter<ItemStack, PlayerInteractEntityEvent>() {
+			@Override
+			@Nullable
+			public ItemStack get(final PlayerInteractEntityEvent e) {
+				return e.getPlayer().getItemInHand();
+			}
+		}, 0);
 		// PlayerInteractEvent
-		registry.register(EventValue.simple(PlayerInteractEvent.class, ItemStack.class, PlayerInteractEvent::getItem));
-		registry.register(EventValue.simple(PlayerInteractEvent.class, Block.class, PlayerInteractEvent::getClickedBlock));
-		registry.register(EventValue.simple(PlayerInteractEvent.class, Direction.class, event -> new Direction(new double[]{event.getBlockFace().getModX(), event.getBlockFace().getModY(), event.getBlockFace().getModZ()})));
+		EventValues.registerEventValue(PlayerInteractEvent.class, ItemStack.class, new Getter<ItemStack, PlayerInteractEvent>() {
+			@Override
+			@Nullable
+			public ItemStack get(final PlayerInteractEvent e) {
+				return e.getItem();
+			}
+		}, 0);
+		EventValues.registerEventValue(PlayerInteractEvent.class, Block.class, new Getter<Block, PlayerInteractEvent>() {
+			@Override
+			@Nullable
+			public Block get(final PlayerInteractEvent e) {
+				return e.getClickedBlock();
+			}
+		}, 0);
+		EventValues.registerEventValue(PlayerInteractEvent.class, Direction.class, new Getter<Direction, PlayerInteractEvent>() {
+			@Override
+			@Nullable
+			public Direction get(final PlayerInteractEvent e) {
+				return new Direction(new double[] {e.getBlockFace().getModX(), e.getBlockFace().getModY(), e.getBlockFace().getModZ()});
+			}
+		}, 0);
 		// PlayerShearEntityEvent
-		registry.register(EventValue.simple(PlayerShearEntityEvent.class, Entity.class, PlayerShearEntityEvent::getEntity));
+		EventValues.registerEventValue(PlayerShearEntityEvent.class, Entity.class, new Getter<Entity, PlayerShearEntityEvent>() {
+			@Override
+			@Nullable
+			public Entity get(final PlayerShearEntityEvent e) {
+				return e.getEntity();
+			}
+		}, 0);
 		// PlayerMoveEvent
-		registry.register(EventValue.simple(PlayerMoveEvent.class, Block.class, event -> event.getTo().clone().subtract(0, 0.5, 0).getBlock()));
-		registry.register(EventValue.builder(PlayerMoveEvent.class, Location.class)
-			.getter(PlayerMoveEvent::getFrom)
-			.time(Time.PAST)
-			.build());
-		registry.register(EventValue.simple(PlayerMoveEvent.class, Location.class, PlayerMoveEvent::getTo));
-		registry.register(EventValue.builder(PlayerMoveEvent.class, Chunk.class)
-			.getter(event -> event.getFrom().getChunk())
-			.time(Time.PAST)
-			.build());
-		registry.register(EventValue.simple(PlayerMoveEvent.class, Chunk.class, event -> event.getTo().getChunk()));
+		EventValues.registerEventValue(PlayerMoveEvent.class, Block.class, new Getter<Block, PlayerMoveEvent>() {
+			@Override
+			@Nullable
+			public Block get(final PlayerMoveEvent e) {
+				return EvtMoveOn.getBlock(e);
+			}
+		}, 0);
 		// PlayerItemDamageEvent
-		registry.register(EventValue.simple(PlayerItemDamageEvent.class, ItemStack.class, PlayerItemDamageEvent::getItem));
 		//PlayerItemMendEvent
-		registry.register(EventValue.simple(PlayerItemMendEvent.class, Player.class, PlayerEvent::getPlayer));
-		registry.register(EventValue.simple(PlayerItemMendEvent.class, ItemStack.class, PlayerItemMendEvent::getItem));
-		registry.register(EventValue.simple(PlayerItemMendEvent.class, Entity.class, PlayerItemMendEvent::getExperienceOrb));
-
+		
 		// --- HangingEvents ---
 
 		// Note: will not work in HangingEntityBreakEvent due to event-entity being parsed as HangingBreakByEntityEvent#getRemover() from code down below
-		registry.register(EventValue.simple(HangingEvent.class, Hanging.class, HangingEvent::getEntity));
-		registry.register(EventValue.simple(HangingEvent.class, World.class, event -> event.getEntity().getWorld()));
-		registry.register(EventValue.simple(HangingEvent.class, Location.class, event -> event.getEntity().getLocation()));
-
+		EventValues.registerEventValue(HangingEvent.class, Hanging.class, new Getter<Hanging, HangingEvent>() {
+			@Override
+			@Nullable
+			public Hanging get(final HangingEvent e) {
+				return e.getEntity();
+			}
+		}, 0);
+		EventValues.registerEventValue(HangingEvent.class, World.class, new Getter<World, HangingEvent>() {
+			@Override
+			@Nullable
+			public World get(final HangingEvent e) {
+				return e.getEntity().getWorld();
+			}
+		}, 0);
+		EventValues.registerEventValue(HangingEvent.class, Location.class, new Getter<Location, HangingEvent>() {
+			@Override
+			@Nullable
+			public Location get(final HangingEvent e) {
+				return e.getEntity().getLocation();
+			}
+		}, 0);
+			
 		// HangingBreakEvent
-		registry.register(EventValue.simple(HangingBreakEvent.class, Entity.class, event -> {
-			if (event instanceof HangingBreakByEntityEvent hangingBreakByEntityEvent)
-				return hangingBreakByEntityEvent.getRemover();
-			return null;
-		}));
+		EventValues.registerEventValue(HangingBreakEvent.class, Entity.class, new Getter<Entity, HangingBreakEvent>() {
+			@Nullable
+			@Override
+			public Entity get(HangingBreakEvent e) {
+				if (e instanceof HangingBreakByEntityEvent)
+					return ((HangingBreakByEntityEvent) e).getRemover();
+				return null;
+			}
+		}, 0);
 		// HangingPlaceEvent
-		registry.register(EventValue.simple(HangingPlaceEvent.class, Player.class, HangingPlaceEvent::getPlayer));
-
+		EventValues.registerEventValue(HangingPlaceEvent.class, Player.class, new Getter<Player, HangingPlaceEvent>() {
+			@Override
+			@Nullable
+			public Player get(final HangingPlaceEvent e) {
+				return e.getPlayer();
+			}
+		}, 0);
+		
 		// --- VehicleEvents ---
-		registry.register(EventValue.simple(VehicleEvent.class, Vehicle.class, VehicleEvent::getVehicle));
-		registry.register(EventValue.simple(VehicleEvent.class, World.class, event -> event.getVehicle().getWorld()));
-		registry.register(EventValue.simple(VehicleExitEvent.class, LivingEntity.class, VehicleExitEvent::getExited));
-
-		registry.register(EventValue.simple(VehicleEnterEvent.class, Entity.class, VehicleEnterEvent::getEntered));
-
+		EventValues.registerEventValue(VehicleEvent.class, Vehicle.class, new Getter<Vehicle, VehicleEvent>() {
+			@Override
+			@Nullable
+			public Vehicle get(final VehicleEvent e) {
+				return e.getVehicle();
+			}
+		}, 0);
+		EventValues.registerEventValue(VehicleEvent.class, World.class, new Getter<World, VehicleEvent>() {
+			@Override
+			@Nullable
+			public World get(final VehicleEvent e) {
+				return e.getVehicle().getWorld();
+			}
+		}, 0);
+		EventValues.registerEventValue(VehicleExitEvent.class, LivingEntity.class, new Getter<LivingEntity, VehicleExitEvent>() {
+			@Override
+			@Nullable
+			public LivingEntity get(final VehicleExitEvent e) {
+				return e.getExited();
+			}
+		}, 0);
+		
+		EventValues.registerEventValue(VehicleEnterEvent.class, Entity.class, new Getter<Entity, VehicleEnterEvent>() {
+			@Nullable
+			@Override
+			public Entity get(VehicleEnterEvent e) {
+				return e.getEntered();
+			}
+		}, 0);
+		
 		// We could error here instead but it's preferable to not do it in this case
-		registry.register(EventValue.simple(VehicleDamageEvent.class, Entity.class, VehicleDamageEvent::getAttacker));
-
-		registry.register(EventValue.simple(VehicleDestroyEvent.class, Entity.class, VehicleDestroyEvent::getAttacker));
-
-		registry.register(EventValue.simple(VehicleEvent.class, Entity.class, event -> event.getVehicle().getPassenger()));
-
-
+		EventValues.registerEventValue(VehicleDamageEvent.class, Entity.class, new Getter<Entity, VehicleDamageEvent>() {
+			@Nullable
+			@Override
+			public Entity get(VehicleDamageEvent e) {
+				return e.getAttacker();
+			}
+		}, 0);
+		
+		EventValues.registerEventValue(VehicleDestroyEvent.class, Entity.class, new Getter<Entity, VehicleDestroyEvent>() {
+			@Nullable
+			@Override
+			public Entity get(VehicleDestroyEvent e) {
+				return e.getAttacker();
+			}
+		}, 0);
+		
+		EventValues.registerEventValue(VehicleEvent.class, Entity.class, new Getter<Entity, VehicleEvent>() {
+			@Override
+			@Nullable
+			public Entity get(final VehicleEvent e) {
+				return e.getVehicle().getPassenger();
+			}
+		}, 0);
+		
+		
 		// === CommandEvents ===
 		// PlayerCommandPreprocessEvent is a PlayerEvent
-		registry.register(EventValue.simple(ServerCommandEvent.class, CommandSender.class, ServerCommandEvent::getSender));
-		registry.register(EventValue.simple(CommandEvent.class, String[].class, CommandEvent::getArgs));
-		registry.register(EventValue.simple(CommandEvent.class, CommandSender.class, CommandEvent::getSender));
-		registry.register(EventValue.simple(CommandEvent.class, World.class, e -> e.getSender() instanceof Player ? ((Player) e.getSender()).getWorld() : null));
-		registry.register(EventValue.simple(CommandEvent.class, Block.class, event -> event.getSender() instanceof BlockCommandSender sender ? sender.getBlock() : null));
-
+		EventValues.registerEventValue(ServerCommandEvent.class, CommandSender.class, new Getter<CommandSender, ServerCommandEvent>() {
+			@Override
+			@Nullable
+			public CommandSender get(final ServerCommandEvent e) {
+				return e.getSender();
+			}
+		}, 0);
+		EventValues.registerEventValue(CommandEvent.class, CommandSender.class, new Getter<CommandSender, CommandEvent>() {
+			@Override
+			public CommandSender get(final CommandEvent e) {
+				return e.getSender();
+			}
+		}, 0);
+		EventValues.registerEventValue(CommandEvent.class, World.class, new Getter<World, CommandEvent>() {
+			@Override
+			@Nullable
+			public World get(final CommandEvent e) {
+				return e.getSender() instanceof Player ? ((Player) e.getSender()).getWorld() : null;
+			}
+		}, 0);
+		
 		// === ServerEvents ===
 		// Script load/unload event
-		registry.register(EventValue.simple(ScriptEvent.class, CommandSender.class, event -> Bukkit.getConsoleSender()));
+		EventValues.registerEventValue(ScriptEvent.class, CommandSender.class, new Getter<CommandSender, ScriptEvent>() {
+			@Nullable
+			@Override
+			public CommandSender get(ScriptEvent e) {
+				return Bukkit.getConsoleSender();
+			}
+		}, 0);
 		// Server load event
-		registry.register(EventValue.simple(SkriptStartEvent.class, CommandSender.class, event -> Bukkit.getConsoleSender()));
+		EventValues.registerEventValue(SkriptStartEvent.class, CommandSender.class, new Getter<CommandSender, SkriptStartEvent>() {
+			@Nullable
+			@Override
+			public CommandSender get(SkriptStartEvent e) {
+				return Bukkit.getConsoleSender();
+			}
+		}, 0);
 		// Server stop event
-		registry.register(EventValue.simple(SkriptStopEvent.class, CommandSender.class, event -> Bukkit.getConsoleSender()));
-
+		EventValues.registerEventValue(SkriptStopEvent.class, CommandSender.class, new Getter<CommandSender, SkriptStopEvent>() {
+			@Nullable
+			@Override
+			public CommandSender get(SkriptStopEvent e) {
+				return Bukkit.getConsoleSender();
+			}
+		}, 0);
+		
 		// === InventoryEvents ===
 		// InventoryClickEvent
-		registry.register(EventValue.simple(InventoryClickEvent.class, Player.class, event -> event.getWhoClicked() instanceof Player player ? player : null));
-		registry.register(EventValue.simple(InventoryClickEvent.class, World.class, event -> event.getWhoClicked().getWorld()));
-		registry.register(EventValue.simple(InventoryClickEvent.class, ItemStack.class, InventoryClickEvent::getCurrentItem));
-		registry.register(EventValue.simple(InventoryClickEvent.class, Slot.class, event -> {
-			Inventory invi = event.getClickedInventory(); // getInventory is WRONG and dangerous
-			if (invi == null)
-				return null;
-			int slotIndex = event.getSlot();
-
-			// Not all indices point to inventory slots. Equipment, for example
-			if (invi instanceof PlayerInventory itemStacks && slotIndex >= 36) {
-				return new ch.njol.skript.util.slot.EquipmentSlot(itemStacks.getHolder(), slotIndex);
-			} else {
-				return new InventorySlot(invi, slotIndex, event.getRawSlot());
+		EventValues.registerEventValue(InventoryClickEvent.class, Player.class, new Getter<Player, InventoryClickEvent>() {
+			@Override
+			@Nullable
+			public Player get(final InventoryClickEvent e) {
+				return e.getWhoClicked() instanceof Player ? (Player) e.getWhoClicked() : null;
 			}
-		}));
-		registry.register(EventValue.simple(InventoryClickEvent.class, InventoryAction.class, InventoryClickEvent::getAction));
-		registry.register(EventValue.simple(InventoryClickEvent.class, ClickType.class, InventoryClickEvent::getClick));
-		registry.register(EventValue.simple(InventoryClickEvent.class, Inventory.class, InventoryClickEvent::getClickedInventory));
-		// InventoryDragEvent
-		registry.register(EventValue.simple(InventoryDragEvent.class, Player.class, event -> event.getWhoClicked() instanceof Player player ? player : null));
-		registry.register(EventValue.simple(InventoryDragEvent.class, World.class, event -> event.getWhoClicked().getWorld()));
-		registry.register(EventValue.builder(InventoryDragEvent.class, ItemStack.class)
-			.getter(InventoryDragEvent::getOldCursor)
-			.time(Time.PAST)
-			.build());
-		registry.register(EventValue.simple(InventoryDragEvent.class, ItemStack.class, InventoryDragEvent::getCursor));
-		registry.register(EventValue.simple(InventoryDragEvent.class, ItemStack[].class, event -> event.getNewItems().values().toArray(new ItemStack[0])));
-		registry.register(EventValue.simple(InventoryDragEvent.class, Slot[].class, event -> {
-			List<Slot> slots = new ArrayList<>(event.getRawSlots().size());
-			InventoryView view = event.getView();
-			for (Integer rawSlot : event.getRawSlots()) {
-				Inventory inventory = InventoryUtils.getInventory(view, rawSlot);
-				Integer slot = InventoryUtils.convertSlot(view, rawSlot);
-				if (inventory == null || slot == null)
-					continue;
+		}, 0);
+		EventValues.registerEventValue(InventoryClickEvent.class, World.class, new Getter<World, InventoryClickEvent>() {
+			@Override
+			@Nullable
+			public World get(final InventoryClickEvent e) {
+				return e.getWhoClicked().getWorld();
+			}
+		}, 0);
+		EventValues.registerEventValue(InventoryClickEvent.class, ItemStack.class, new Getter<ItemStack, InventoryClickEvent>() {
+			@Override
+			@Nullable
+			public ItemStack get(final InventoryClickEvent e) {
+				if (e instanceof CraftItemEvent)
+					return ((CraftItemEvent) e).getRecipe().getResult();
+				return e.getCurrentItem();
+			}
+		}, 0);
+		EventValues.registerEventValue(InventoryClickEvent.class, Slot.class, new Getter<Slot, InventoryClickEvent>() {
+			@SuppressWarnings("null")
+			@Override
+			@Nullable
+			public Slot get(final InventoryClickEvent e) {
+				Inventory invi = getClickedInventory(e); // getInventory is WRONG and dangerous
+				int slotIndex = e.getSlot();
+				
 				// Not all indices point to inventory slots. Equipment, for example
-				if (inventory instanceof PlayerInventory && slot >= 36) {
-					slots.add(new ch.njol.skript.util.slot.EquipmentSlot(((PlayerInventory) view.getBottomInventory()).getHolder(), slot));
+				if (invi instanceof PlayerInventory && slotIndex >= 36) {
+					return new ch.njol.skript.util.slot.EquipmentSlot(((PlayerInventory) invi).getHolder(), slotIndex);
 				} else {
-					slots.add(new InventorySlot(inventory, slot));
+					return new InventorySlot(invi, slotIndex);
 				}
 			}
-			return slots.toArray(new Slot[0]);
-		}));
-		registry.register(EventValue.simple(InventoryDragEvent.class, ClickType.class, event -> event.getType() == DragType.EVEN ? ClickType.LEFT : ClickType.RIGHT));
-		registry.register(EventValue.simple(InventoryDragEvent.class, Inventory[].class, event -> {
-			Set<Inventory> inventories = new HashSet<>();
-			InventoryView view = event.getView();
-			for (Integer rawSlot : event.getRawSlots()) {
-				Inventory inventory = InventoryUtils.getInventory(view, rawSlot);
-				if (inventory != null)
-					inventories.add(inventory);
+		}, 0);
+		EventValues.registerEventValue(InventoryClickEvent.class, InventoryAction.class, new Getter<InventoryAction, InventoryClickEvent>() {
+			@Override
+			@Nullable
+			public InventoryAction get(final InventoryClickEvent e) {
+				return e.getAction();
 			}
-			return inventories.toArray(new Inventory[0]);
-		}));
-		// PrepareAnvilEvent
-		if (Skript.classExists("com.destroystokyo.paper.event.inventory.PrepareResultEvent"))
-			registry.register(EventValue.simple(PrepareAnvilEvent.class, ItemStack.class, PrepareResultEvent::getResult));
+		}, 0);
+		EventValues.registerEventValue(InventoryClickEvent.class, ClickType.class, new Getter<ClickType, InventoryClickEvent>() {
+			@Override
+			@Nullable
+			public ClickType get(final InventoryClickEvent e) {
+				return e.getClick();
+			}
+		}, 0);
+		EventValues.registerEventValue(InventoryClickEvent.class, Inventory.class, new Getter<Inventory, InventoryClickEvent>() {
+			@Override
+			@Nullable
+			public Inventory get(final InventoryClickEvent e) {
+				return getClickedInventory(e);
+			}
+		}, 0);
 		//BlockFertilizeEvent
-		registry.register(EventValue.simple(BlockFertilizeEvent.class, Player.class, BlockFertilizeEvent::getPlayer));
-		registry.register(EventValue.simple(BlockFertilizeEvent.class, Block[].class, event -> event.getBlocks().stream()
-			.map(BlockState::getBlock)
-			.toArray(Block[]::new)));
 		// PrepareItemCraftEvent
-		registry.register(EventValue.simple(PrepareItemCraftEvent.class, Slot.class, event -> new InventorySlot(event.getInventory(), 0)));
-		registry.register(EventValue.simple(PrepareItemCraftEvent.class, ItemStack.class, event -> {
-			ItemStack item = event.getInventory().getResult();
-			return item != null ? item : AIR_IS;
-		}));
-		registry.register(EventValue.simple(PrepareItemCraftEvent.class, Player.class, event -> {
-			List<HumanEntity> viewers = event.getInventory().getViewers(); // Get all viewers
-			if (viewers.isEmpty()) // ... if we don't have any
-				return null;
-			HumanEntity first = viewers.get(0); // Get first viewer and hope it is crafter
-			if (first instanceof Player player) // Needs to be player... Usually it is
-				return player;
-			return null;
-		}));
-		// CraftEvents - recipe namespaced key strings
-		registry.register(EventValue.simple(CraftItemEvent.class, String.class, event -> {
-			Recipe recipe = event.getRecipe();
-			if (recipe instanceof Keyed keyed)
-				return keyed.getKey().toString();
-			return null;
-		}));
-		registry.register(EventValue.simple(PrepareItemCraftEvent.class, String.class, event -> {
-			Recipe recipe = event.getRecipe();
-			if (recipe instanceof Keyed keyed)
-				return keyed.getKey().toString();
-			return null;
-		}));
-		// CraftItemEvent
-		registry.register(EventValue.simple(CraftItemEvent.class, ItemStack.class, event -> {
-			Recipe recipe = event.getRecipe();
-			if (recipe instanceof ComplexRecipe)
-				return event.getCurrentItem();
-			return recipe.getResult();
-		}));
-		//InventoryEvent
-		registry.register(EventValue.simple(InventoryEvent.class, Inventory.class, InventoryEvent::getInventory));
-		//InventoryOpenEvent
-		registry.register(EventValue.simple(InventoryOpenEvent.class, Player.class, event -> (Player) event.getPlayer()));
-		//InventoryCloseEvent
-		registry.register(EventValue.simple(InventoryCloseEvent.class, Player.class, event -> (Player) event.getPlayer()));
-		if (Skript.classExists("org.bukkit.event.inventory.InventoryCloseEvent$Reason"))
-			registry.register(EventValue.simple(InventoryCloseEvent.class, InventoryCloseEvent.Reason.class, InventoryCloseEvent::getReason));
-		//InventoryPickupItemEvent
-		registry.register(EventValue.simple(InventoryPickupItemEvent.class, Inventory.class, InventoryPickupItemEvent::getInventory));
-		registry.register(EventValue.simple(InventoryPickupItemEvent.class, Item.class, InventoryPickupItemEvent::getItem));
-		registry.register(EventValue.simple(InventoryPickupItemEvent.class, ItemStack.class, event -> event.getItem().getItemStack()));
-		//PortalCreateEvent
-		registry.register(EventValue.simple(PortalCreateEvent.class, World.class, WorldEvent::getWorld));
-		registry.register(EventValue.simple(PortalCreateEvent.class, Block[].class, event -> event.getBlocks().stream()
-			.map(BlockState::getBlock)
-			.toArray(Block[]::new)));
-		if (Skript.methodExists(PortalCreateEvent.class, "getEntity")) { // Minecraft 1.14+
-			registry.register(EventValue.simple(PortalCreateEvent.class, Entity.class, PortalCreateEvent::getEntity));
-		}
-		//PlayerEditBookEvent
-		registry.register(EventValue.builder(PlayerEditBookEvent.class, ItemStack.class)
-			.getter(event -> {
-				ItemStack book = new ItemStack(Material.WRITABLE_BOOK);
-				book.setItemMeta(event.getPreviousBookMeta());
-				return book;
-			})
-			.time(Time.PAST)
-			.build());
-		registry.register(EventValue.simple(PlayerEditBookEvent.class, ItemStack.class, event -> {
-			ItemStack book = new ItemStack(Material.WRITABLE_BOOK);
-			book.setItemMeta(event.getNewBookMeta());
-			return book;
-		}));
-		registry.register(EventValue.builder(PlayerEditBookEvent.class, Component[].class)
-			.getter(event -> ExprBookPages.getPages(event.getPreviousBookMeta()).toArray(new Component[0]))
-			.time(Time.PAST)
-			.build());
-		registry.register(EventValue.simple(PlayerEditBookEvent.class, Component[].class, event ->
-			ExprBookPages.getPages(event.getNewBookMeta()).toArray(new Component[0])));
-		//ItemDespawnEvent
-		registry.register(EventValue.simple(ItemDespawnEvent.class, Item.class, ItemDespawnEvent::getEntity));
-		registry.register(EventValue.simple(ItemDespawnEvent.class, ItemStack.class, event -> event.getEntity().getItemStack()));
-		//ItemMergeEvent
-		registry.register(EventValue.simple(ItemMergeEvent.class, Item.class, ItemMergeEvent::getEntity));
-		registry.register(EventValue.builder(ItemMergeEvent.class, Item.class)
-			.getter(ItemMergeEvent::getTarget)
-			.time(Time.FUTURE)
-			.build());
-		registry.register(EventValue.simple(ItemMergeEvent.class, ItemStack.class, event -> event.getEntity().getItemStack()));
-		//PlayerTeleportEvent
-		registry.register(EventValue.simple(PlayerTeleportEvent.class, TeleportCause.class, PlayerTeleportEvent::getCause));
-		//EntityMoveEvent
-		if (Skript.classExists("io.papermc.paper.event.entity.EntityMoveEvent")) {
-			registry.register(EventValue.simple(EntityMoveEvent.class, Location.class, EntityMoveEvent::getFrom));
-			registry.register(EventValue.builder(EntityMoveEvent.class, Location.class)
-				.getter(EntityMoveEvent::getTo)
-				.time(Time.FUTURE)
-				.build());
-		}
-		//CreatureSpawnEvent
-		registry.register(EventValue.simple(CreatureSpawnEvent.class, SpawnReason.class, CreatureSpawnEvent::getSpawnReason));
-		//PlayerRespawnEvent - 1.21.5+ added AbstractRespawnEvent as a base class, where prior to that, getRespawnReason was in PlayerRespawnEvent
-		if (Skript.classExists("org.bukkit.event.player.AbstractRespawnEvent")) {
-			registry.register(EventValue.simple(PlayerRespawnEvent.class, RespawnReason.class, PlayerRespawnEvent::getRespawnReason));
-		} else {
-			try {
-				Method method = PlayerRespawnEvent.class.getMethod("getRespawnReason");
-				registry.register(EventValue.simple(PlayerRespawnEvent.class, RespawnReason.class, event -> {
-					try {
-						return (RespawnReason) method.invoke(event);
-					} catch (Exception e) {
-						return null;
-					}
-				}));
-			} catch (NoSuchMethodException ignored) {}
-		}
-		//FireworkExplodeEvent
-		registry.register(EventValue.simple(FireworkExplodeEvent.class, Firework.class, FireworkExplodeEvent::getEntity));
-		registry.register(EventValue.simple(FireworkExplodeEvent.class, FireworkEffect.class, event -> {
-			List<FireworkEffect> effects = event.getEntity().getFireworkMeta().getEffects();
-			if (effects.isEmpty())
-				return null;
-			return effects.get(0);
-		}));
-		registry.register(EventValue.simple(FireworkExplodeEvent.class, Color[].class, event -> {
-			List<FireworkEffect> effects = event.getEntity().getFireworkMeta().getEffects();
-			if (effects.isEmpty())
-				return null;
-			List<Color> colors = new ArrayList<>();
-			for (FireworkEffect fireworkEffect : effects) {
-				for (org.bukkit.Color color : fireworkEffect.getColors()) {
-					if (SkriptColor.fromBukkitColor(color) != null)
-						colors.add(SkriptColor.fromBukkitColor(color));
-					else
-						colors.add(ColorRGB.fromBukkitColor(color));
-				}
+		EventValues.registerEventValue(PrepareItemCraftEvent.class, Slot.class, new Getter<Slot, PrepareItemCraftEvent>() {
+			@Override
+			public Slot get(final PrepareItemCraftEvent e) {
+				return new InventorySlot(e.getInventory(), 0);
 			}
-			if (colors.isEmpty())
+		}, 0);
+		EventValues.registerEventValue(PrepareItemCraftEvent.class, ItemStack.class, new Getter<ItemStack, PrepareItemCraftEvent>() {
+			@Override
+			public ItemStack get(PrepareItemCraftEvent e) {
+				ItemStack item = e.getInventory().getResult();
+				return item != null ? item : AIR_IS;
+			}
+		}, 0);
+		EventValues.registerEventValue(PrepareItemCraftEvent.class, Inventory.class, new Getter<Inventory, PrepareItemCraftEvent>() {
+			@Override
+			public Inventory get(PrepareItemCraftEvent e) {
+				return e.getInventory();
+			}
+		}, 0);
+		EventValues.registerEventValue(PrepareItemCraftEvent.class, Player.class, new Getter<Player, PrepareItemCraftEvent>() {
+			@Override
+			@Nullable
+			public Player get(final PrepareItemCraftEvent e) {
+				List<HumanEntity> viewers = e.getInventory().getViewers(); // Get all viewers
+				if (viewers.size() == 0) // ... if we don't have any
+					return null;
+				HumanEntity first = viewers.get(0); // Get first viewer and hope it is crafter
+				if (first instanceof Player) // Needs to be player... Usually it is
+					return (Player) first;
 				return null;
-			return colors.toArray(Color[]::new);
-		}));
+			}
+		}, 0);
+		// CraftEvents - recipe namespaced key strings
+		// CraftItemEvent
+		EventValues.registerEventValue(CraftItemEvent.class, ItemStack.class, new Getter<ItemStack, CraftItemEvent>() {
+			@Override
+			@Nullable
+			public ItemStack get(CraftItemEvent e) {
+				return e.getRecipe().getResult();
+			}
+		}, 0);
+		//InventoryOpenEvent
+		EventValues.registerEventValue(InventoryOpenEvent.class, Player.class, new Getter<Player, InventoryOpenEvent>() {
+			@Override
+			@Nullable
+			public Player get(final InventoryOpenEvent e) {
+				return (Player) e.getPlayer();
+			}
+		}, 0);
+		EventValues.registerEventValue(InventoryOpenEvent.class, Inventory.class, new Getter<Inventory, InventoryOpenEvent>() {
+			@Override
+			@Nullable
+			public Inventory get(final InventoryOpenEvent e) {
+				return e.getInventory();
+			}
+		}, 0);
+		//InventoryCloseEvent
+		EventValues.registerEventValue(InventoryCloseEvent.class, Player.class, new Getter<Player, InventoryCloseEvent>() {
+			@Override
+			@Nullable
+			public Player get(final InventoryCloseEvent e) {
+				return (Player) e.getPlayer();
+			}
+		}, 0);
+		EventValues.registerEventValue(InventoryCloseEvent.class, Inventory.class, new Getter<Inventory, InventoryCloseEvent>() {
+			@Override
+			@Nullable
+			public Inventory get(final InventoryCloseEvent e) {
+				return e.getInventory();
+			}
+		}, 0);
+		//InventoryPickupItemEvent
+		EventValues.registerEventValue(InventoryPickupItemEvent.class, Inventory.class, new Getter<Inventory, InventoryPickupItemEvent>() {
+			@Nullable
+			@Override
+			public Inventory get(InventoryPickupItemEvent event) {
+				return event.getInventory();
+			}
+		}, 0);
+		EventValues.registerEventValue(InventoryPickupItemEvent.class, Item.class, new Getter<Item, InventoryPickupItemEvent>() {
+			@Nullable
+			@Override
+			public Item get(InventoryPickupItemEvent event) {
+				return event.getItem();
+			}
+		}, 0);
+		EventValues.registerEventValue(InventoryPickupItemEvent.class, ItemStack.class, new Getter<ItemStack, InventoryPickupItemEvent>() {
+			@Nullable
+			@Override
+			public ItemStack get(InventoryPickupItemEvent event) {
+				return event.getItem().getItemStack();
+			}
+		}, 0);
+		//PortalCreateEvent
+		EventValues.registerEventValue(PortalCreateEvent.class, World.class, new Getter<World, PortalCreateEvent>() {
+			@Override
+			@Nullable
+			public World get(final PortalCreateEvent e) {
+				return e.getWorld();
+			}
+		}, 0);
+		//PlayerEditBookEvent
+		EventValues.registerEventValue(PlayerEditBookEvent.class, ItemStack.class, new Getter<ItemStack, PlayerEditBookEvent>() {
+			@Override
+			public ItemStack get(PlayerEditBookEvent e) {
+				ItemStack book = new ItemStack(e.getPlayer().getItemInHand().getType());
+				book.setItemMeta(e.getNewBookMeta());
+				return book; // TODO: Find better way to derive this event value
+			}
+		}, 0);
+		//ItemDespawnEvent
+		EventValues.registerEventValue(ItemDespawnEvent.class, Item.class, new Getter<Item, ItemDespawnEvent>() {
+			@Override
+			@Nullable
+			public Item get(ItemDespawnEvent e) {
+				return e.getEntity();
+			}
+		}, 0);
+		EventValues.registerEventValue(ItemDespawnEvent.class, ItemStack.class, new Getter<ItemStack, ItemDespawnEvent>() {
+			@Override
+			@Nullable
+			public ItemStack get(ItemDespawnEvent e) {
+				return e.getEntity().getItemStack();
+			}
+		}, 0);
+		//ItemMergeEvent
+		//PlayerTeleportEvent
+		EventValues.registerEventValue(PlayerTeleportEvent.class, TeleportCause.class, new Getter<TeleportCause, PlayerTeleportEvent>() {
+			@Override
+			@Nullable
+			public TeleportCause get(final PlayerTeleportEvent e) {
+				return e.getCause();
+			}
+		}, 0);
+		EventValues.registerEventValue(PlayerTeleportEvent.class, Location.class, new Getter<Location, PlayerTeleportEvent>() {
+			@Override
+			@Nullable
+			public Location get(final PlayerTeleportEvent e) {
+				return e.getFrom();
+			}
+		}, -1);
+		//PlayerToggleFlightEvent
+		EventValues.registerEventValue(PlayerToggleFlightEvent.class, Player.class, new Getter<Player, PlayerToggleFlightEvent>() {
+			@Override
+			@Nullable
+			public Player get(PlayerToggleFlightEvent e) {
+				return e.getPlayer();
+			}
+		}, 0);
+		//CreatureSpawnEvent
+		EventValues.registerEventValue(CreatureSpawnEvent.class, SpawnReason.class, new Getter<SpawnReason, CreatureSpawnEvent>() {
+			@Override
+			@Nullable
+			public SpawnReason get(CreatureSpawnEvent e) {
+				return e.getSpawnReason();
+			}
+		}, 0);
+		//FireworkExplodeEvent
 		//PlayerRiptideEvent
-		registry.register(EventValue.simple(PlayerRiptideEvent.class, ItemStack.class, PlayerRiptideEvent::getItem));
-		//PlayerInventorySlotChangeEvent
-		if (Skript.classExists("io.papermc.paper.event.player.PlayerInventorySlotChangeEvent")) {
-			registry.register(EventValue.simple(PlayerInventorySlotChangeEvent.class, ItemStack.class, PlayerInventorySlotChangeEvent::getNewItemStack));
-			registry.register(EventValue.builder(PlayerInventorySlotChangeEvent.class, ItemStack.class)
-				.getter(PlayerInventorySlotChangeEvent::getOldItemStack)
-				.time(Time.PAST)
-				.build());
-			registry.register(EventValue.simple(PlayerInventorySlotChangeEvent.class, Slot.class, event -> {
-				PlayerInventory inv = event.getPlayer().getInventory();
-				int slotIndex = event.getSlot();
-				// Not all indices point to inventory slots. Equipment, for example
-				if (slotIndex >= 36) {
-					return new ch.njol.skript.util.slot.EquipmentSlot(event.getPlayer(), slotIndex);
-				} else {
-					return new InventorySlot(inv, slotIndex);
-				}
-			}));
-		}
+		//PlayerArmorChangeEvent
 		//PrepareItemEnchantEvent
-		registry.register(EventValue.simple(PrepareItemEnchantEvent.class, Player.class, PrepareItemEnchantEvent::getEnchanter));
-		registry.register(EventValue.simple(PrepareItemEnchantEvent.class, ItemStack.class, PrepareItemEnchantEvent::getItem));
-		registry.register(EventValue.simple(PrepareItemEnchantEvent.class, Block.class, PrepareItemEnchantEvent::getEnchantBlock));
+		EventValues.registerEventValue(PrepareItemEnchantEvent.class, Player.class, new Getter<Player, PrepareItemEnchantEvent>() {
+			@Override
+			@Nullable
+			public Player get(PrepareItemEnchantEvent e) {
+				return e.getEnchanter();
+			}
+		}, 0);
+		EventValues.registerEventValue(PrepareItemEnchantEvent.class, ItemStack.class, new Getter<ItemStack, PrepareItemEnchantEvent>() {
+			@Override
+			@Nullable
+			public ItemStack get(PrepareItemEnchantEvent e) {
+				return e.getItem();
+			}
+		}, 0);
+		EventValues.registerEventValue(PrepareItemEnchantEvent.class, Block.class, new Getter<Block, PrepareItemEnchantEvent>() {
+			@Override
+			@Nullable
+			public Block get(PrepareItemEnchantEvent e) {
+				return e.getEnchantBlock();
+			}
+		}, 0);
 		//EnchantItemEvent
-		registry.register(EventValue.simple(EnchantItemEvent.class, Player.class, EnchantItemEvent::getEnchanter));
-		registry.register(EventValue.simple(EnchantItemEvent.class, ItemStack.class, EnchantItemEvent::getItem));
-		registry.register(EventValue.simple(EnchantItemEvent.class, EnchantmentType[].class, event -> event.getEnchantsToAdd().entrySet().stream()
-			.map(entry -> new EnchantmentType(entry.getKey(), entry.getValue()))
-			.toArray(EnchantmentType[]::new)));
-		registry.register(EventValue.simple(EnchantItemEvent.class, Block.class, EnchantItemEvent::getEnchantBlock));
-		registry.register(EventValue.simple(HorseJumpEvent.class, Entity.class, HorseJumpEvent::getEntity));
-		// PlayerTradeEvent
-		if (Skript.classExists("io.papermc.paper.event.player.PlayerTradeEvent")) {
-			registry.register(EventValue.simple(PlayerTradeEvent.class, AbstractVillager.class, PlayerTradeEvent::getVillager));
-		}
+		EventValues.registerEventValue(EnchantItemEvent.class, Player.class, new Getter<Player, EnchantItemEvent>() {
+			@Override
+			@Nullable
+			public Player get(EnchantItemEvent e) {
+				return e.getEnchanter();
+			}
+		}, 0);
+		EventValues.registerEventValue(EnchantItemEvent.class, ItemStack.class, new Getter<ItemStack, EnchantItemEvent>() {
+			@Override
+			@Nullable
+			public ItemStack get(EnchantItemEvent e) {
+				return e.getItem();
+			}
+		}, 0);
+		EventValues.registerEventValue(EnchantItemEvent.class, Block.class, new Getter<Block, EnchantItemEvent>() {
+			@Override
+			@Nullable
+			public Block get(EnchantItemEvent e) {
+				return e.getEnchantBlock();
+			}
+		}, 0);
+		EventValues.registerEventValue(HorseJumpEvent.class, Entity.class, new Getter<Entity, HorseJumpEvent>() {
+			@Nullable
+			@Override
+			public Entity get(HorseJumpEvent evt) {
+				return evt.getEntity();
+			}
+		}, 0);
 		// PlayerChangedWorldEvent
-		registry.register(EventValue.builder(PlayerChangedWorldEvent.class, World.class)
-			.getter(PlayerChangedWorldEvent::getFrom)
-			.time(Time.PAST)
-			.build());
+		EventValues.registerEventValue(PlayerChangedWorldEvent.class, World.class, new Getter<World, PlayerChangedWorldEvent>() {
+			@Nullable
+			@Override
+			public World get(PlayerChangedWorldEvent e) {
+				return e.getFrom();
+			}
+		}, -1);
+	}
 
-		// PlayerEggThrowEvent
-		registry.register(EventValue.simple(PlayerEggThrowEvent.class, Egg.class, PlayerEggThrowEvent::getEgg));
-
-		// PlayerStopUsingItemEvent
-		if (Skript.classExists("io.papermc.paper.event.player.PlayerStopUsingItemEvent")) {
-			registry.register(EventValue.simple(PlayerStopUsingItemEvent.class, Timespan.class, event -> new Timespan(Timespan.TimePeriod.TICK, event.getTicksHeldFor())));
-			registry.register(EventValue.simple(PlayerStopUsingItemEvent.class, ItemType.class, event -> new ItemType(event.getItem())));
-		}
-
-		// EntityResurrectEvent
-		registry.register(EventValue.simple(EntityResurrectEvent.class, Slot.class, event -> {
-			EquipmentSlot hand = event.getHand();
-			EntityEquipment equipment = event.getEntity().getEquipment();
-			if (equipment == null || hand == null)
-				return null;
-			return new ch.njol.skript.util.slot.EquipmentSlot(equipment, hand);
-		}));
-
-		// PlayerItemHeldEvent
-		registry.register(EventValue.simple(PlayerItemHeldEvent.class, Slot.class, event -> new InventorySlot(event.getPlayer().getInventory(), event.getNewSlot())));
-		registry.register(EventValue.builder(PlayerItemHeldEvent.class, Slot.class)
-			.getter(event -> new InventorySlot(event.getPlayer().getInventory(), event.getPreviousSlot()))
-			.time(Time.PAST)
-			.build());
-
-		// PlayerPickupArrowEvent
-		// This event value is restricted to MC 1.14+ due to an API change which has the return type changed
-		// which throws a NoSuchMethodError if used in a 1.13 server.
-		if (Skript.isRunningMinecraft(1, 14))
-			registry.register(EventValue.simple(PlayerPickupArrowEvent.class, Projectile.class, PlayerPickupArrowEvent::getArrow));
-
-		registry.register(EventValue.simple(PlayerPickupArrowEvent.class, ItemStack.class, event -> event.getItem().getItemStack()));
-
-		//PlayerQuitEvent
-		if (Skript.classExists("org.bukkit.event.player.PlayerQuitEvent$QuitReason"))
-			registry.register(EventValue.simple(PlayerQuitEvent.class, QuitReason.class, PlayerQuitEvent::getReason));
-
-		// PlayerStonecutterRecipeSelectEvent
-		if (Skript.classExists("io.papermc.paper.event.player.PlayerStonecutterRecipeSelectEvent"))
-			registry.register(EventValue.simple(PlayerStonecutterRecipeSelectEvent.class, ItemStack.class, event -> event.getStonecuttingRecipe().getResult()));
-
-		// EntityTransformEvent
-		registry.register(EventValue.simple(EntityTransformEvent.class, Entity[].class, event -> event.getTransformedEntities().stream().toArray(Entity[]::new)));
-		registry.register(EventValue.simple(EntityTransformEvent.class, TransformReason.class, EntityTransformEvent::getTransformReason));
-
-		// BellRingEvent - these are BlockEvents and not EntityEvents, so they have declared methods for getEntity()
-		if (Skript.classExists("org.bukkit.event.block.BellRingEvent")) {
-			registry.register(EventValue.simple(BellRingEvent.class, Entity.class, BellRingEvent::getEntity));
-
-			registry.register(EventValue.simple(BellRingEvent.class, Direction.class, event -> new Direction(event.getDirection(), 1)));
-		} else if (Skript.classExists("io.papermc.paper.event.block.BellRingEvent")) {
-			registry.register(EventValue.simple(io.papermc.paper.event.block.BellRingEvent.class, Entity.class, BellRingEvent::getEntity));
-		}
-
-		if (Skript.classExists("org.bukkit.event.block.BellResonateEvent")) {
-			registry.register(EventValue.simple(BellResonateEvent.class, Entity[].class, event -> event.getResonatedEntities().toArray(new LivingEntity[0])));
-		}
-
-		// InventoryMoveItemEvent
-		registry.register(EventValue.simple(InventoryMoveItemEvent.class, Inventory.class, InventoryMoveItemEvent::getSource));
-		registry.register(EventValue.builder(InventoryMoveItemEvent.class, Inventory.class)
-			.getter(InventoryMoveItemEvent::getDestination)
-			.time(Time.FUTURE)
-			.build());
-		registry.register(EventValue.simple(InventoryMoveItemEvent.class, Block.class, event -> event.getSource().getLocation().getBlock()));
-		registry.register(EventValue.builder(InventoryMoveItemEvent.class, Block.class)
-			.getter(event -> event.getDestination().getLocation().getBlock())
-			.time(Time.FUTURE)
-			.build());
-		registry.register(EventValue.simple(InventoryMoveItemEvent.class, ItemStack.class, InventoryMoveItemEvent::getItem));
-
-		// EntityRegainHealthEvent
-		registry.register(EventValue.simple(EntityRegainHealthEvent.class, RegainReason.class, EntityRegainHealthEvent::getRegainReason));
-
-		// FurnaceExtractEvent
-		registry.register(EventValue.simple(FurnaceExtractEvent.class, Player.class, FurnaceExtractEvent::getPlayer));
-		registry.register(EventValue.simple(FurnaceExtractEvent.class, ItemStack[].class, event -> new ItemStack[]{ItemStack.of(event.getItemType(), event.getItemAmount())}));
-
-		// BlockDropItemEvent
-		registry.register(EventValue.builder(BlockDropItemEvent.class, Block.class)
-			.getter(event -> new BlockStateBlock(event.getBlockState()))
-			.time(Time.PAST)
-			.build());
-		registry.register(EventValue.simple(BlockDropItemEvent.class, Player.class, BlockDropItemEvent::getPlayer));
-		registry.register(EventValue.simple(BlockDropItemEvent.class, ItemStack[].class, event -> event.getItems().stream().map(Item::getItemStack).toArray(ItemStack[]::new)));
-		registry.register(EventValue.simple(BlockDropItemEvent.class, Entity[].class, event -> event.getItems().toArray(Entity[]::new)));
-
-		// PlayerExpCooldownChangeEvent
-		registry.register(EventValue.simple(PlayerExpCooldownChangeEvent.class, ChangeReason.class, PlayerExpCooldownChangeEvent::getReason));
-		registry.register(EventValue.simple(PlayerExpCooldownChangeEvent.class, Timespan.class, event -> new Timespan(Timespan.TimePeriod.TICK, event.getNewCooldown())));
-		registry.register(EventValue.builder(PlayerExpCooldownChangeEvent.class, Timespan.class)
-			.getter(event -> new Timespan(Timespan.TimePeriod.TICK, event.getPlayer().getExpCooldown()))
-			.time(Time.PAST)
-			.build());
-
-		// VehicleMoveEvent
-		registry.register(EventValue.simple(VehicleMoveEvent.class, Location.class, VehicleMoveEvent::getTo));
-		registry.register(EventValue.builder(VehicleMoveEvent.class, Location.class)
-			.getter(VehicleMoveEvent::getFrom)
-			.time(Time.PAST)
-			.build());
-
-		// BeaconEffectEvent
-		if (Skript.classExists("com.destroystokyo.paper.event.block.BeaconEffectEvent")) {
-			registry.register(EventValue.builder(BeaconEffectEvent.class, PotionEffectType.class)
-				.getter(event -> event.getEffect().getType())
-				.excludes(BeaconEffectEvent.class)
-				.excludedErrorMessage("Use 'applied effect' in beacon effect events.")
-				.build());
-			registry.register(EventValue.simple(BeaconEffectEvent.class, Player.class, BeaconEffectEvent::getPlayer));
-		}
-		// PlayerChangeBeaconEffectEvent
-		if (Skript.classExists("io.papermc.paper.event.player.PlayerChangeBeaconEffectEvent")) {
-			registry.register(EventValue.simple(PlayerChangeBeaconEffectEvent.class, Block.class, PlayerChangeBeaconEffectEvent::getBeacon));
-		}
-
-		// PlayerElytraBoostEvent
-		if (Skript.classExists("com.destroystokyo.paper.event.player.PlayerElytraBoostEvent")) {
-			registry.register(EventValue.simple(PlayerElytraBoostEvent.class, ItemStack.class, PlayerElytraBoostEvent::getItemStack));
-			registry.register(EventValue.simple(PlayerElytraBoostEvent.class, Entity.class, PlayerElytraBoostEvent::getFirework));
-		}
-
-		if (Skript.classExists("org.bukkit.event.block.VaultDisplayItemEvent")) {
-			registry.register(EventValue.builder(VaultDisplayItemEvent.class, ItemStack.class)
-				.getter(VaultDisplayItemEvent::getDisplayItem)
-				.registerChanger(ChangeMode.SET, VaultDisplayItemEvent::setDisplayItem)
-				.build());
-		}
-
-		registry.register(EventValue.simple(VillagerCareerChangeEvent.class, VillagerCareerChangeEvent.ChangeReason.class, VillagerCareerChangeEvent::getReason));
-		registry.register(EventValue.builder(VillagerCareerChangeEvent.class, Villager.Profession.class)
-			.getter(VillagerCareerChangeEvent::getProfession)
-			.registerChanger(ChangeMode.SET, (event, profession) -> {
-				if (profession == null)
-					return;
-				event.setProfession(profession);
-			})
-			.build());
-		registry.register(EventValue.builder(VillagerCareerChangeEvent.class, Villager.Profession.class)
-			.getter(event -> event.getEntity().getProfession())
-			.time(Time.PAST)
-			.build());
-
+	/**
+	 * InventoryClickEvent#getClickedInventory doesn't exist on 1.7.10.
+	 */
+	@Nullable
+	private static Inventory getClickedInventory(InventoryClickEvent e) {
+		int rawSlot = e.getRawSlot();
+		if (rawSlot < 0) // Clicked outside of the inventory
+			return null;
+		Inventory top = e.getView().getTopInventory();
+		if (top != null && rawSlot < top.getSize())
+			return top;
+		return e.getView().getBottomInventory();
 	}
 
 }

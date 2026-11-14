@@ -1,0 +1,5 @@
+command /rpre:
+	executable by: console
+	trigger:
+		send "PRELOAD %preload-test twice of 21%" to console
+		preload-test announce

@@ -1,3 +1,21 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.expressions;
 
 import java.net.InetAddress;
@@ -8,12 +26,11 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.player.PlayerLoginEvent;
 import org.bukkit.event.server.ServerListPingEvent;
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
-import com.destroystokyo.paper.event.server.PaperServerListPingEvent;
 import ch.njol.skript.Skript;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.lang.Expression;
@@ -24,20 +41,16 @@ import ch.njol.util.Kleenean;
 import ch.njol.util.coll.CollectionUtils;
 
 @Name("IP")
-@Description("The IP address of a player, or the connected player in a <a href='#connect'>connect</a> event, " +
-		"or the pinger in a <a href='#server_list_ping'>server list ping</a> event.")
-@Example("""
-	ban the IP address of the player")
-	broadcast "Banned the IP %IP of player%"
-	""")
-@Example("""
-	on connect:
-		log "[%now%] %player% (%ip%) is connected to the server."
-	""")
-@Example("""
-	on server list ping:
-		send "%IP-address%" to the console
-	""")
+@Description("The IP address of a player, or the connected player in a <a href='events.html#connect'>connect</a> event, " +
+		"or the pinger in a <a href='events.html#server_list_ping'>server list ping</a> event.")
+@Examples({"ban the IP address of the player",
+		"broadcast \"Banned the IP %IP of player%\"",
+		"",
+		"on connect:",
+		"\tlog \"[%now%] %player% (%ip%) is connected to the server.\"",
+		"",
+		"on server list ping:",
+		"\tsend \"%IP-address%\" to the console"})
 @Since("1.4, 2.2-dev26 (when used in connect event), 2.3 (when used in server list ping event)")
 public class ExprIP extends SimpleExpression<String> {
 
@@ -48,18 +61,18 @@ public class ExprIP extends SimpleExpression<String> {
 				"IP[( |-)address]");
 	}
 
+
 	@SuppressWarnings("null")
 	private Expression<Player> players;
 
-	private boolean isProperty;
+	private boolean isConnectEvent, isProperty;
 
 	@SuppressWarnings({"null", "unchecked"})
 	@Override
 	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult) {
 		isProperty = matchedPattern < 2;
-		boolean isConnectEvent = getParser().isCurrentEvent(PlayerLoginEvent.class);
-		boolean isServerPingEvent = getParser().isCurrentEvent(ServerListPingEvent.class) ||
-			getParser().isCurrentEvent(PaperServerListPingEvent.class);
+		isConnectEvent = getParser().isCurrentEvent(PlayerLoginEvent.class);
+		boolean isServerPingEvent = getParser().isCurrentEvent(ServerListPingEvent.class);
 		if (isProperty) {
 			players = (Expression<Player>) exprs[0];
 		} else if (!isConnectEvent && !isServerPingEvent) {
@@ -74,15 +87,12 @@ public class ExprIP extends SimpleExpression<String> {
 	protected String[] get(Event e) {
 		if (!isProperty) {
 			InetAddress address;
-			if (e instanceof PlayerLoginEvent loginEvent) {
+			if (isConnectEvent)
 				// Return IP address of the connected player in connect event
-				address = loginEvent.getAddress();
-			} else if (e instanceof ServerListPingEvent pingEvent)
+				address = ((PlayerLoginEvent) e).getAddress();
+			else
 				// Return IP address of the pinger in server list ping event
-				address = pingEvent.getAddress();
-			else {
-				return null;
-			}
+				address = ((ServerListPingEvent) e).getAddress();
 			return CollectionUtils.array(address.getHostAddress());
 		}
 
@@ -98,14 +108,14 @@ public class ExprIP extends SimpleExpression<String> {
 		InetAddress address;
 		// The player has no IP yet in a connect event, but the event has it
 		// It is a "feature" of Spigot, apparently
-		if (e instanceof PlayerLoginEvent && ((PlayerLoginEvent) e).getPlayer().equals(player)) {
+		if (isConnectEvent && ((PlayerLoginEvent) e).getPlayer().equals(player)) {
 			address = ((PlayerLoginEvent) e).getAddress();
 		} else {
 			InetSocketAddress sockAddr = player.getAddress();
 			assert sockAddr != null; // Not in connect event
 			address = sockAddr.getAddress();
 		}
-
+		
 		String hostAddress = address == null ? "unknown" : address.getHostAddress();
 		assert hostAddress != null;
 		return hostAddress;

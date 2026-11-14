@@ -1,18 +1,32 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.patterns;
 
-import ch.njol.skript.patterns.SkriptPattern.StringificationProperties;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.HashSet;
-import java.util.Set;
-
-/**
- * A pattern element represents a part of a {@link SkriptPattern}.
- */
 public abstract class PatternElement {
 
-	@Nullable PatternElement originalNext;
-	@Nullable PatternElement next;
+	@Nullable
+	PatternElement next;
+
+	@Nullable
+	PatternElement originalNext;
 
 	void setNext(@Nullable PatternElement next) {
 		this.next = next;
@@ -29,9 +43,11 @@ public abstract class PatternElement {
 		}
 	}
 
-	public abstract @Nullable MatchResult match(String expr, MatchResult matchResult);
+	@Nullable
+	public abstract MatchResult match(String expr, MatchResult matchResult);
 
-	protected @Nullable MatchResult matchNext(String expr, MatchResult matchResult) {
+	@Nullable
+	protected MatchResult matchNext(String expr, MatchResult matchResult) {
 		if (next == null) {
 			return matchResult.exprOffset == expr.length() ? matchResult : null;
 		}
@@ -41,80 +57,13 @@ public abstract class PatternElement {
 	@Override
 	public abstract String toString();
 
-	/**
-	 * Constructs a string representation of this pattern element.
-	 * @param properties Properties to consider during stringification.
-	 * @return A string representation of this pattern element.
-	 */
-	public abstract String toString(StringificationProperties properties);
-
-	/**
-	 * @deprecated Use {@link #toFullString(StringificationProperties)}.
-	 */
-	@Deprecated(since = "2.15", forRemoval = true)
 	public String toFullString() {
-		return toFullString(StringificationProperties.DEFAULT);
-	}
-
-	/**
-	 * Constructs a string representation of this pattern element and those that follow it.
-	 * @param properties Properties to consider during stringification.
-	 * @return A string representation of this pattern element and those that follow it.
-	 */
-	public String toFullString(StringificationProperties properties) {
-		StringBuilder stringBuilder = new StringBuilder(toString(properties));
+		StringBuilder stringBuilder = new StringBuilder(toString());
 		PatternElement next = this;
 		while ((next = next.originalNext) != null) {
-			stringBuilder.append(next.toString(properties));
+			stringBuilder.append(next);
 		}
 		return stringBuilder.toString();
-	}
-
-	/**
-	 * Gets the combinations available to this {@link PatternElement}.
-	 * @param clean Whether unnecessary data, determined by each implementation, should be excluded from the combinations.
-	 * @return The combinations.
-	 */
-	public abstract Set<String> getCombinations(boolean clean);
-
-	/**
-	 * Gets all combinations available to this {@link PatternElement} and linked {@link PatternElement}s.
-	 * @param clean Whether unnecessary data, determined by each implementation, should be excluded from the combinations.
-	 * @return The combinations.
-	 */
-	public final Set<String> getAllCombinations(boolean clean) {
-		Set<String> combinations = getCombinations(clean);
-		if (combinations.isEmpty())
-			combinations.add("");
-		PatternElement next = this;
-		while ((next = next.originalNext) != null) {
-			Set<String> newCombinations = new HashSet<>();
-			Set<String> nextCombinations = next.getCombinations(clean);
-			if (nextCombinations.isEmpty())
-				continue;
-			for (String base : combinations) {
-				for (String add : nextCombinations) {
-					newCombinations.add(combineCombination(base, add));
-				}
-			}
-			combinations = newCombinations;
-		}
-		return combinations;
-	}
-
-	/**
-	 * Helper method for appropriately combining two strings together.
-	 * @return The resulting string.
-	 */
-	private static String combineCombination(String first, String second) {
-		if (first.isBlank()) {
-			return second.stripLeading();
-		} else if (second.isEmpty()) {
-			return first.stripTrailing();
-		} else if (first.endsWith(" ") && second.startsWith(" ")) {
-			return first + second.stripLeading();
-		}
-		return first + second;
 	}
 
 }

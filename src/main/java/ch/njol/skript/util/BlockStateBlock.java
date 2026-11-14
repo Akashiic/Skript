@@ -1,35 +1,41 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.util;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.bukkitutil.block.BlockCompat;
-import com.destroystokyo.paper.block.BlockSoundGroup;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
-import org.bukkit.FluidCollisionMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.SoundGroup;
 import org.bukkit.World;
 import org.bukkit.block.Biome;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.PistonMoveReaction;
-import org.bukkit.block.data.BlockData;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.metadata.MetadataValue;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.util.BoundingBox;
-import org.bukkit.util.RayTraceResult;
-import org.bukkit.util.Vector;
-import org.bukkit.util.VoxelShape;
-import org.jetbrains.annotations.Nullable;
-import org.jetbrains.annotations.NotNull;
+import org.eclipse.jdt.annotation.Nullable;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -39,11 +45,8 @@ import java.util.List;
 @SuppressWarnings("deprecation")
 public class BlockStateBlock implements Block {
 
-	private static final boolean ISPASSABLE_METHOD_EXISTS = Skript.methodExists(Block.class, "isPassable");
-
 	final BlockState state;
 	private final boolean delayChanges;
-	private final boolean isPassable;
 
 	public BlockStateBlock(BlockState state) {
 		this(state, false);
@@ -52,11 +55,11 @@ public class BlockStateBlock implements Block {
 	public BlockStateBlock(BlockState state, boolean delayChanges) {
 		assert state != null;
 		this.state = state;
-		if (ISPASSABLE_METHOD_EXISTS && state.isPlaced())
-			this.isPassable = state.getBlock().isPassable();
-		else
-			this.isPassable = false;
 		this.delayChanges = delayChanges;
+	}
+
+	private void later(Runnable r) {
+		Bukkit.getScheduler().scheduleSyncDelayedTask(Skript.getInstance(), r);
 	}
 
 	@Override
@@ -85,6 +88,20 @@ public class BlockStateBlock implements Block {
 	}
 
 	@Override
+	public void setData(byte data) {
+		setData(data, true);
+	}
+
+	@Override
+	public void setData(final byte data, final boolean applyPhysics) {
+		if (delayChanges) {
+			later(() -> state.getBlock().setData(data, applyPhysics));
+		} else {
+			state.setRawData(data);
+		}
+	}
+
+	@Override
 	public Block getRelative(int modX, int modY, int modZ) {
 		return state.getBlock().getRelative(modX, modY, modZ);
 	}
@@ -102,6 +119,11 @@ public class BlockStateBlock implements Block {
 	@Override
 	public Material getType() {
 		return state.getType();
+	}
+
+	@Override
+	public int getTypeId() {
+		return state.getTypeId();
 	}
 
 	@Override
@@ -145,21 +167,57 @@ public class BlockStateBlock implements Block {
 	}
 
 	@Override
+	@Nullable
+	public Location getLocation(@Nullable Location loc) {
+		if (loc != null) {
+			loc.setWorld(getWorld());
+			loc.setX(getX());
+			loc.setY(getY());
+			loc.setZ(getZ());
+			loc.setPitch(0);
+			loc.setYaw(0);
+		}
+		return loc;
+	}
+
+	@Override
 	public Chunk getChunk() {
 		return state.getChunk();
 	}
 
 	@Override
-	public void setType(Material type) {
+	public void setType(final Material type) {
 		if (delayChanges) {
-			Bukkit.getScheduler().scheduleSyncDelayedTask(Skript.getInstance(), new Runnable() {
-				@Override
-				public void run() {
-					state.getBlock().setType(type);
-				}
-			});
+			later(() -> state.getBlock().setType(type));
 		} else {
 			state.setType(type);
+		}
+	}
+
+	@Override
+	public boolean setTypeId(int type) {
+		return setTypeId(type, true);
+	}
+
+	@Override
+	public boolean setTypeId(final int type, final boolean applyPhysics) {
+		if (delayChanges) {
+			later(() -> state.getBlock().setTypeId(type, applyPhysics));
+			return true;
+		} else {
+			return state.setTypeId(type);
+		}
+	}
+
+	@Override
+	public boolean setTypeIdAndData(final int type, final byte data, final boolean applyPhysics) {
+		if (delayChanges) {
+			later(() -> state.getBlock().setTypeIdAndData(type, data, applyPhysics));
+			return true;
+		} else {
+			boolean changed = state.setTypeId(type);
+			state.setRawData(data);
+			return changed;
 		}
 	}
 
@@ -175,18 +233,8 @@ public class BlockStateBlock implements Block {
 	}
 
 	@Override
-	public BlockState getState(boolean useSnapshot) {
-		return state;
-	}
-
-	@Override
 	public Biome getBiome() {
 		return state.getBlock().getBiome();
-	}
-
-	@Override
-	public @NotNull Biome getComputedBiome() {
-		return state.getBlock().getComputedBiome();
 	}
 
 	@Override
@@ -239,31 +287,6 @@ public class BlockStateBlock implements Block {
 	}
 
 	@Override
-	public boolean isBuildable() {
-		return state.getBlock().isBuildable();
-	}
-
-	@Override
-	public boolean isBurnable() {
-		return state.getBlock().isBurnable();
-	}
-
-	@Override
-	public boolean isReplaceable() {
-		return state.getBlock().isReplaceable();
-	}
-
-	@Override
-	public boolean isSolid() {
-		return state.getBlock().isSolid();
-	}
-
-	@Override
-	public boolean isCollidable() {
-		return state.getBlock().isCollidable();
-	}
-
-	@Override
 	public double getTemperature() {
 		return state.getBlock().getTemperature();
 	}
@@ -275,18 +298,13 @@ public class BlockStateBlock implements Block {
 
 	@Override
 	public PistonMoveReaction getPistonMoveReaction() {
-		throw new UnsupportedOperationException();
+		return state.getBlock().getPistonMoveReaction();
 	}
 
 	@Override
 	public boolean breakNaturally() {
 		if (delayChanges) {
-			Bukkit.getScheduler().scheduleSyncDelayedTask(Skript.getInstance(), new Runnable() {
-				@Override
-				public void run() {
-					state.getBlock().breakNaturally();
-				}
-			});
+			later(() -> state.getBlock().breakNaturally());
 			return true;
 		} else {
 			return false;
@@ -294,255 +312,28 @@ public class BlockStateBlock implements Block {
 	}
 
 	@Override
-	public boolean breakNaturally(@Nullable ItemStack tool) {
+	public boolean breakNaturally(@Nullable final ItemStack tool) {
 		if (delayChanges) {
-			Bukkit.getScheduler().scheduleSyncDelayedTask(Skript.getInstance(), new Runnable() {
-				@Override
-				public void run() {
-					state.getBlock().breakNaturally(tool);
-				}
-			});
+			later(() -> state.getBlock().breakNaturally(tool));
 			return true;
 		} else {
 			return false;
 		}
-	}
-
-	@Override
-	public boolean breakNaturally(boolean triggerEffect) {
-		if (delayChanges) {
-			Bukkit.getScheduler().scheduleSyncDelayedTask(Skript.getInstance(), new Runnable() {
-				@Override
-				public void run() {
-					state.getBlock().breakNaturally(triggerEffect);
-				}
-			});
-			return true;
-		} else {
-			return false;
-		}
-	}
-
-	@Override
-	public boolean breakNaturally(ItemStack tool, boolean triggerEffect) {
-		if (delayChanges) {
-			Bukkit.getScheduler().scheduleSyncDelayedTask(Skript.getInstance(), new Runnable() {
-				@Override
-				public void run() {
-					state.getBlock().breakNaturally(tool, triggerEffect);
-				}
-			});
-			return true;
-		} else {
-			return false;
-		}
-	}
-
-	@Override
-	public boolean breakNaturally(@NotNull ItemStack tool, boolean triggerEffect, boolean dropExperience, boolean forceEffect) {
-		if (delayChanges) {
-			Bukkit.getScheduler().scheduleSyncDelayedTask(Skript.getInstance(), new Runnable() {
-				@Override
-				public void run() {
-					state.getBlock().breakNaturally(tool, triggerEffect, dropExperience, forceEffect);
-				}
-			});
-			return true;
-		} else {
-			return false;
-		}
-	}
-
-	@Override
-	public void tick() {
-		state.getBlock().tick();
-	}
-
-	@Override
-	public void fluidTick() {
-		state.getBlock().fluidTick();
-	}
-
-	@Override
-	public void randomTick() {
-		state.getBlock().randomTick();
-	}
-
-	@Override
-	public boolean applyBoneMeal(BlockFace blockFace) {
-		return state.getBlock().applyBoneMeal(blockFace);
 	}
 
 	@Override
 	public Collection<ItemStack> getDrops() {
-		assert false;
-		return Collections.emptySet();
+		return state.getBlock().getDrops();
 	}
 
 	@Override
 	public Collection<ItemStack> getDrops(@Nullable ItemStack tool) {
-		assert false;
-		return Collections.emptySet();
+		return state.getBlock().getDrops(tool);
 	}
 
 	@Override
-	public Collection<ItemStack> getDrops(ItemStack tool, @Nullable Entity entity) {
-		assert false;
-		return Collections.emptySet();
-	}
-
-	@Nullable
-	@Override
-	public Location getLocation(@Nullable Location loc) {
-		if (loc != null) {
-			loc.setWorld(getWorld());
-			loc.setX(getX());
-			loc.setY(getY());
-			loc.setZ(getZ());
-			loc.setPitch(0);
-			loc.setYaw(0);
-		}
-		return loc;
-	}
-
-	// 1.13 additions
-	// Note that overridden methods may not exist on Minecraft<1.13
-
-	@Override
-	public void setType(Material type, boolean applyPhysics) {
-		if (delayChanges) {
-			Bukkit.getScheduler().scheduleSyncDelayedTask(Skript.getInstance(), new Runnable() {
-				@Override
-				public void run() {
-					state.getBlock().setType(type, applyPhysics);
-				}
-			});
-		} else { // Can't do physics for block state
-			state.setType(type);
-		}
-	}
-
-	@Override
-	public BlockData getBlockData() {
-		return state.getBlockData();
-	}
-
-	@Override
-	public void setBlockData(BlockData data) {
-		if (delayChanges) {
-			Bukkit.getScheduler().scheduleSyncDelayedTask(Skript.getInstance(), new Runnable() {
-				@Override
-				public void run() {
-					state.getBlock().setBlockData(data);
-				}
-			});
-		} else {
-			state.setBlockData(data);
-		}
-	}
-
-	@Override
-	public void setBlockData(BlockData data, boolean applyPhysics) {
-		if (delayChanges) {
-			Bukkit.getScheduler().scheduleSyncDelayedTask(Skript.getInstance(), new Runnable() {
-				@Override
-				public void run() {
-					state.getBlock().setBlockData(data, applyPhysics);
-				}
-			});
-		} else { // Cannot apply physics to a block state
-			state.setBlockData(data);
-		}
-	}
-
-	@Nullable
-	@Override
-	public RayTraceResult rayTrace(Location start, Vector direction, double maxDistance, FluidCollisionMode fluidCollisionMode) {
-		return state.getBlock().rayTrace(start, direction, maxDistance, fluidCollisionMode);
-	}
-
-	@Override
-	public boolean isPassable() {
-		return isPassable;
-	}
-
-	@Override
-	public BoundingBox getBoundingBox() {
-		return state.getBlock().getBoundingBox();
-	}
-
-	@Override
-	@SuppressWarnings("removal")
-	public BlockSoundGroup getSoundGroup() {
-		return state.getBlock().getSoundGroup();
-	}
-
-	@Override
-	public @NotNull SoundGroup getBlockSoundGroup() {
-		return state.getBlock().getBlockSoundGroup();
-	}
-
-	@Override
-	@SuppressWarnings("removal")
-	public String getTranslationKey() {
-		return state.getBlock().getTranslationKey();
-	}
-
-	@Override
-	public float getDestroySpeed(ItemStack itemStack) {
-		return state.getBlock().getDestroySpeed(itemStack);
-	}
-
-	@Override
-	public boolean isPreferredTool(@NotNull ItemStack tool) {
-		return state.getBlock().isPreferredTool(tool);
-	}
-
-	@Override
-	@SuppressWarnings("removal")
-	public boolean isValidTool(@NotNull ItemStack itemStack) {
-		return state.getBlock().isValidTool(itemStack);
-	}
-
-	@Override
-	public @NotNull float getDestroySpeed(@NotNull ItemStack itemStack, boolean considerEnchants) {
-		return state.getBlock().getDestroySpeed(itemStack, considerEnchants);
-	}
-
-	@Override
-	public boolean isSuffocating() {
-		return state.getBlock().isSuffocating();
-	}
-
-	@Override
-	public @NotNull VoxelShape getCollisionShape() {
-		return state.getBlock().getCollisionShape();
-	}
-
-	@Override
-	public boolean canPlace(@NotNull BlockData data) {
-		return state.getBlock().canPlace(data);
-	}
-
-	@Override
-	public float getBreakSpeed(@NotNull Player player) {
-		return state.getBlock().getBreakSpeed(player);
-	}
-
-	@Override
-	@SuppressWarnings("removal")
-	public @NotNull String translationKey() {
-		return state.getBlock().getTranslationKey();
-	}
-
-	@Override
-	public boolean breakNaturally(boolean triggerEffect, boolean dropExperience) {
-		return state.getBlock().breakNaturally(triggerEffect, dropExperience);
-	}
-
-	@Override
-	public boolean breakNaturally(@NotNull ItemStack tool, boolean triggerEffect, boolean dropExperience) {
-		return state.getBlock().breakNaturally(tool, triggerEffect, dropExperience);
+	public String toString() {
+		return "BlockStateBlock{" + getType() + ":" + getData() + " at " + getX() + "," + getY() + "," + getZ() + "}";
 	}
 
 }

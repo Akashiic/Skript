@@ -1,3 +1,21 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.classes.data;
 
 import ch.njol.skript.Skript;
@@ -6,35 +24,40 @@ import ch.njol.skript.aliases.Aliases;
 import ch.njol.skript.aliases.ItemData;
 import ch.njol.skript.aliases.ItemType;
 import ch.njol.skript.classes.ClassInfo;
-import ch.njol.skript.util.*;
+import ch.njol.skript.classes.Comparator;
+import ch.njol.skript.entity.EntityData;
+import ch.njol.skript.registrations.Comparators;
+import ch.njol.skript.util.BlockUtils;
+import ch.njol.skript.util.Date;
+import ch.njol.skript.util.EnchantmentType;
+import ch.njol.skript.util.Experience;
+import ch.njol.skript.util.WeatherType;
+import ch.njol.skript.util.GameruleValue;
+import ch.njol.skript.util.StructureType;
+import ch.njol.skript.util.Time;
+import ch.njol.skript.util.Timeperiod;
+import ch.njol.skript.util.Timespan;
 import ch.njol.skript.util.slot.EquipmentSlot;
 import ch.njol.skript.util.slot.Slot;
 import ch.njol.skript.util.slot.SlotWithIndex;
 import ch.njol.util.StringUtils;
-import org.bukkit.Location;
+import ch.njol.util.coll.CollectionUtils;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.World;
 import org.bukkit.block.Block;
-import org.bukkit.block.data.BlockData;
 import org.bukkit.command.CommandSender;
-import org.bukkit.enchantments.Enchantment;
-import org.bukkit.enchantments.EnchantmentOffer;
-import org.bukkit.entity.*;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.FallingBlock;
+import org.bukkit.entity.Item;
+import org.bukkit.entity.Projectile;
+import org.bukkit.entity.Wither;
 import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.skriptlang.skript.bukkit.entity.EntityData;
-import org.skriptlang.skript.bukkit.entity.EntityItemTypeComparable;
-import org.bukkit.potion.PotionEffect;
-import org.skriptlang.skript.bukkit.potion.util.SkriptPotionEffect;
-import org.skriptlang.skript.lang.comparator.Comparator;
-import org.skriptlang.skript.lang.comparator.Comparators;
-import org.skriptlang.skript.lang.comparator.Relation;
 
 import java.util.Objects;
-import java.util.UUID;
 
 @SuppressWarnings({"rawtypes"})
 public class DefaultComparators {
@@ -44,28 +67,20 @@ public class DefaultComparators {
 	static {
 		
 		// Number - Number
-		Comparators.registerComparator(Number.class, Number.class, new Comparator<>() {
+		Comparators.registerComparator(Number.class, Number.class, new Comparator<Number, Number>() {
 			@Override
 			public Relation compare(Number n1, Number n2) {
 				if (n1 instanceof Long && n2 instanceof Long)
 					return Relation.get(n1.longValue() - n2.longValue());
-				double epsilon = Skript.EPSILON;
-				@SuppressWarnings("WrapperTypeMayBePrimitive") Double d1, d2;
-				if (n1 instanceof Float || n2 instanceof Float) {
-					d1 = (double) n1.floatValue();
-					d2 = (double) n2.floatValue();
-					epsilon = Math.min(d1, d2) * 1e-6; // dynamic epsilon
-				} else {
-					d1 = n1.doubleValue();
-					d2 = n2.doubleValue();
-				}
+				Double d1 = n1.doubleValue(),
+					   d2 = n2.doubleValue();
 				if (d1.isNaN() || d2.isNaN()) {
 					return Relation.SMALLER;
 				} else if (d1.isInfinite() || d2.isInfinite()) {
 					return d1 > d2 ? Relation.GREATER : d1 < d2 ? Relation.SMALLER : Relation.EQUAL;
 				} else {
 					double diff = d1 - d2;
-					if (Math.abs(diff) < epsilon)
+					if (Math.abs(diff) < Skript.EPSILON)
 						return Relation.EQUAL;
 					return Relation.get(diff);
 				}
@@ -81,10 +96,17 @@ public class DefaultComparators {
 		Comparators.registerComparator(Slot.class, Slot.class, new Comparator<Slot, Slot>() {
 
 			@Override
-			public Relation compare(Slot slot1, Slot slot2) {
-				if (slot1 instanceof EquipmentSlot != slot2 instanceof EquipmentSlot)
+			public Relation compare(Slot o1, Slot o2) {
+				if (o1 instanceof EquipmentSlot != o2 instanceof EquipmentSlot)
 					return Relation.NOT_EQUAL;
-				return Relation.get(slot1.isSameSlot(slot2));
+				if (o1.isSameSlot(o2))
+					return Relation.EQUAL;
+				return Relation.NOT_EQUAL;
+			}
+
+			@Override
+			public boolean supportsOrdering() {
+				return false;
 			}
 
 		});
@@ -118,7 +140,7 @@ public class DefaultComparators {
 			}
 
 			@Override
-			public boolean supportsInversion() {
+			public boolean supportsOrdering() {
 				return false;
 			}
 		});
@@ -134,11 +156,11 @@ public class DefaultComparators {
 			}
 
 			@Override
-			public boolean supportsInversion() {
+			public boolean supportsOrdering() {
 				return false;
 			}
 		});
-
+		
 		// ItemStack - ItemType
 		Comparators.registerComparator(ItemStack.class, ItemType.class, new Comparator<ItemStack, ItemType>() {
 			@Override
@@ -147,7 +169,7 @@ public class DefaultComparators {
 			}
 
 			@Override
-			public boolean supportsInversion() {
+			public boolean supportsOrdering() {
 				return false;
 			}
 		});
@@ -160,7 +182,7 @@ public class DefaultComparators {
 			}
 
 			@Override
-			public boolean supportsInversion() {
+			public boolean supportsOrdering() {
 				return false;
 			}
 		});
@@ -173,37 +195,12 @@ public class DefaultComparators {
 			}
 
 			@Override
-			public boolean supportsInversion() {
+			public boolean supportsOrdering() {
 				return false;
 			}
 		});
 		
-		// Block - BlockData
-		Comparators.registerComparator(Block.class, BlockData.class, new Comparator<Block, BlockData>() {
-			@Override
-			public Relation compare(Block block, BlockData data) {
-				return Relation.get(block.getBlockData().matches(data));
-			}
-
-			@Override
-			public boolean supportsOrdering() {
-				return false;
-			}
-		});
-
-		// BlockData - BlockData
-		Comparators.registerComparator(BlockData.class, BlockData.class, new Comparator<BlockData, BlockData>() {
-			@Override
-			public Relation compare(BlockData data1, BlockData data2) {
-				return Relation.get(data1.matches(data2));
-			}
-
-			@Override
-			public boolean supportsOrdering() {
-				return false;
-			}
-		});
-
+		
 		// ItemType - ItemType
 		Comparators.registerComparator(ItemType.class, ItemType.class, new Comparator<ItemType, ItemType>() {
 			@Override
@@ -222,7 +219,7 @@ public class DefaultComparators {
 			}
 
 			@Override
-			public boolean supportsInversion() {
+			public boolean supportsOrdering() {
 				return false;
 			}
 		});
@@ -269,17 +266,19 @@ public class DefaultComparators {
 	// EntityData - ItemType
 	public final static Comparator<EntityData, ItemType> entityItemComparator = new Comparator<EntityData, ItemType>() {
 		@Override
-		public Relation compare(EntityData entityData, ItemType itemType) {
+		public Relation compare(EntityData e, ItemType i) {
 			// TODO fix broken comparisions - will probably require updating potion API of Skript
 
-			if (entityData instanceof Item item)
-				return Relation.get(itemType.isOfType(item.getItemStack()));
-			if (entityData instanceof EntityItemTypeComparable entityItemTypeComparable)
-				return Relation.get(entityItemTypeComparable.isOfItemType(itemType));
-			for (ItemData data : itemType.getTypes()) {
+			if (e instanceof Item)
+				return Relation.get(i.isOfType(((Item) e).getItemStack()));
+//			if (e instanceof ThrownPotion)
+//				return Relation.get(i.isOfType(Material.POTION.getId(), PotionEffectUtils.guessData((ThrownPotion) e)));
+//			if (Skript.classExists("org.bukkit.entity.WitherSkull") && e instanceof WitherSkull)
+//				return Relation.get(i.isOfType(Material.SKULL_ITEM.getId(), (short) 1));
+			for (ItemData data : i.getTypes()) {
 				assert data != null;
 				EntityData<?> entity = Aliases.getRelatedEntity(data);
-				if (entity != null && entity.getType().isAssignableFrom(entityData.getType()))
+				if (entity != null && entity.getType().isAssignableFrom(e.getType()))
 					return Relation.EQUAL;
 			}
 			return Relation.NOT_EQUAL;
@@ -330,7 +329,7 @@ public class DefaultComparators {
 		Comparators.registerComparator(OfflinePlayer.class, OfflinePlayer.class, new Comparator<OfflinePlayer, OfflinePlayer>() {
 			@Override
 			public Relation compare(OfflinePlayer p1, OfflinePlayer p2) {
-				return Relation.get(Objects.equals(p1.getUniqueId(), p2.getUniqueId()));
+				return Relation.get(Objects.equals(p1.getName(), p2.getName()));
 			}
 
 			@Override
@@ -342,13 +341,9 @@ public class DefaultComparators {
 		// OfflinePlayer - String
 		Comparators.registerComparator(OfflinePlayer.class, String.class, new Comparator<OfflinePlayer, String>() {
 			@Override
-			public Relation compare(OfflinePlayer player, String name) {
-				if (Utils.isValidUUID(name)) {
-					UUID uuid = UUID.fromString(name);
-					return Relation.get(player.getUniqueId().equals(uuid));
-				}
-				String playerName = player.getName();
-				return playerName == null ? Relation.NOT_EQUAL : Relation.get(playerName.equalsIgnoreCase(name));
+			public Relation compare(OfflinePlayer p, String name) {
+				String offlineName = p.getName();
+				return offlineName == null ? Relation.NOT_EQUAL : Relation.get(offlineName.equalsIgnoreCase(name));
 			}
 
 			@Override
@@ -356,9 +351,6 @@ public class DefaultComparators {
 				return false;
 			}
 		});
-
-		// OfflinePlayer - UUID
-		Comparators.registerComparator(OfflinePlayer.class, UUID.class, (player, uuid) -> Relation.get(player.getUniqueId().equals(uuid)));
 		
 		// World - String
 		Comparators.registerComparator(World.class, String.class, new Comparator<World, String>() {
@@ -416,7 +408,7 @@ public class DefaultComparators {
 		Comparators.registerComparator(Timespan.class, Timespan.class, new Comparator<Timespan, Timespan>() {
 			@Override
 			public Relation compare(Timespan t1, Timespan t2) {
-				return Relation.get(t1.getAs(Timespan.TimePeriod.MILLISECOND) - t2.getAs(Timespan.TimePeriod.MILLISECOND));
+				return Relation.get(t1.getMilliSeconds() - t2.getMilliSeconds());
 			}
 
 			@Override
@@ -438,25 +430,34 @@ public class DefaultComparators {
 			}
 		});
 		
+		// StructureType - StructureType
+		Comparators.registerComparator(StructureType.class, StructureType.class, new Comparator<StructureType, StructureType>() {
+			@Override
+			public Relation compare(StructureType s1, StructureType s2) {
+				return Relation.get(CollectionUtils.containsAll(s2.getTypes(), s2.getTypes()));
+			}
+
+			@Override
+			public boolean supportsOrdering() {
+				return false;
+			}
+		});
+		
 		// Object - ClassInfo
-		Comparators.registerComparator(Object.class, ClassInfo.class, (object, classInfo) -> {
-			if (classInfo.getC().isInstance(object)) {
-				return Relation.EQUAL;
+		Comparators.registerComparator(Object.class, ClassInfo.class, new Comparator<Object, ClassInfo>() {
+			@Override
+			public Relation compare(Object o, ClassInfo c) {
+				return Relation.get(c.getC().isInstance(o) || o instanceof ClassInfo && c.getC().isAssignableFrom(((ClassInfo<?>) o).getC()));
 			}
-			Class<?> objectClass;
-			// TODO this behavior should be provided via a dedicated API (for handling wrapper classes)
-			if (object instanceof ClassInfo<?> objectClassInfo) {
-				objectClass = objectClassInfo.getC();
-			} else if (object instanceof SkriptPotionEffect) { // compatibility: treat SkriptPotionEffect the same as PotionEffect
-				objectClass = PotionEffect.class;
-			} else {
-				return Relation.NOT_EQUAL;
+
+			@Override
+			public boolean supportsOrdering() {
+				return false;
 			}
-			//noinspection unchecked
-			return Relation.get(classInfo.getC().isAssignableFrom(objectClass));
 		});
 		
 		// DamageCause - ItemType
+		ItemType lava = Aliases.javaItemType("lava");
 		Comparators.registerComparator(DamageCause.class, ItemType.class, new Comparator<DamageCause, ItemType>() {
 			@Override
 			public Relation compare(DamageCause dc, ItemType t) {
@@ -464,13 +465,10 @@ public class DefaultComparators {
 					case FIRE:
 						return Relation.get(t.isOfType(Material.FIRE));
 					case LAVA:
-						return Relation.get(t.getMaterial() == Material.LAVA);
+						return Relation.get(t.equals(lava));
 					case MAGIC:
 						return Relation.get(t.isOfType(Material.POTION));
-					case HOT_FLOOR:
-						return Relation.get(t.isOfType(Material.MAGMA_BLOCK));
 				}
-
 				return Relation.NOT_EQUAL;
 			}
 
@@ -567,54 +565,6 @@ public class DefaultComparators {
 				return false;
 			}
 		});
-
-		// Location - Location
-		Comparators.registerComparator(Location.class, Location.class, new Comparator<Location, Location>() {
-			@Override
-			public Relation compare(Location first, Location second) {
-				return Relation.get(
-						// compare worlds
-						Objects.equals(first.getWorld(), second.getWorld()) &&
-						// compare xyz coords
-						first.toVector().equals(second.toVector()) &&
-						// normalize yaw and pitch to [-180, 180) and [-90, 90] respectively
-						// before comparing them
-						Location.normalizeYaw(first.getYaw()) == Location.normalizeYaw(second.getYaw()) &&
-						Location.normalizePitch(first.getPitch()) == Location.normalizePitch(second.getPitch())
-				);
-			}
-
-			@Override
-			public boolean supportsOrdering() {
-				return false;
-			}
-		});
-
-		// Color - Color
-		Comparators.registerComparator(Color.class, Color.class, (one, two) -> Relation.get(one.asBukkitColor().equals(two.asBukkitColor())));
-		Comparators.registerComparator(Color.class, org.bukkit.Color.class, (one, two) -> Relation.get(one.asBukkitColor().equals(two)));
-		Comparators.registerComparator(org.bukkit.Color.class, org.bukkit.Color.class, (one, two) -> Relation.get(one.equals(two)));
-
-		if (Skript.classExists("org.bukkit.entity.EntitySnapshot")) {
-			boolean SNAPSHOT_AS_STRING_EXISTS = Skript.methodExists(EntitySnapshot.class, "getAsString");
-			Comparators.registerComparator(EntitySnapshot.class, EntitySnapshot.class, new Comparator<EntitySnapshot, EntitySnapshot>() {
-				@Override
-				public Relation compare(EntitySnapshot snap1, EntitySnapshot snap2) {
-					if (!snap1.getEntityType().equals(snap1.getEntityType()))
-						return Relation.NOT_EQUAL;
-					boolean isEqual;
-					if (!SNAPSHOT_AS_STRING_EXISTS)
-						isEqual = snap1.equals(snap2) || snap1.hashCode() == snap2.hashCode();
-					else
-						isEqual = snap1.getAsString().equalsIgnoreCase(snap2.getAsString());
-					return Relation.get(isEqual);
-				}
-			});
-		}
-
-		// UUID
-		Comparators.registerComparator(UUID.class, UUID.class, (one, two) -> Relation.get(one.equals(two)));
-		Comparators.registerComparator(UUID.class, String.class, (one, two) -> Relation.get(one.toString().equals(two)));
 	}
 	
 }

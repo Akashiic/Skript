@@ -1,27 +1,43 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.expressions;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.lang.Expression;
 import ch.njol.skript.lang.ExpressionType;
-import ch.njol.skript.lang.Literal;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.skript.lang.util.SimpleExpression;
 import ch.njol.skript.util.Date;
 import ch.njol.skript.util.Timespan;
 import ch.njol.util.Kleenean;
 import org.bukkit.event.Event;
-import org.jetbrains.annotations.Nullable;
-import ch.njol.skript.lang.simplification.SimplifiedLiteral;
+import org.eclipse.jdt.annotation.Nullable;
 
 @Name("Date Ago/Later")
 @Description("A date the specified timespan before/after another date.")
-@Example("set {_yesterday} to 1 day ago")
-@Example("set {_hourAfter} to 1 hour after {someOtherDate}")
-@Example("set {_hoursBefore} to 5 hours before {someOtherDate}")
+@Examples({"set {_yesterday} to 1 day ago",
+			"set {_hourAfter} to 1 hour after {someOtherDate}",
+			"set {_hoursBefore} to 5 hours before {someOtherDate}"})
 @Since("2.2-dev33")
 public class ExprDateAgoLater extends SimpleExpression<Date> {
 
@@ -68,14 +84,7 @@ public class ExprDateAgoLater extends SimpleExpression<Date> {
         return Date.class;
     }
 
-	@Override
-	public Expression<? extends Date> simplify() {
-		if (date instanceof Literal<Date> && timespan instanceof Literal<Timespan>)
-			return SimplifiedLiteral.fromExpression(this);
-		return this;
-	}
-
-	@Override
+    @Override
     public String toString(@Nullable Event e, boolean debug) {
         return timespan.toString(e, debug) + " " + (ago ? (date != null ? "before " + date.toString(e, debug) : "ago")
 			: (date != null ? "after " + date.toString(e, debug) : "later"));

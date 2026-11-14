@@ -1,15 +1,35 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.effects;
+
+import java.lang.reflect.Method;
 
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
-import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.lang.Effect;
@@ -20,10 +40,8 @@ import ch.njol.util.Kleenean;
 
 @Name("Force Respawn")
 @Description("Forces player(s) to respawn if they are dead. If this is called without delay from death event, one tick is waited before respawn attempt.")
-@Example("""
-	on death of player:
-		force event-player to respawn
-	""")
+@Examples({"on death of player:",
+		"\tforce event-player to respawn",})
 @Since("2.2-dev21")
 public class EffRespawn extends Effect {
 
@@ -46,7 +64,7 @@ public class EffRespawn extends Effect {
 		players = (Expression<Player>) exprs[0];
 		// Force a delay before respawning the player if we're in the death event and there isn't already a delay
 		// Unexpected behavior may occur if we don't do this
-		forceDelay = getParser().isCurrentEvent(EntityDeathEvent.class) && isDelayed.isFalse();
+		forceDelay = getParser().isCurrentEvent(PlayerDeathEvent.class) && isDelayed.isFalse();
 		return true;
 	}
 
@@ -58,12 +76,33 @@ public class EffRespawn extends Effect {
 
 					@Override
 					public void run() {
-						p.spigot().respawn();
+						respawn(p);
 					}
 
 				}.runTaskLater(Skript.getInstance(), 1);
 			} else { // Just respawn
-				p.spigot().respawn();
+				respawn(p);
+			}
+		}
+	}
+
+	private static boolean respawnErrored;
+
+	/**
+	 * Bukkit 1.7.10 has no respawn API, but Spigot-based 1.7.10 servers (Thermos, Crucible, ...)
+	 * have Player.Spigot#respawn(), which is called reflectively since Skript compiles against Bukkit.
+	 */
+	private static void respawn(Player p) {
+		try {
+			// Look the methods up on the public API types: the implementation (CraftPlayer's anonymous
+			// Player.Spigot subclass) isn't public, so invoking its methods reflectively would fail
+			Method spigot = Player.class.getMethod("spigot");
+			Method respawn = spigot.getReturnType().getMethod("respawn");
+			respawn.invoke(spigot.invoke(p));
+		} catch (ReflectiveOperationException | LinkageError ex) {
+			if (!respawnErrored) {
+				respawnErrored = true;
+				Skript.error("Forcing a player to respawn requires a Spigot-based server (Player.Spigot#respawn() is missing)");
 			}
 		}
 	}

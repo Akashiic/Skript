@@ -1,14 +1,32 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.effects;
 
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Explosive;
 import org.bukkit.event.Event;
 import org.bukkit.event.entity.ExplosionPrimeEvent;
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.lang.Effect;
@@ -19,10 +37,8 @@ import ch.njol.util.Kleenean;
 
 @Name("Make Incendiary")
 @Description("Sets if an entity's explosion will leave behind fire. This effect is also usable in an explosion prime event.")
-@Example("""
-	on explosion prime:
-		make the explosion fiery
-	""")
+@Examples({"on explosion prime:",
+			"\tmake the explosion fiery"})
 @Since("2.5")
 public class EffIncendiary extends Effect {
 
@@ -58,9 +74,6 @@ public class EffIncendiary extends Effect {
 	@Override
 	protected void execute(Event e) {
 		if (isEvent) {
-			if (!(e instanceof ExplosionPrimeEvent))
-				return;
-
 			((ExplosionPrimeEvent) e).setFire(causeFire);
 		} else {
 			for (Entity entity : entities.getArray(e)) {

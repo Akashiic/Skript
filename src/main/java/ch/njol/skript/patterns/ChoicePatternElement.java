@@ -1,12 +1,27 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.patterns;
 
-import ch.njol.skript.patterns.SkriptPattern.StringificationProperties;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -21,11 +36,11 @@ public class ChoicePatternElement extends PatternElement {
 	}
 
 	public PatternElement getLast() {
-		return patternElements.getLast();
+		return patternElements.get(patternElements.size() - 1);
 	}
 
 	public void setLast(PatternElement patternElement) {
-		patternElements.removeLast();
+		patternElements.remove(patternElements.size() - 1);
 		patternElements.add(patternElement);
 	}
 
@@ -41,7 +56,8 @@ public class ChoicePatternElement extends PatternElement {
 	}
 
 	@Override
-	public @Nullable MatchResult match(String expr, MatchResult matchResult) {
+	@Nullable
+	public MatchResult match(String expr, MatchResult matchResult) {
 		for (PatternElement patternElement : patternElements) {
 			MatchResult matchResultCopy = matchResult.copy();
 			MatchResult newMatchResult = patternElement.match(expr, matchResultCopy);
@@ -53,21 +69,8 @@ public class ChoicePatternElement extends PatternElement {
 
 	@Override
 	public String toString() {
-		return toString(StringificationProperties.DEFAULT);
-	}
-
-	@Override
-	public String toString(StringificationProperties properties) {
 		return patternElements.stream()
-			.map(element -> element.toFullString(properties))
+			.map(PatternElement::toFullString)
 			.collect(Collectors.joining("|"));
 	}
-
-	@Override
-	public Set<String> getCombinations(boolean clean) {
-		Set<String> combinations = new HashSet<>();
-		patternElements.forEach(patternElement -> combinations.addAll(patternElement.getAllCombinations(clean)));
-		return combinations;
-	}
-
 }

@@ -1,8 +1,26 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.update;
 
 import java.util.concurrent.CompletableFuture;
 
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.util.Task;
@@ -73,7 +91,9 @@ public abstract class Updater {
 	 */
 	public CompletableFuture<UpdateManifest> fetchUpdateManifest() {
 		if (!enabled) {
-			return CompletableFuture.completedFuture(null);
+			CompletableFuture<UpdateManifest> future = CompletableFuture.completedFuture(null);
+			assert future != null;
+			return future;
 		}
 		ReleaseChannel channel = releaseChannel;
 		if (channel == null) {
@@ -91,16 +111,22 @@ public abstract class Updater {
 	public CompletableFuture<Void> checkUpdates() {
 		if (!enabled) {
 			// Release status still unknown
-			return CompletableFuture.completedFuture(null);
+			CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
+			assert future != null;
+			return future;
 		}
 		
 		// Custom releases have updating disabled
 		if (currentRelease.flavor.contains("selfbuilt")) {
 			releaseStatus = ReleaseStatus.CUSTOM;
-			return CompletableFuture.completedFuture(null);
+			CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
+			assert future != null;
+			return future;
 		} else if (currentRelease.flavor.contains("nightly")) {
 			releaseStatus = ReleaseStatus.DEVELOPMENT;
-			return CompletableFuture.completedFuture(null);
+			CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
+			assert future != null;
+			return future;
 		}
 		
 		state = UpdaterState.CHECKING; // We started checking for updates
@@ -119,6 +145,7 @@ public abstract class Updater {
 				long ticks = checkFrequency;
 				if (ticks > 0) {
 					new Task(Skript.getInstance(), ticks, true) {
+						
 						@Override
 						public void run() {
 							checkUpdates();

@@ -1,15 +1,37 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.bukkitutil;
 
-import ch.njol.skript.effects.EffCancelEvent;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Cancellable;
-import org.bukkit.event.Event;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.eclipse.jdt.annotation.Nullable;
 
-import java.util.*;
+import ch.njol.skript.effects.EffCancelEvent;
 
 /**
  * Tracks click events to remove extraneous events for one player click.
@@ -23,15 +45,9 @@ public class ClickEventTracker {
 		 */
 		final Cancellable event;
 		
-		/**
-		 * Hand used in event.
-		 */
-		@SuppressWarnings("unused")
-		final EquipmentSlot hand;
 
-		public TrackedEvent(Cancellable event, EquipmentSlot hand) {
+		public TrackedEvent(Cancellable event) {
 			this.event = event;
-			this.hand = hand;
 		}
 		
 	}
@@ -64,7 +80,18 @@ public class ClickEventTracker {
 	 * @param hand Slot associated with the event.
 	 * @return If the event should be passed to scripts.
 	 */
-	public boolean checkEvent(Player player, Cancellable event, EquipmentSlot hand) {
+	public boolean checkEvent(Player player, Cancellable event, @Nullable Object hand) {
+		return checkEvent(player, event);
+	}
+
+	/**
+	 * Processes a click event from a player. Minecraft 1.7.10 has only one hand,
+	 * so this mostly guards against duplicate events in the same tick.
+	 * @param player Player who caused it.
+	 * @param event The event.
+	 * @return If the event should be passed to scripts.
+	 */
+	public boolean checkEvent(Player player, Cancellable event) {
 		UUID uuid = player.getUniqueId();
 		TrackedEvent first = firstEvents.get(uuid);
 		if (first != null && first.event != event) { // We've checked an event before, and it is not this one
@@ -75,24 +102,18 @@ public class ClickEventTracker {
 			}
 			
 			// Ignore this, but set its cancelled status based on one set to first event
-			if (event instanceof PlayerInteractEvent current) { // Handle use item/block separately
+			if (event instanceof PlayerInteractEvent) { // Handle use item/block separately
 				// Failing to do so caused issue SkriptLang/Skript#2303
-				Cancellable previous = first.event;
-				if (previous instanceof PlayerInteractEvent prevClick) {
-					current.setUseInteractedBlock(prevClick.useInteractedBlock());
-					current.setUseItemInHand(prevClick.useItemInHand());
-				} else {
-					// in case the prev was PlayerInteractEntityEvent
-					Event.Result newResult = previous.isCancelled() ? Event.Result.DENY : Event.Result.DEFAULT;
-					current.setUseInteractedBlock(newResult);
-					current.setUseItemInHand(newResult);
-				}
+				PlayerInteractEvent firstClick = (PlayerInteractEvent) first.event;
+				PlayerInteractEvent click = (PlayerInteractEvent) event;
+				click.setUseInteractedBlock(firstClick.useInteractedBlock());
+				click.setUseItemInHand(firstClick.useItemInHand());
 			} else {
 				event.setCancelled(first.event.isCancelled());
 			}
 			return false;
 		} else { // Remember and run this
-			firstEvents.put(uuid, new TrackedEvent(event, hand));
+			firstEvents.put(uuid, new TrackedEvent(event));
 			return true;
 		}
 	}

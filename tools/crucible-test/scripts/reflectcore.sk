@@ -1,0 +1,310 @@
+skript-reflect, I know what I'm doing:
+	I understand that the following features are experimental and may change in the future.
+	I have read about this at https://tpgamesnl.gitbook.io/skript-reflect/advanced/experiments
+	deferred-parsing
+
+import:
+	java.lang.System
+	java.lang.Math
+	java.lang.Integer
+	java.lang.String as JavaString
+	java.lang.Runnable
+	java.lang.Thread
+	java.util.ArrayList
+	java.util.HashMap
+	java.util.Arrays
+	java.util.concurrent.atomic.AtomicInteger
+	java.util.UUID
+	org.bukkit.Bukkit
+	org.bukkit.Location
+	org.bukkit.Material
+	org.bukkit.entity.Player
+	org.bukkit.event.player.PlayerJoinEvent
+	org.bukkit.event.entity.EntityDamageEvent$DamageCause
+	ch.njol.skript.Skript
+	ch.njol.skript.lang.Variable
+	org.apache.commons.math3.util.ArithmeticUtils
+
+option crb:
+	get:
+		set {_pkg} to Bukkit.getServer().getClass().getPackage().getName()
+		return {_pkg}
+
+import:
+	{@crb}.CraftServer
+
+function rpass(n: text):
+	send "PASS %{_n}%" to console
+
+function rfail(n: text, got: object):
+	send "FAIL %{_n}% got=%{_got}%" to console
+
+function rdouble(x: number) :: number:
+	return {_x} * 2
+
+# ---- custom syntax ----
+effect reflect-test put %objects% in %objects%:
+	parse:
+		expr-2 is an instance of Variable
+		continue
+	trigger:
+		set raw expr-2 to expr-1
+
+expression reflect-test triple of %number%:
+	return type: number
+	get:
+		return expr-1 * 3
+
+expression reflect-test store:
+	return type: object
+	get:
+		return {reflecttest::store}
+	set:
+		set {reflecttest::store} to change value
+	add:
+		add change value to {reflecttest::store}
+	delete:
+		delete {reflecttest::store}
+
+expression reflect-test (1¦alpha|2¦beta) mark:
+	get:
+		return parse mark
+
+condition %number% is reflect-test even:
+	check:
+		continue if mod(expr-1, 2) is 0
+
+number property reflect-test doubled:
+	get:
+		return expr-1 * 2
+
+effect reflect-test delayed:
+	trigger:
+		delay the effect
+		wait 2 ticks
+		send "EFFECT delayed effect ran" to console
+		continue
+
+event "reflect_test_event":
+	pattern: reflect test event
+	event-values: player, number
+
+on reflect test event:
+	set {_tag} to extra data "tag"
+	send "PASS custom event fired (number=%event-number%, data=%{_tag}%)" to console
+
+command /rcore:
+	executable by: console
+	trigger:
+		# imports, statics, instances
+		if "%System%" is "java.lang.System":
+			rpass("import")
+		else:
+			rfail("import", System)
+		set {_v} to System.getProperty("java.version")
+		if {_v} starts with "21":
+			rpass("static method (java %{_v}%)")
+		else:
+			rfail("static method", {_v})
+		if Integer.MAX_VALUE is 2147483647:
+			rpass("static field")
+		else:
+			rfail("static field", Integer.MAX_VALUE)
+		set {_s} to JavaString.format("Hello %%s", "Crucible")
+		if {_s} is "Hello Crucible":
+			rpass("import alias + varargs")
+		else:
+			rfail("import alias + varargs", {_s})
+		if Math.max[int, int](3, 7) is 7:
+			rpass("overload descriptor")
+		else:
+			rfail("overload descriptor", Math.max[int, int](3, 7))
+		# constructors, collections
+		set {_list} to new ArrayList()
+		{_list}.add("a")
+		{_list}.add("b")
+		{_list}.add("c")
+		if {_list}.size() is 3:
+			rpass("constructor + instance methods")
+		else:
+			rfail("constructor + instance methods", {_list}.size())
+		set {_map} to new HashMap()
+		{_map}.put("k", 42)
+		if {_map}.get("k") is 42:
+			rpass("hashmap")
+		else:
+			rfail("hashmap", {_map}.get("k"))
+		# private field in the JDK (needs --add-opens java.base/java.util on Java 9+)
+		set {_ed} to {_list}.[ArrayList]elementData
+		if {_ed} is set:
+			rpass("private JDK field (elementData, first=%{_ed}[0]%)")
+		else:
+			rfail("private JDK field", {_ed})
+		set {_mc} to {_map}.[HashMap]modCount
+		if {_mc} is set:
+			rpass("private field descriptor modCount=%{_mc}%")
+		else:
+			rfail("private field descriptor", {_mc})
+		# fields: set
+		set {_ai} to new AtomicInteger(5)
+		{_ai}.set(10)
+		if {_ai}.get() is 10:
+			rpass("setter")
+		else:
+			rfail("setter", {_ai}.get())
+		set {_loc} to new Location(world "world", 1, 2, 3)
+		set {_loc}.x to 99
+		if {_loc}.getX() is 99:
+			rpass("field change (Location.x)")
+		else:
+			rfail("field change", {_loc}.getX())
+		# arrays, collect, spread
+		set {_arr} to new int[3]
+		set {_arr}[1] to 7
+		if {_arr}[1] is 7:
+			rpass("primitive array set/get")
+		else:
+			rfail("primitive array", {_arr}[1])
+		set {_objs} to [1, "two", 3]
+		if {_objs}[1] is "two":
+			rpass("collect")
+		else:
+			rfail("collect", {_objs}[1])
+		set {_strs} to ["x", "y" as JavaString]
+		set {_joined} to JavaString.join("-", {_strs})
+		if {_joined} is "x-y":
+			rpass("typed collect")
+		else:
+			rfail("typed collect", {_joined})
+		set {_spread::*} to ...{_list}
+		if size of {_spread::*} is 3:
+			rpass("spread")
+		else:
+			rfail("spread", size of {_spread::*})
+		set {_asl} to Arrays.asList(...{_list})
+		if {_asl}.size() is 3:
+			rpass("spread into varargs")
+		else:
+			rfail("spread into varargs", {_asl})
+		# bits, null, enums, inner classes
+		if bit 0 of 5 is 1:
+			rpass("bits")
+		else:
+			rfail("bits", bit 0 of 5)
+		{_map}.put("nothing", null)
+		if {_map}.containsKey("nothing") is true:
+			if {_map}.get("nothing") is not set:
+				rpass("null passed to Java")
+			else:
+				rfail("null passed to Java", {_map}.get("nothing"))
+		else:
+			rfail("null passed to Java", {_map})
+		if "%DamageCause.FALL%" is "FALL":
+			rpass("inner enum import ($)")
+		else:
+			rfail("inner enum import", DamageCause.FALL)
+		if Material.getMaterial(35) is Material.WOOL:
+			rpass("enum comparison")
+		else:
+			rfail("enum comparison", Material.getMaterial(35))
+		# class utilities
+		set {_cls} to the class "org.bukkit.entity.Player"
+		if {_cls} is Player:
+			rpass("class expression")
+		else:
+			rfail("class expression", {_cls})
+		if {_list} is an instance of ArrayList:
+			rpass("instance of")
+		else:
+			rfail("instance of", {_list})
+		set {_mn::*} to method names of {_list}
+		if {_mn::*} contains "add":
+			rpass("method names (%size of {_mn::*}%)")
+		else:
+			rfail("method names", {_mn::*})
+		set {_plugin} to instance of plugin "Skript"
+		if {_plugin} is Skript.getInstance():
+			rpass("plugin instance")
+		else:
+			rfail("plugin instance", {_plugin})
+		if Bukkit.getServer() is an instance of CraftServer:
+			rpass("computed option import ({@crb}.CraftServer)")
+		else:
+			rfail("computed option import", CraftServer)
+		# external library from plugins/skript-reflect
+		if ArithmeticUtils.gcd(12, 18) is 6:
+			rpass("external library (commons-math3)")
+		else:
+			rfail("external library", ArithmeticUtils.gcd(12, 18))
+		# errors
+		set {_bad} to try {_list}.get(10)
+		set {_err} to last java throwable
+		if {_err} is set:
+			rpass("try + last throwable (%{_err}.getClass().getSimpleName()%)")
+		else:
+			rfail("try + last throwable", {_err})
+		# proxies and sections
+		set {_fn::run} to function reference "rpass" called with "proxy run (function reference)"
+		set {_proxy} to new proxy instance of Runnable using {_fn::*}
+		{_proxy}.run()
+		create section with {_x} stored in {_sec}:
+			return {_x} * 10
+		run section {_sec} with 4 and store result in {_r}
+		if {_r} is 40:
+			rpass("section sync")
+		else:
+			rfail("section sync", {_r})
+		run section {_sec} async with 5 and store result in {_r2} and wait
+		if {_r2} is 50:
+			rpass("section async and wait")
+		else:
+			rfail("section async and wait", {_r2})
+		create section stored in {_task::run}:
+			send "PASS proxy scheduled through the Bukkit scheduler" to console
+		set {_task} to new proxy instance of Runnable using {_task::*}
+		Bukkit.getScheduler().runTask(Skript.getInstance(), {_task})
+		create section stored in {_thr::run}:
+			set {reflecttest::thread} to Thread.currentThread().getName()
+		set {_t} to new Thread(new proxy instance of Runnable using {_thr::*})
+		{_t}.start()
+		{_t}.join()
+		if {reflecttest::thread} is set:
+			rpass("proxy on another thread (%{reflecttest::thread}%)")
+		else:
+			rfail("proxy on another thread", {reflecttest::thread})
+		# custom syntax
+		reflect-test put "hello" in {_put}
+		if {_put} is "hello":
+			rpass("custom effect with raw expression")
+		else:
+			rfail("custom effect", {_put})
+		if reflect-test triple of 5 is 15:
+			rpass("custom expression")
+		else:
+			rfail("custom expression", reflect-test triple of 5)
+		set reflect-test store to 10
+		add 5 to reflect-test store
+		if reflect-test store is 15:
+			rpass("custom expression changers")
+		else:
+			rfail("custom expression changers", reflect-test store)
+		delete reflect-test store
+		if reflect-test beta mark is 2:
+			rpass("parse mark")
+		else:
+			rfail("parse mark", reflect-test beta mark)
+		if 4 is reflect-test even:
+			rpass("custom condition")
+		else:
+			rfail("custom condition", 4)
+		if reflect-test doubled of 21 is 42:
+			rpass("custom property")
+		else:
+			rfail("custom property", reflect-test doubled of 21)
+		reflect-test delayed
+		set {_evv::number} to 7
+		set {_evd::tag} to "yes"
+		set {_ev} to a new custom event "reflect_test_event" with event-values {_evv::*} and data {_evd::*}
+		call event {_ev}
+		(parse later) send "PASS deferred parsing" to console
+		send "RCORE done" to console

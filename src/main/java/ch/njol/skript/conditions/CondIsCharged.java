@@ -1,62 +1,53 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.conditions;
 
-import ch.njol.skript.classes.Changer.ChangeMode;
+import org.bukkit.entity.Creeper;
+import org.bukkit.entity.LivingEntity;
+
 import ch.njol.skript.conditions.base.PropertyCondition;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
-import org.bukkit.entity.Creeper;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.Wither;
-import org.bukkit.entity.WitherSkull;
 
 @Name("Is Charged")
-@Description("""
-	Checks if a creeper, wither, or wither skull is charged (powered).
-	Please note that it is not possible to change whether a wither is charged.
-	""")
-@Example("""
-	if the last spawned creeper is charged:
-		broadcast "A charged creeper is at %location of last spawned creeper%"
-	""")
-@Since("2.5, 2.10 (withers, wither skulls)")
-public class CondIsCharged extends PropertyCondition<Entity> {
-
+@Description("Checks if a creeper is charged (powered).")
+@Examples({"if the last spawned creeper is charged:",
+			"\tbroadcast \"A charged creeper is at %location of last spawned creeper%\""})
+@Since("2.5")
+public class CondIsCharged extends PropertyCondition<LivingEntity> {
+	
 	static {
-		register(CondIsCharged.class, "(charged|powered)", "entities");
+		register(CondIsCharged.class, "(charged|powered)", "livingentities");
 	}
-
+	
 	@Override
-	public boolean check(Entity entity) {
-		if (entity instanceof Creeper creeper) {
-			return creeper.isPowered();
-		} else if (entity instanceof WitherSkull witherSkull) {
-			return witherSkull.isCharged();
-		} else if (entity instanceof Wither wither) {
-			return wither.isCharged();
-		}
+	public boolean check(final LivingEntity e) {
+		if (e instanceof Creeper)
+			return ((Creeper) e).isPowered();
 		return false;
 	}
-
-	@Override
-	public boolean acceptChange(ChangeMode mode) {
-		return mode == ChangeMode.SET;
-	}
-
-	@Override
-	protected void change(Entity entity, boolean charged, ChangeMode mode) {
-		switch (entity) {
-			case Creeper creeper -> creeper.setPowered(charged);
-			case WitherSkull witherSkull -> witherSkull.setCharged(charged);
-			case Wither ignored -> error("It is not possible to change whether a wither is charged.");
-			default -> { }
-		}
-	}
-
+	
 	@Override
 	protected String getPropertyName() {
 		return "charged";
 	}
-
+	
 }

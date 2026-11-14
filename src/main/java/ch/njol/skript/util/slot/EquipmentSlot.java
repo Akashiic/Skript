@@ -1,108 +1,99 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.util.slot;
 
-import ch.njol.skript.bukkitutil.BukkitUtils;
-import ch.njol.skript.bukkitutil.PlayerUtils;
-import ch.njol.skript.lang.SyntaxStringBuilder;
-import ch.njol.skript.registrations.Classes;
-import com.google.common.base.Preconditions;
-import org.bukkit.entity.Entity;
+import java.util.Locale;
+
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.inventory.EntityEquipment;
 import org.bukkit.inventory.ItemStack;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
-import java.util.Locale;
+import ch.njol.skript.bukkitutil.PlayerUtils;
+import ch.njol.skript.registrations.Classes;
 
 /**
  * Represents equipment slot of an entity.
  */
 public class EquipmentSlot extends SlotWithIndex {
-
-	/**
-	 * @deprecated Use {@link org.bukkit.inventory.EquipmentSlot}, {@link EntityEquipment} instead. 
-	 */
-	@Deprecated(since = "2.11.0", forRemoval = true)
+	
 	public enum EquipSlot {
 		TOOL {
 			@Override
-			public ItemStack get(final EntityEquipment entityEquipment) {
-				return entityEquipment.getItemInMainHand();
+			@Nullable
+			public ItemStack get(final EntityEquipment e) {
+				return e.getItemInHand();
 			}
 
 			@Override
-			public void set(final EntityEquipment entityEquipment, final @Nullable ItemStack item) {
-				entityEquipment.setItemInMainHand(item);
+			public void set(final EntityEquipment e, final @Nullable ItemStack item) {
+				e.setItemInHand(item);
 			}
-		},
-		OFF_HAND(40) {
-
-			@Override
-			public ItemStack get(EntityEquipment entityEquipment) {
-				return entityEquipment.getItemInOffHand();
-			}
-
-			@Override
-			public void set(EntityEquipment entityEquipment, @Nullable ItemStack item) {
-				entityEquipment.setItemInOffHand(item);
-			}
-			
 		},
 		HELMET(39) {
 			@Override
-			public @Nullable ItemStack get(final EntityEquipment entityEquipment) {
-				return entityEquipment.getHelmet();
+			@Nullable
+			public ItemStack get(final EntityEquipment e) {
+				return e.getHelmet();
 			}
 			
 			@Override
-			public void set(final EntityEquipment entityEquipment, final @Nullable ItemStack item) {
-				entityEquipment.setHelmet(item);
+			public void set(final EntityEquipment e, final @Nullable ItemStack item) {
+				e.setHelmet(item);
 			}
 		},
 		CHESTPLATE(38) {
 			@Override
-			public @Nullable ItemStack get(final EntityEquipment entityEquipment) {
-				return entityEquipment.getChestplate();
+			@Nullable
+			public ItemStack get(final EntityEquipment e) {
+				return e.getChestplate();
 			}
 			
 			@Override
-			public void set(final EntityEquipment entityEquipment, final @Nullable ItemStack item) {
-				entityEquipment.setChestplate(item);
+			public void set(final EntityEquipment e, final @Nullable ItemStack item) {
+				e.setChestplate(item);
 			}
 		},
 		LEGGINGS(37) {
 			@Override
-			public @Nullable ItemStack get(final EntityEquipment entityEquipment) {
-				return entityEquipment.getLeggings();
+			@Nullable
+			public ItemStack get(final EntityEquipment e) {
+				return e.getLeggings();
 			}
 			
 			@Override
-			public void set(final EntityEquipment entityEquipment, final @Nullable ItemStack item) {
-				entityEquipment.setLeggings(item);
+			public void set(final EntityEquipment e, final @Nullable ItemStack item) {
+				e.setLeggings(item);
 			}
 		},
 		BOOTS(36) {
 			@Override
-			public @Nullable ItemStack get(final EntityEquipment entityEquipment) {
-				return entityEquipment.getBoots();
+			@Nullable
+			public ItemStack get(final EntityEquipment e) {
+				return e.getBoots();
 			}
 			
 			@Override
-			public void set(final EntityEquipment entityEquipment, final @Nullable ItemStack item) {
-				entityEquipment.setBoots(item);
-			}
-		},
-		BODY() {
-			@Override
-			public ItemStack get(EntityEquipment entityEquipment) {
-				return entityEquipment.getItem(org.bukkit.inventory.EquipmentSlot.BODY);
-			}
-
-			@Override
-			public void set(EntityEquipment entityEquipment, @Nullable ItemStack item) {
-				entityEquipment.setItem(org.bukkit.inventory.EquipmentSlot.BODY, item);
+			public void set(final EntityEquipment e, final @Nullable ItemStack item) {
+				e.setBoots(item);
 			}
 		};
 		
@@ -111,152 +102,88 @@ public class EquipmentSlot extends SlotWithIndex {
 		EquipSlot() {
 			slotNumber = -1;
 		}
-
+		
 		EquipSlot(int number) {
 			slotNumber = number;
 		}
-
-		public abstract @Nullable ItemStack get(EntityEquipment entityEquipment);
-
-		public abstract void set(EntityEquipment entityEquipment, @Nullable ItemStack item);
-
+		
+		@Nullable
+		public abstract ItemStack get(EntityEquipment e);
+		
+		public abstract void set(EntityEquipment e, @Nullable ItemStack item);
+		
 	}
-
-	private final EntityEquipment entityEquipment;
-	private EquipSlot skriptSlot;
-	private final int slotIndex;
+	
+	private static final EquipSlot[] values = EquipSlot.values();
+	
+	private final EntityEquipment e;
+	private final EquipSlot slot;
 	private final boolean slotToString;
-	private org.bukkit.inventory.EquipmentSlot bukkitSlot;
-
-	/**
-	 * @deprecated Use {@link EquipmentSlot#EquipmentSlot(EntityEquipment, org.bukkit.inventory.EquipmentSlot, boolean)} instead. 
-	 */
-	@Deprecated(since = "2.11.0", forRemoval = true)
-	public EquipmentSlot(@NotNull EntityEquipment entityEquipment, @NotNull EquipSlot skriptSlot, boolean slotToString) {
-		Preconditions.checkNotNull(entityEquipment, "entityEquipment cannot be null");
-		Preconditions.checkNotNull(skriptSlot, "skriptSlot cannot be null");
-		this.entityEquipment = entityEquipment;
-		int slotIndex = -1;
-		if (skriptSlot == EquipSlot.TOOL) {
-			Entity holder = entityEquipment.getHolder();
-			if (holder instanceof Player player)
-				slotIndex = player.getInventory().getHeldItemSlot();
-		}
-		this.slotIndex = slotIndex;
-		this.skriptSlot = skriptSlot;
+	
+	public EquipmentSlot(final EntityEquipment e, final EquipSlot slot, final boolean slotToString) {
+		this.e = e;
+		this.slot = slot;
 		this.slotToString = slotToString;
 	}
-
-	/**
-	 * @deprecated Use {@link EquipmentSlot#EquipmentSlot(EntityEquipment, org.bukkit.inventory.EquipmentSlot)} instead. 
-	 */
-	@Deprecated(since = "2.11.0", forRemoval = true)
-	public EquipmentSlot(@NotNull EntityEquipment entityEquipment, @NotNull EquipSlot skriptSlot) {
-		this(entityEquipment, skriptSlot, false);
+	
+	public EquipmentSlot(final EntityEquipment e, final EquipSlot slot) {
+		this(e, slot, false);
 	}
-
-	public EquipmentSlot(@NotNull EntityEquipment entityEquipment, @NotNull org.bukkit.inventory.EquipmentSlot bukkitSlot, boolean slotToString) {
-		Preconditions.checkNotNull(entityEquipment, "entityEquipment cannot be null");
-		Preconditions.checkNotNull(bukkitSlot, "bukkitSlot cannot be null");
-		this.entityEquipment = entityEquipment;
-		int slotIndex = -1;
-		if (bukkitSlot == org.bukkit.inventory.EquipmentSlot.HAND) {
-			Entity holder = entityEquipment.getHolder();
-			if (holder instanceof Player player)
-				slotIndex = player.getInventory().getHeldItemSlot();
-		}
-		this.slotIndex = slotIndex;
-		this.bukkitSlot = bukkitSlot;
-		this.slotToString = slotToString;
-	}
-
-	public EquipmentSlot(@NotNull EntityEquipment equipment, @NotNull org.bukkit.inventory.EquipmentSlot bukkitSlot) {
-		this(equipment, bukkitSlot, false);
-	}
-
-	public EquipmentSlot(@NotNull HumanEntity holder, int index) {
-		this(holder.getEquipment(), BukkitUtils.getEquipmentSlotFromIndex(index), true);
-	}
-
-	public EquipmentSlot(@NotNull HumanEntity holder, @NotNull org.bukkit.inventory.EquipmentSlot bukkitSlot) {
-		this(holder.getEquipment(), bukkitSlot, true);
+	
+	@SuppressWarnings("null")
+	public EquipmentSlot(HumanEntity holder, int index) {
+		this.e = holder.getEquipment();
+		this.slot = values[41 - index]; // 6 entries in EquipSlot, indices descending
+		// So this math trick gets us the EquipSlot from inventory slot index
+		this.slotToString = true; // Referring to numeric slot id, right?
 	}
 
 	@Override
-	public @Nullable ItemStack getItem() {
-		if (skriptSlot != null)
-			return skriptSlot.get(entityEquipment);
-		return entityEquipment.getItem(bukkitSlot);
+	@Nullable
+	public ItemStack getItem() {
+		return slot.get(e);
 	}
-
+	
 	@Override
-	public void setItem(@Nullable ItemStack item) {
-		if (skriptSlot != null) {
-			skriptSlot.set(entityEquipment, item);
-		} else {
-			entityEquipment.setItem(bukkitSlot, item);
-		}
-		if (entityEquipment.getHolder() instanceof Player player)
-			PlayerUtils.updateInventory(player);
+	public void setItem(final @Nullable ItemStack item) {
+		slot.set(e, item);
+		if (e.getHolder() instanceof Player)
+			PlayerUtils.updateInventory((Player) e.getHolder());
 	}
-
+	
 	@Override
 	public int getAmount() {
-		ItemStack item = getItem();
+		ItemStack item = slot.get(e);
 		return item != null ? item.getAmount() : 0;
 	}
-
+	
 	@Override
 	public void setAmount(int amount) {
-		ItemStack item = getItem();
+		ItemStack item = slot.get(e);
 		if (item != null)
 			item.setAmount(amount);
-		setItem(item);
+		slot.set(e, item);
 	}
-
+	
 	/**
-	 * @deprecated Use {@link EquipmentSlot#EquipmentSlot(EntityEquipment, org.bukkit.inventory.EquipmentSlot)} and {@link #getEquipmentSlot()} instead.
+	 * Gets underlying armor slot enum.
+	 * @return Armor slot.
 	 */
-	@Deprecated(since = "2.11.0", forRemoval = true)
 	public EquipSlot getEquipSlot() {
-		return skriptSlot;
-	}
-
-	/**
-	 * Get the corresponding {@link org.bukkit.inventory.EquipmentSlot}
-	 * @return
-	 */
-	public org.bukkit.inventory.EquipmentSlot getEquipmentSlot() {
-		return bukkitSlot;
+		return slot;
 	}
 
 	@Override
 	public int getIndex() {
-		// use specific slotIndex if available
-		if (slotIndex != -1) {
-			return slotIndex;
-		} else if (skriptSlot != null) {
-			return skriptSlot.slotNumber;
-		} else if (BukkitUtils.getEquipmentSlotIndex(bukkitSlot) != null) {
-			return BukkitUtils.getEquipmentSlotIndex(bukkitSlot);
-		}
-		return -1;
+		return slot.slotNumber;
 	}
 
 	@Override
 	public String toString(@Nullable Event event, boolean debug) {
-		if (slotToString) {
-			SyntaxStringBuilder syntaxBuilder = new SyntaxStringBuilder(event, debug);
-			syntaxBuilder.append("the ");
-			if (skriptSlot != null) {
-				syntaxBuilder.append(skriptSlot.name().toLowerCase(Locale.ENGLISH));
-			} else {
-				syntaxBuilder.append(bukkitSlot.name().replace('_', ' ').toLowerCase(Locale.ENGLISH));
-			}
-			syntaxBuilder.append(" of ").append(Classes.toString(entityEquipment.getHolder()));
-			return syntaxBuilder.toString();
-		}
-		return Classes.toString(getItem());
+		if (slotToString) // Slot to string
+			return "the " + slot.name().toLowerCase(Locale.ENGLISH) + " of " + Classes.toString(e.getHolder()); // TODO localise?
+		else // Contents of slot to string
+			return Classes.toString(getItem());
 	}
-
+	
 }

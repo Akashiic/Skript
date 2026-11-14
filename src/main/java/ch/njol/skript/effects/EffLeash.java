@@ -1,42 +1,55 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.effects;
 
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.event.Event;
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.lang.Effect;
 import ch.njol.skript.lang.Expression;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.util.Kleenean;
-import io.papermc.paper.entity.Leashable;
 
 @Name("Leash entities")
-@Description({
-	"Leash entities to other entities, or unleash them.",
-	"Most mobs, iron golems, snow golems, and boats can be leashed."
-})
-@Example("""
-	on right click:
-		leash event-entity to player
-		send "&aYou leashed &2%event-entity%!" to player
-	""")
-@Since("2.3, 2.16 (all leashable entities)")
+@Description("Leash living entities to other entities.")
+@Examples("leash the player to the target entity")
+@Since("2.3")
 public class EffLeash extends Effect {
 
 	static {
 		Skript.registerEffect(EffLeash.class,
-			"(leash|lead) %entities% to %entity%",
-			"make %entity% (leash|lead) %entities%",
-			"un(leash|lead) [holder of] %entities%");
+			"(leash|lead) %livingentities% to %entity%",
+			"make %entity% (leash|lead) %livingentities%",
+			"un(leash|lead) [holder of] %livingentities%");
 	}
 
+	@SuppressWarnings("null")
 	private Expression<Entity> holder;
-	private Expression<Entity> targets;
+	@SuppressWarnings("null")
+	private Expression<LivingEntity> targets;
 	private boolean leash;
 
 	@Override
@@ -45,23 +58,24 @@ public class EffLeash extends Effect {
 		leash = matchedPattern != 2;
 		if (leash) {
 			holder = (Expression<Entity>) exprs[1 - matchedPattern];
-			targets = (Expression<Entity>) exprs[matchedPattern];
+			targets = (Expression<LivingEntity>) exprs[matchedPattern];
 		} else {
-			targets = (Expression<Entity>) exprs[0];
+			targets = (Expression<LivingEntity>) exprs[0];
 		}
 		return true;
 	}
 
 	@Override
-	protected void execute(Event event) {
-		Entity holder = leash ? this.holder.getSingle(event) : null;
-		if (leash && holder == null)
-			return;
-		
-		for (Entity target : targets.getArray(event)) {
-			if (target instanceof Leashable leashable) {
-				leashable.setLeashHolder(holder);
-			}
+	protected void execute(Event e) {
+		if (leash) {
+			Entity holder = this.holder.getSingle(e);
+			if (holder == null)
+				return;
+			for (LivingEntity target : targets.getArray(e))
+				target.setLeashHolder(holder);
+		} else {
+			for (LivingEntity target : targets.getArray(e))
+				target.setLeashHolder(null);
 		}
 	}
 

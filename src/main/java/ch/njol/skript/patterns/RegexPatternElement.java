@@ -1,13 +1,28 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.patterns;
 
 import ch.njol.skript.lang.SkriptParser;
 import ch.njol.skript.log.ParseLogHandler;
 import ch.njol.skript.log.SkriptLogger;
-import ch.njol.skript.patterns.SkriptPattern.StringificationProperties;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.HashSet;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -23,10 +38,12 @@ public class RegexPatternElement extends PatternElement {
 	}
 
 	@Override
-	public @Nullable MatchResult match(String expr, MatchResult matchResult) {
+	@Nullable
+	public MatchResult match(String expr, MatchResult matchResult) {
 		int exprIndex = matchResult.exprOffset;
 
-		try (ParseLogHandler log = SkriptLogger.startParseLogHandler()) {
+		ParseLogHandler log = SkriptLogger.startParseLogHandler();
+		try {
 			Matcher matcher = pattern.matcher(expr);
 			for (int nextExprOffset = SkriptParser.next(expr, exprIndex, matchResult.parseContext);
 				 nextExprOffset != -1;
@@ -40,9 +57,8 @@ public class RegexPatternElement extends PatternElement {
 
 					MatchResult newMatchResult = matchNext(expr, matchResultCopy);
 					if (newMatchResult != null) {
-						// at this point, all other regex results will have been added
-						// thus, we append first to insert at the correct position
-						newMatchResult.regexResults.addFirst(matcher.toMatchResult());
+						// Append to end of list
+						newMatchResult.regexResults.add(0, matcher.toMatchResult());
 						log.printLog();
 						return newMatchResult;
 					}
@@ -50,22 +66,14 @@ public class RegexPatternElement extends PatternElement {
 			}
 			log.printError(null);
 			return null;
+		} finally {
+			log.stop();
 		}
 	}
 
 	@Override
 	public String toString() {
-		return toString(StringificationProperties.DEFAULT);
-	}
-
-	@Override
-	public String toString(StringificationProperties properties) {
 		return "<" + pattern + ">";
-	}
-
-	@Override
-	public Set<String> getCombinations(boolean clean) {
-		return new HashSet<>(Set.of(toString()));
 	}
 
 }

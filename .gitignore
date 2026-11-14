@@ -17,9 +17,6 @@ local.properties
 .project
 .classpath
 
-### VS CODE ###
-.vscode/
-
 # External tool builders
 .externalToolBuilders/
 
@@ -169,9 +166,6 @@ fabric.properties
 
 # Reason: https://github.com/joeblau/gitignore.io/issues/186#issuecomment-249601023
 
-# Exception for the icon
-!.idea/icon.png
-
 *.iml
 modules.xml
 .idea/misc.xml
@@ -226,9 +220,8 @@ gradle-app.setting
 
 # End of https://www.toptal.com/developers/gitignore/api/intellij+all,gradle,java,eclipse,git
 
-# TODO remove this in the future after some time since https://github.com/SkriptLang/Skript/pull/4979
-# This ensures developers don't upload their old existing test_runners/ folder.
+# Skript test runners
 test_runners/
 
-## Mac MetaData
-**/.DS_Store
+# Compile-only API jars of this build (see build.gradle and scripts/build-crucible-api.sh)
+!lib/*.jar

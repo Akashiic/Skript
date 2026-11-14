@@ -1,10 +1,28 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.localization;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.localization.Language.LanguageListenerPriority;
 import ch.njol.util.NonNullPair;
 import ch.njol.util.StringUtils;
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -45,9 +63,9 @@ public class Noun extends Message {
 		} else {
 			gender = 0;
 		}
-		PluralPair p = Noun.parsePlural(value);
-		singular = p.singular;
-		plural = p.plural;
+		NonNullPair<String, String> p = Noun.getPlural(value);
+		singular = p.getFirst();
+		plural = p.getSecond();
 		if (gender == PLURAL && !Objects.equals(singular, plural))
 			Skript.warning("Noun '" + key + "' is of gender 'plural', but has different singular and plural values.");
 	}
@@ -192,55 +210,31 @@ public class Noun extends Message {
 	}
 	
 	/**
-	 * @param input String with ¦ or : plural markers but without a @gender
+	 * @param s String with ¦ plural markers but without a @gender
 	 * @return (singular, plural)
-	 * @deprecated Use {@link #parsePlural(String)} instead.
 	 */
-	@Deprecated(since = "2.14", forRemoval = true)
-	public static NonNullPair<String, String> getPlural(String input) {
-		PluralPair pair = parsePlural(input);
-		return new NonNullPair<>(pair.singular, pair.plural);
-	}
-
-	/**
-	 * Parses an input string with plural markers into both its singular and plural forms.
-	 * @param input String with ¦ or : plural markers but without an @gender.
-	 * @return (singular, plural). The two will be the same if no markers exist.
-	 */
-	public static PluralPair parsePlural(String input) {
-		StringBuilder singular = new StringBuilder();
-		StringBuilder plural = new StringBuilder();
+	public static NonNullPair<String, String> getPlural(String s) {
+		NonNullPair<String, String> r = new NonNullPair<>("", "");
 		int part = 3; // 1 = singular, 2 = plural, 3 = both
-		char marker = '¦';
-		int markerCount = StringUtils.count(input, marker);
-		if (markerCount == 0 && input.contains(":")) {
-			marker = ':';
-			markerCount = StringUtils.count(input, marker);
-		}
+		int i = StringUtils.count(s, '¦');
 		int last = 0, c = -1;
-		while ((c = input.indexOf(marker, c + 1)) != -1) {
-			String x = input.substring(last, c);
+		while ((c = s.indexOf('¦', c + 1)) != -1) {
+			String x = s.substring(last, c);
 			if ((part & 1) != 0)
-				singular.append(x);
+				r.setFirst(r.getFirst() + x);
 			if ((part & 2) != 0)
-				plural.append(x);
-			part = markerCount >= 2 ? (part % 3) + 1 : (part == 2 ? 3 : 2);
+				r.setSecond(r.getSecond() + x);
+			part = i >= 2 ? (part % 3) + 1 : (part == 2 ? 3 : 2);
 			last = c + 1;
-			markerCount--;
+			i--;
 		}
-		String x = input.substring(last);
+		String x = s.substring(last);
 		if ((part & 1) != 0)
-			singular.append(x);
+			r.setFirst(r.getFirst() + x);
 		if ((part & 2) != 0)
-			plural.append(x);
-		return new PluralPair(singular.toString(), plural.toString());
+			r.setSecond(r.getSecond() + x);
+		return r;
 	}
-
-	/**
-	 * @param singular The singular version of the parsed input.
-	 * @param plural The plural version of the parsed input if it exists, or a copy of the singular version.
-	 */
-	public record PluralPair(String singular, String plural) {}
 	
 	/**
 	 * Normalizes plural markers, i.e. increases the total number of markers to a multiple of 3 without changing the string's meaning.
@@ -347,24 +341,13 @@ public class Noun extends Message {
 			definitePluralArticle = dpa == null ? "" : dpa;
 		}, LanguageListenerPriority.EARLIEST);
 	}
-
+	
 	public static String stripIndefiniteArticle(String s) {
 		for (String a : indefiniteArticles) {
 			if (StringUtils.startsWithIgnoreCase(s, a + " "))
 				return "" + s.substring(a.length() + 1);
 		}
 		return s;
-	}
-
-	/**
-	 * Removes definite articles, such as 'the', from the provided {@code string}.
-	 */
-	public static String stripDefiniteArticle(String string) {
-		for (String article : definiteArticles) {
-			if (StringUtils.startsWithIgnoreCase(string, article + " "))
-				return string.substring(article.length() + 1);
-		}
-		return string;
 	}
 	
 	public static boolean isIndefiniteArticle(String s) {

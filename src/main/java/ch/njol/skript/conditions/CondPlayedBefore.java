@@ -1,8 +1,26 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.conditions;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.lang.Condition;
@@ -11,14 +29,16 @@ import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.util.Kleenean;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.event.Event;
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
 @Name("Has Played Before")
 @Description("Checks whether a player has played on this server before. You can also use " +
-	"<a href='#first_join'>on first join</a> if you want to make triggers for new players.")
-@Example("player has played on this server before")
-@Example("player hasn't played before")
-@Since("1.4, 2.7 (multiple players)")
+	"<a href='events.html#first_join'>on first join</a> if you want to make triggers for new players.")
+@Examples({
+	"player has played on this server before",
+	"player hasn't played before"
+})
+@Since("1.4, INSERT VERSION (multiple players)")
 public class CondPlayedBefore extends Condition {
 	
 	static {

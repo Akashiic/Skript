@@ -1,3 +1,21 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.patterns;
 
 import ch.njol.skript.lang.SkriptParser;
@@ -24,10 +42,8 @@ public class PatternCompiler {
 
 	/**
 	 * Parses a pattern String into a {@link SkriptPattern}.
-	 *
-	 * @throws MalformedPatternException when the given pattern is malformed.
 	 */
-	public static SkriptPattern compile(String pattern) throws MalformedPatternException {
+	public static SkriptPattern compile(String pattern) {
 		AtomicInteger atomicInteger = new AtomicInteger(0);
 		try {
 			PatternElement first = compile(pattern, atomicInteger);
@@ -45,14 +61,14 @@ public class PatternCompiler {
 	 * {@link TypePatternElement} should be initiated with.
 	 * @return The first link of the {@link PatternElement} chain
 	 */
-	static PatternElement compile(String pattern, AtomicInteger expressionOffset) {
+	private static PatternElement compile(String pattern, AtomicInteger expressionOffset) {
 		StringBuilder literalBuilder = new StringBuilder();
 		PatternElement first = null;
 
 		for (int i = 0; i < pattern.length(); i++) {
 			char c = pattern.charAt(i);
 			if (c == '[') {
-				if (!literalBuilder.isEmpty()) {
+				if (literalBuilder.length() != 0) {
 					first = appendElement(first, new LiteralPatternElement(literalBuilder.toString()));
 					literalBuilder = new StringBuilder();
 				}
@@ -64,7 +80,7 @@ public class PatternCompiler {
 
 				i = end;
 			} else if (c == '(') {
-				if (!literalBuilder.isEmpty()) {
+				if (literalBuilder.length() != 0) {
 					first = appendElement(first, new LiteralPatternElement(literalBuilder.toString()));
 					literalBuilder = new StringBuilder();
 				}
@@ -76,7 +92,7 @@ public class PatternCompiler {
 
 				i = end;
 			} else if (c == '|') {
-				if (!literalBuilder.isEmpty()) {
+				if (literalBuilder.length() != 0) {
 					first = appendElement(first, new LiteralPatternElement(literalBuilder.toString()));
 					literalBuilder = new StringBuilder();
 				}
@@ -110,7 +126,7 @@ public class PatternCompiler {
 
 				first = appendElement(first, parseTagPatternElement);
 			} else if (c == '%') {
-				if (!literalBuilder.isEmpty()) {
+				if (literalBuilder.length() != 0) {
 					first = appendElement(first, new LiteralPatternElement(literalBuilder.toString()));
 					literalBuilder = new StringBuilder();
 				}
@@ -125,7 +141,7 @@ public class PatternCompiler {
 
 				i = end;
 			} else if (c == '<') {
-				if (!literalBuilder.isEmpty()) {
+				if (literalBuilder.length() != 0) {
 					first = appendElement(first, new LiteralPatternElement(literalBuilder.toString()));
 					literalBuilder = new StringBuilder();
 				}
@@ -152,7 +168,7 @@ public class PatternCompiler {
 			}
 		}
 
-		if (!literalBuilder.isEmpty()) {
+		if (literalBuilder.length() != 0) {
 			first = appendElement(first, new LiteralPatternElement(literalBuilder.toString()));
 		}
 
@@ -168,30 +184,24 @@ public class PatternCompiler {
 	 * Returns the new first element of the list.
 	 */
 	private static PatternElement appendElement(@Nullable PatternElement first, PatternElement next) {
-		// if "first" is null or not meaningful (empty), simply return "next"
-		if (first == null || (first instanceof LiteralPatternElement literalPatternElement && first.next == null && literalPatternElement.isEmpty())) {
+		if (first == null || (first instanceof LiteralPatternElement && first.next == null && ((LiteralPatternElement) first).isEmpty())) {
 			return next;
-		}
+		} else {
+			if (first instanceof ChoicePatternElement) {
+				ChoicePatternElement choicePatternElement = (ChoicePatternElement) first;
+				PatternElement last = choicePatternElement.getLast();
+				choicePatternElement.setLast(appendElement(last, next));
+				return first;
+			}
 
-		// if appending to a choice, we need to append to the last choice
-		// ex: appending "hello" to "a|b", result should be "a|b hello" where the choices are "a" and "b hello"
-		if (first instanceof ChoicePatternElement choicePatternElement) {
-			PatternElement last = choicePatternElement.getLast();
-			choicePatternElement.setLast(appendElement(last, next));
+			PatternElement last = first;
+			while (last.next != null)
+				last = last.next;
+
+			last.setNext(next);
+			last.originalNext = next;
 			return first;
 		}
-
-		// get last element
-		PatternElement last = first;
-		while (last.next != null) {
-			last = last.next;
-		}
-
-		// append to this element
-		last.setNext(next);
-		last.originalNext = next;
-
-		return first;
 	}
 
 }

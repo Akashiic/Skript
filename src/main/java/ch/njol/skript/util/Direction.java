@@ -1,4 +1,39 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.util;
+
+import java.io.StreamCorruptedException;
+import java.lang.reflect.Field;
+import java.util.Arrays;
+import java.util.Locale;
+
+import ch.njol.skript.Skript;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
+import org.bukkit.entity.Entity;
+import org.bukkit.event.Event;
+import org.bukkit.material.Directional;
+import org.bukkit.util.Vector;
+import org.eclipse.jdt.annotation.NonNull;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.lang.Expression;
 import ch.njol.skript.lang.Literal;
@@ -11,20 +46,6 @@ import ch.njol.skript.localization.Noun;
 import ch.njol.util.Kleenean;
 import ch.njol.yggdrasil.Fields.FieldContext;
 import ch.njol.yggdrasil.YggdrasilSerializable.YggdrasilRobustSerializable;
-import org.bukkit.Location;
-import org.bukkit.block.Block;
-import org.bukkit.block.BlockFace;
-import org.bukkit.block.data.BlockData;
-import org.bukkit.entity.Entity;
-import org.bukkit.event.Event;
-import org.bukkit.util.Vector;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import java.io.StreamCorruptedException;
-import java.lang.reflect.Field;
-import java.util.Arrays;
-import java.util.Locale;
 
 /**
  * @author Peter Güttinger
@@ -41,6 +62,7 @@ public class Direction implements YggdrasilRobustSerializable {
 	public final static Direction IDENTITY = new Direction(0, 0, 1);
 	
 	public final static BlockFace BF_X = findFace(1, 0, 0), BF_Y = findFace(0, 1, 0), BF_Z = findFace(0, 0, 1);
+
 
 	private static BlockFace findFace(final int x, final int y, final int z) {
 		for (final BlockFace f : BlockFace.values()) {
@@ -94,7 +116,7 @@ public class Direction implements YggdrasilRobustSerializable {
 		yawOrY = v.getY();
 		lengthOrZ = v.getZ();
 	}
-
+	
 	public Location getRelative(final Location l) {
 		return l.clone().add(getDirection(l));
 	}
@@ -106,17 +128,7 @@ public class Direction implements YggdrasilRobustSerializable {
 	public Location getRelative(final Block b) {
 		return b.getLocation().add(getDirection(b));
 	}
-
-	/*
-	 * Used to get a vector from a direction without anything to be relative to.
-	 * Any relative directions will be relative to 0 degrees pitch and yaw.
-	 */
-	public Vector getDirection() {
-		if (!relative)
-			return new Vector(pitchOrX, yawOrY, lengthOrZ);
-		return getDirection(0, 0);
-	}
-
+	
 	public Vector getDirection(final Location l) {
 		if (!relative)
 			return new Vector(pitchOrX, yawOrY, lengthOrZ);
@@ -203,10 +215,10 @@ public class Direction implements YggdrasilRobustSerializable {
 	 */
 	@SuppressWarnings("deprecation")
 	public static BlockFace getFacing(Block b) {
-		BlockData blockData = b.getBlockData();
-		if (!(blockData instanceof org.bukkit.block.data.Directional))
+		Material m = b.getType();
+		if (!Directional.class.isAssignableFrom(m.getData()))
 			return BlockFace.SELF;
-		return ((org.bukkit.block.data.Directional) blockData).getFacing();
+		return ((Directional) m.getNewData(b.getData())).getFacing();
 	}
 	
 	public static BlockFace getFacing(final double yaw, final double pitch) {
@@ -263,48 +275,6 @@ public class Direction implements YggdrasilRobustSerializable {
 			}
 		}
 		return r;
-	}
-
-	/**
-	 * Calculates the nearest {@link BlockFace} to an arbitrary unit {@link Vector}.
-	 *
-	 * @param vector a normalized vector
-	 * @return the block face most closely aligned to the input vector
-	 */
-	public static BlockFace toNearestBlockFace(Vector vector) {
-		double maxDot = -1;
-		double dot;
-		BlockFace nearest = BlockFace.NORTH;
-		for (BlockFace face : BlockFace.values()){
-			dot = face.getDirection().dot(vector);
-			if (dot > maxDot) {
-				maxDot = dot;
-				nearest = face;
-			}
-		}
-		return nearest;
-	}
-
-	/**
-	 * Calculates the nearest cartesian {@link BlockFace} to an arbitrary unit {@link Vector}.
-	 *
-	 * @param vector a normalized vector
-	 * @return the block face most closely aligned to the input vector
-	 */
-	public static @Nullable BlockFace toNearestCartesianBlockFace(Vector vector) {
-		double maxDot = -1;
-		double dot;
-		BlockFace nearest = null;
-		for (BlockFace face : new BlockFace[] {
-				BlockFace.NORTH, BlockFace.EAST, BlockFace.SOUTH, BlockFace.WEST,
-				BlockFace.UP, BlockFace.DOWN}) {
-			dot = face.getDirection().dot(vector);
-			if (dot > maxDot) {
-				maxDot = dot;
-				nearest = face;
-			}
-		}
-		return nearest;
 	}
 	
 	@Override
@@ -371,8 +341,7 @@ public class Direction implements YggdrasilRobustSerializable {
 	}
 	
 //		return "" + relative + ":" + (relative ? pitch + "," + yaw + "," + length : mod[0] + "," + mod[1] + "," + mod[2]);
-
-	@Deprecated(since = "2.3.0", forRemoval = true)
+	@Deprecated
 	@Nullable
 	public static Direction deserialize(final String s) {
 		final String[] split = s.split(":");
@@ -399,18 +368,8 @@ public class Direction implements YggdrasilRobustSerializable {
 			}
 		}
 	}
-
-	/*
-	 * Combines direction and location expressions.
-	 * Useful for syntaxes to allow Skripters to have more control over their locations.
-	 * @param dirs The direction expressions to combine.
-	 * @param locs The location expressions to combine.
-	 * @return A combined expression or null if any of the inputs are null.
-	 */
-	public static @Nullable Expression<Location> combine(@Nullable Expression<? extends Direction> dirs, @Nullable Expression<? extends Location> locs) {
-		if (dirs == null || locs == null)
-			return null;
-
+	
+	public static Expression<Location> combine(final Expression<? extends Direction> dirs, final Expression<? extends Location> locs) {
 		return new SimpleExpression<Location>() {
 			@SuppressWarnings("null")
 			@Override
@@ -472,37 +431,7 @@ public class Direction implements YggdrasilRobustSerializable {
 			@Override
 			public Expression<? extends Location> simplify() {
 				if (dirs instanceof Literal && dirs.isSingle() && Direction.ZERO.equals(((Literal<?>) dirs).getSingle())) {
-					return new SimpleExpression<>() {
-						@Override
-						public boolean init(Expression<?>[] expressions, int matchedPattern, Kleenean isDelayed, ParseResult parseResult) {
-							throw new UnsupportedOperationException();
-						}
-
-						@Override
-						protected Location @Nullable [] get(Event event) {
-							return locs.getAll(event);
-						}
-
-						@Override
-						public boolean getAnd() {
-							return locs.getAnd();
-						}
-
-						@Override
-						public boolean isSingle() {
-							return locs.isSingle();
-						}
-
-						@Override
-						public Class<? extends Location> getReturnType() {
-							return Location.class;
-						}
-
-						@Override
-						public String toString(@Nullable Event event, boolean debug) {
-							return "at " + locs.toString(event, debug);
-						}
-					};
+					return locs;
 				}
 				return this;
 			}
@@ -510,7 +439,7 @@ public class Direction implements YggdrasilRobustSerializable {
 	}
 	
 	@Override
-	public boolean incompatibleField(@NotNull final Field f, @NotNull final FieldContext value) throws StreamCorruptedException {
+	public boolean incompatibleField(@NonNull final Field f, @NonNull final FieldContext value) throws StreamCorruptedException {
 		return false;
 	}
 	
@@ -531,7 +460,7 @@ public class Direction implements YggdrasilRobustSerializable {
 	}
 	
 	@Override
-	public boolean excessiveField(@NotNull final FieldContext field) throws StreamCorruptedException {
+	public boolean excessiveField(@NonNull final FieldContext field) throws StreamCorruptedException {
 		if (field.getID().equals("mod")) {
 			final double[] mod = field.getObject(double[].class);
 			if (mod == null)
@@ -557,7 +486,7 @@ public class Direction implements YggdrasilRobustSerializable {
 	}
 	
 	@Override
-	public boolean missingField(@NotNull final Field field) throws StreamCorruptedException {
+	public boolean missingField(@NonNull final Field field) throws StreamCorruptedException {
 		if (!field.getName().equals("relative"))
 			return true;
 		return false;

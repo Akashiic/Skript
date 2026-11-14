@@ -1,14 +1,33 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.util;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
+import ch.njol.skript.bukkitutil.WorldUtils;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.util.Vector;
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
 import ch.njol.util.Math2;
@@ -46,7 +65,7 @@ public class AABB implements Iterable<Block> {
 	public AABB(final Location center, final double rX, final double rY, final double rZ) {
 		assert rX >= 0 && rY >= 0 && rZ >= 0 : rX + "," + rY + "," + rY;
 		world = center.getWorld();
-		int min = world.getMinHeight();
+		int min = WorldUtils.getWorldMinHeight(world);
 		lowerBound = new Vector(center.getX() - rX, Math.max(center.getY() - rY, min), center.getZ() - rZ);
 		upperBound = new Vector(center.getX() + rX, Math.min(center.getY() + rY, world.getMaxHeight() - 1), center.getZ() + rZ);
 	}
@@ -59,7 +78,7 @@ public class AABB implements Iterable<Block> {
 	
 	public AABB(final Chunk c) {
 		world = c.getWorld();
-		int min = world.getMinHeight();
+		int min = WorldUtils.getWorldMinHeight(world);
 		lowerBound = c.getBlock(0, min, 0).getLocation().toVector();
 		upperBound = c.getBlock(15, world.getMaxHeight() - 1, 15).getLocation().toVector();
 	}
@@ -90,16 +109,16 @@ public class AABB implements Iterable<Block> {
 	@Override
 	public Iterator<Block> iterator() {
 		return new Iterator<Block>() {
-			private final int minX = (int) Math2.ceil(lowerBound.getX());
-			private final int minY = (int) Math2.ceil(lowerBound.getY());
-			private final int minZ = (int) Math2.ceil(lowerBound.getZ());
-			private final int maxX = (int) Math2.floor(upperBound.getX());
-			private final int maxY = (int) Math2.floor(upperBound.getY());
-			private final int maxZ = (int) Math2.floor(upperBound.getZ());
+			private final int minX = Math2.ceilI(lowerBound.getX() - Skript.EPSILON),
+					minY = Math2.ceilI(lowerBound.getY() - Skript.EPSILON),
+					minZ = Math2.ceilI(lowerBound.getZ() - Skript.EPSILON);
+			private final int maxX = Math2.floorI(upperBound.getX() + Skript.EPSILON),
+					maxY = Math2.floorI(upperBound.getY() + Skript.EPSILON),
+					maxZ = Math2.floorI(upperBound.getZ() + Skript.EPSILON);
 			
-			private int x = minX - 1; // next() increases x by one immediately
-			private int y = minY;
-			private int z = minZ;
+			private int x = minX - 1,// next() increases x by one immediately
+					y = minY,
+					z = minZ;
 			
 			@Override
 			public boolean hasNext() {

@@ -1,121 +1,64 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.util;
 
 import ch.njol.skript.lang.Expression;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.skript.lang.SyntaxElement;
 import ch.njol.util.Kleenean;
-import org.jetbrains.annotations.Nullable;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 
 /**
- * A helper class useful when an expression/condition/effect/etc. needs to associate additional data with each pattern.
+ * A helper class useful when a expression/condition/effect/etc. needs to associate additional data with each pattern.
+ * 
+ * @author Peter Güttinger
  */
 public class Patterns<T> {
 	
 	private final String[] patterns;
-	private final Object[] types;
-	private final Map<Object, List<Integer>> matchedPatterns = new HashMap<>();
-
+	private final Object[] ts;
+	
 	/**
-	 * Creates a new {@link Patterns} with a provided {@link Object[][]} in the form of
-	 * <code>
-	 *     {{String, T}, {String, T}, ...}
-	 *     {{pattern, correlating object}}
-	 * </code>
+	 * @param info An array which must be like {{String, T}, {String, T}, ...}
 	 */
-	public Patterns(Object[][] info) {
+	public Patterns(final Object[][] info) {
 		patterns = new String[info.length];
-		types = new Object[info.length];
+		ts = new Object[info.length];
 		for (int i = 0; i < info.length; i++) {
-			if (info[i].length != 2 || !(info[i][0] instanceof String))
+			if (info[i].length != 2 || !(info[i][0] instanceof String) || info[i][1] == null)
 				throw new IllegalArgumentException("given array is not like {{String, T}, {String, T}, ...}");
 			patterns[i] = (String) info[i][0];
-			types[i] = info[i][1];
-			matchedPatterns.computeIfAbsent(info[i][1], list -> new ArrayList<>()).add(i);
+			ts[i] = info[i][1];
 		}
 	}
-
-	/**
-	 * Creates a new {@link Patterns} with the provided paired inputs.
-	 * @param info Pattern-Value pairs, for example:
-	 * <code>
-	 * new Patterns("pattern1", value1, "pattern2", value2);
-	 * </code>
-	 */
-	public Patterns(Object... info) {
-		patterns = new String[info.length / 2];
-		types = new Object[info.length / 2];
-		for (int i = 0; i < info.length; i += 2) {
-			int pattern = i / 2;
-			patterns[pattern] = (String) info[i];
-			types[pattern] = info[i + 1];
-			matchedPatterns.computeIfAbsent(info[i + 1], list -> new ArrayList<>()).add(pattern);
-		}
-	}
-
-	/**
-	 * Returns an array of the registered patterns.
-	 * @return An {@link java.lang.reflect.Array} of {@link String}s.
-	 */
+	
 	public String[] getPatterns() {
 		return patterns;
 	}
 	
 	/**
-	 * Returns the typed object {@link T} correlating to {@code matchedPattern}.
-	 *
 	 * @param matchedPattern The pattern to get the data to as given in {@link SyntaxElement#init(Expression[], int, Kleenean, ParseResult)}
 	 * @return The info associated with the matched pattern
 	 * @throws ClassCastException If the item in the source array is not of the requested type
 	 */
-	public T getInfo(int matchedPattern) {
-		Object object = types[matchedPattern];
-		if (object == null)
-			return null;
-		//noinspection unchecked
-		return (T) object;
-	}
-
-	/**
-	 * Retrieves all pattern indices that are associated with {@code type}.
-	 * <p>
-	 *     These indices represent the positions of matched patterns registered
-	 *     for the provided typed object.
-	 * </p>
-	 *
-	 * @param type The typed object to look up.
-	 * @return An array of matched pattern indices, or {@code null} if no patterns are registered for the given type.
-	 */
-	public Integer @Nullable [] getMatchedPatterns(@Nullable T type) {
-		if (matchedPatterns.containsKey(type))
-			return matchedPatterns.get(type).toArray(Integer[]::new);
-		return null;
-	}
-
-	/**
-	 * Retrieves the index of a specific matched pattern for the give {@code type}, based on the provided {@code arrayIndex}.
-	 * <p>
-	 *     This method looks up all matched pattern indices for the specified type and returns the index at {@code arrayIndex},
-	 *     if it exists.
-	 * </p>
-	 *
-	 * @param type The object whose registered patterns should be retrieved.
-	 * @param arrayIndex The position in the matched pattern array to retrieve/
-	 * @return An {@link Optional} containing the matched pattern index at the specified position, 
-	 *			or {@link Optional#empty()} if no patterns are registered for {@code type}
-	 *			or if the array does not contain enough elements.
-	 * @see #getMatchedPatterns(Object) 	
-	 */
-	public Optional<Integer> getMatchedPattern(@Nullable T type, int arrayIndex) {
-		Integer[] patternIndices = getMatchedPatterns(type);
-		if (patternIndices == null || patternIndices.length < arrayIndex + 1)
-			return Optional.empty();
-		return Optional.of(patternIndices[arrayIndex]);
+	@SuppressWarnings({"unchecked", "null"})
+	public T getInfo(final int matchedPattern) {
+		return (T) ts[matchedPattern];
 	}
 	
 }

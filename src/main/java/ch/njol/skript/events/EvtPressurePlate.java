@@ -1,12 +1,29 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.events;
 
 import org.bukkit.Material;
-import org.bukkit.Tag;
 import org.bukkit.block.Block;
 import org.bukkit.event.Event;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.aliases.Aliases;
@@ -19,7 +36,6 @@ import ch.njol.skript.lang.SkriptParser.ParseResult;
  * @author Peter Güttinger
  */
 public class EvtPressurePlate extends SkriptEvent {
-
 	static {
 		// TODO is EntityInteractEvent similar for entities?
 		Skript.registerEvent("Pressure Plate / Trip", EvtPressurePlate.class, PlayerInteractEvent.class,
@@ -30,6 +46,8 @@ public class EvtPressurePlate extends SkriptEvent {
 				.since("1.0 (pressure plate), 1.4.4 (tripwire)");
 	}
 	
+	private static final ItemType plate = Aliases.javaItemType("pressure plate");
+	
 	private boolean tripwire;
 	
 	@Override
@@ -37,19 +55,14 @@ public class EvtPressurePlate extends SkriptEvent {
 		tripwire = matchedPattern == 1;
 		return true;
 	}
-
+	
 	@Override
-	public boolean check(Event event) {
-		PlayerInteractEvent interactEvent = (PlayerInteractEvent) event;
-		Block clickedBlock = interactEvent.getClickedBlock();
-		Material type = clickedBlock == null ? null : clickedBlock.getType();
-		if (type == null || interactEvent.getAction() != Action.PHYSICAL)
-			return false;
-
-		if (tripwire)
-			return(type == Material.TRIPWIRE || type == Material.TRIPWIRE_HOOK);
-
-		return Tag.PRESSURE_PLATES.isTagged(type);
+	public boolean check(final Event e) {
+		final Block b = ((PlayerInteractEvent) e).getClickedBlock();
+		final Material type = b == null ? null : b.getType();
+		return type != null && ((PlayerInteractEvent) e).getAction() == Action.PHYSICAL &&
+				(tripwire ? (type == Material.TRIPWIRE || type == Material.TRIPWIRE_HOOK)
+						: plate.isOfType(type));
 	}
 	
 	@Override

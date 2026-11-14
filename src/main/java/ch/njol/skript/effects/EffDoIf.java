@@ -1,12 +1,29 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.effects;
 
-import ch.njol.skript.lang.ExecutionIntent;
 import org.bukkit.event.Event;
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.lang.Condition;
@@ -18,10 +35,8 @@ import ch.njol.util.Kleenean;
 
 @Name("Do If")
 @Description("Execute an effect if a condition is true.")
-@Example("""
-	on join:
-		give a diamond to the player if the player has permission "rank.vip"
-	""")
+@Examples({"on join:",
+		"\tgive a diamond to the player if the player has permission \"rank.vip\""})
 @Since("2.3")
 public class EffDoIf extends Effect  {
 
@@ -46,19 +61,7 @@ public class EffDoIf extends Effect  {
 			return false;
 		}
 		condition = Condition.parse(cond, "Can't understand this condition: " + cond);
-
-		if (effect == null || condition == null) {
-			return false;
-		}
-
-		// handle special hint cases
-		// if this statement could result in execution stopping, we want to pass up hints
-		if (effect.executionIntent() instanceof ExecutionIntent.StopSections intent) {
-			// copy up current hints
-			getParser().getHintManager().mergeScope(0, intent.levels(), true);
-		}
-
-		return true;
+		return effect != null && condition != null;
 	}
 
 	@Override

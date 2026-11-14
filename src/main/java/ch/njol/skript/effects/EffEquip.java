@@ -1,202 +1,153 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.effects;
 
+import org.bukkit.Material;
+import org.bukkit.entity.Horse;
+import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Pig;
+import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
+import org.bukkit.inventory.EntityEquipment;
+import org.bukkit.inventory.HorseInventory;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
+import org.eclipse.jdt.annotation.Nullable;
+
 import ch.njol.skript.Skript;
+import ch.njol.skript.aliases.Aliases;
 import ch.njol.skript.aliases.ItemType;
 import ch.njol.skript.bukkitutil.PlayerUtils;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.lang.Effect;
 import ch.njol.skript.lang.Expression;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
+import ch.njol.skript.lang.Testable;
 import ch.njol.util.Kleenean;
-import org.bukkit.Material;
-import org.bukkit.Tag;
-import org.bukkit.entity.AbstractHorse;
-import org.bukkit.entity.ChestedHorse;
-import org.bukkit.entity.Horse;
-import org.bukkit.entity.LivingEntity;
-import org.bukkit.entity.Llama;
-import org.bukkit.entity.Mob;
-import org.bukkit.entity.Player;
-import org.bukkit.entity.Steerable;
-import org.bukkit.entity.Wolf;
-import org.bukkit.event.Event;
-import org.bukkit.inventory.AbstractHorseInventory;
-import org.bukkit.inventory.EntityEquipment;
-import org.bukkit.inventory.EquipmentSlot;
-import org.bukkit.inventory.HorseInventory;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.LlamaInventory;
-import org.jetbrains.annotations.Nullable;
-import org.jetbrains.annotations.UnknownNullability;
 
+/**
+ * @author Peter Güttinger
+ */
 @Name("Equip")
-@Description({
-	"Equips or unequips an entity with the given itemtypes (usually armor).",
-	"This effect will replace any armor that the entity is already wearing."
-})
-@Example("equip player with diamond helmet")
-@Example("equip player with diamond leggings, diamond chestplate, and diamond boots")
-@Example("unequip diamond chestplate from player")
-@Example("unequip player's armor")
-@Since({"1.0", "2.7 (multiple entities, unequip)"})
-public class EffEquip extends Effect {
-
-	private static final ItemType CHESTPLATE = new ItemType(Tag.ITEMS_CHEST_ARMOR);
-	private static final ItemType LEGGINGS = new ItemType(Tag.ITEMS_LEG_ARMOR);
-	private static final ItemType BOOTS = new ItemType(Tag.ITEMS_FOOT_ARMOR);
-	private static final ItemType CARPET = new ItemType(Tag.WOOL_CARPETS);
-	private static final ItemType WOLF_ARMOR = new ItemType(Material.WOLF_ARMOR);
-	private static final ItemType HORSE_ARMOR = new ItemType(Material.LEATHER_HORSE_ARMOR, Material.IRON_HORSE_ARMOR, Material.GOLDEN_HORSE_ARMOR, Material.DIAMOND_HORSE_ARMOR);
-	private static final ItemType SADDLE = new ItemType(Material.SADDLE);
-	private static final ItemType CHEST = new ItemType(Material.CHEST);
-	private static final ItemType HAPPY_GHAST_HARNESS;
-
-	private static final Class<?> HAPPY_GHAST_CLASS;
-
-	static {
-		// added in 1.21.6
-		if (Skript.fieldExists(Tag.class, "ITEMS_HARNESSES")) {
-			HAPPY_GHAST_HARNESS = new ItemType(Tag.ITEMS_HARNESSES);
-			try {
-				HAPPY_GHAST_CLASS = Class.forName("org.bukkit.entity.HappyGhast");
-			} catch (ClassNotFoundException e) {
-				throw new RuntimeException(e);
-			}
-		} else {
-			HAPPY_GHAST_HARNESS = new ItemType();
-			HAPPY_GHAST_CLASS = null;
-		}
-	}
-
-	private static final ItemType[] ALL_EQUIPMENT = new ItemType[] {CHESTPLATE, LEGGINGS, BOOTS, HORSE_ARMOR, SADDLE, CHEST, CARPET, WOLF_ARMOR, HAPPY_GHAST_HARNESS};
-
+@Description("Equips an entity with some given armor. This will replace any armor that the entity is wearing.")
+@Examples({"equip player with diamond helmet",
+		"equip player with all diamond armor"})
+@Since("1.0")
+public class EffEquip extends Effect implements Testable {
 	static {
 		Skript.registerEffect(EffEquip.class,
-				"equip [%livingentities%] with %itemtypes%",
-				"make %livingentities% wear %itemtypes%",
-				"unequip %itemtypes% [from %livingentities%]",
-				"unequip %livingentities%'[s] (armo[u]r|equipment)");
+				"equip [%livingentity%] with %itemtypes%",
+				"make %livingentity% wear %itemtypes%");
 	}
-
+	
+	@SuppressWarnings("null")
 	private Expression<LivingEntity> entities;
-	private @UnknownNullability Expression<ItemType> itemTypes;
-
-	private boolean equip = true;
-
+	@SuppressWarnings("null")
+	private Expression<ItemType> types;
+	
+	@SuppressWarnings({"unchecked", "null"})
 	@Override
-	@SuppressWarnings("unchecked")
-	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parser) {
-		if (matchedPattern == 0 || matchedPattern == 1) {
-			entities = (Expression<LivingEntity>) exprs[0];
-			itemTypes = (Expression<ItemType>) exprs[1];
-		} else if (matchedPattern == 2) {
-			itemTypes = (Expression<ItemType>) exprs[0];
-			entities = (Expression<LivingEntity>) exprs[1];
-			equip = false;
-		} else if (matchedPattern == 3) {
-			entities = (Expression<LivingEntity>) exprs[0];
-			equip = false;
-		}
+	public boolean init(final Expression<?>[] vars, final int matchedPattern, final Kleenean isDelayed, final ParseResult parser) {
+		entities = (Expression<LivingEntity>) vars[0];
+		types = (Expression<ItemType>) vars[1];
 		return true;
 	}
-
+	
+	
+	private static final ItemType HELMET = Aliases.javaItemType("helmet");
+	private static final ItemType CHESTPLATE = Aliases.javaItemType("chestplate");
+	private static final ItemType LEGGINGS = Aliases.javaItemType("leggings");
+	private static final ItemType BOOTS = Aliases.javaItemType("boots");
+	private static final ItemType HORSE_ARMOR = Aliases.javaItemType("horse armor");
+	private static final ItemType SADDLE = Aliases.javaItemType("saddle");
+	private static final ItemType CHEST = Aliases.javaItemType("chest");
+	
+	@SuppressWarnings("deprecation")
 	@Override
-	protected void execute(Event event) {
-		ItemType[] itemTypes;
-		boolean unequipHelmet = false;
-		if (this.itemTypes != null) {
-			itemTypes = this.itemTypes.getArray(event);
-		} else {
-			itemTypes = ALL_EQUIPMENT;
-			unequipHelmet = true;
-		}
-		for (LivingEntity entity : entities.getArray(event)) {
-			if (entity instanceof Steerable steerable) {
-				for (ItemType itemType : itemTypes) {
-					if (SADDLE.isOfType(itemType.getMaterial())) {
-						steerable.setSaddle(equip);
+	protected void execute(final Event e) {
+		final ItemType[] ts = types.getArray(e);
+		for (final LivingEntity en : entities.getArray(e)) {
+			if (en instanceof Pig) {
+				for (final ItemType t : ts) {
+					if (t.isOfType(Material.SADDLE)) {
+						((Pig) en).setSaddle(true);
+						break;
 					}
 				}
-			} else if (entity instanceof Llama llama) {
-				LlamaInventory inv = llama.getInventory();
-				for (ItemType itemType : itemTypes) {
-					for (ItemStack item : itemType.getAll()) {
-						if (CARPET.isOfType(item)) {
-							inv.setDecor(equip ? item : null);
-						} else if (CHEST.isOfType(item)) {
-							llama.setCarryingChest(equip);
-						}
-					}
-				}
-			} else if (entity instanceof AbstractHorse horse) {
-				AbstractHorseInventory inv = horse.getInventory();
-				for (ItemType itemType : itemTypes) {
-					for (ItemStack item : itemType.getAll()) {
+				continue;
+			} else if (en instanceof Horse) {
+				final HorseInventory invi = ((Horse) en).getInventory();
+				for (final ItemType t : ts) {
+					for (final ItemStack item : t.getAll()) {
 						if (SADDLE.isOfType(item)) {
-							inv.setSaddle(equip ? item : null);
-						} else if (HORSE_ARMOR.isOfType(item) && entity instanceof Horse) {
-							((HorseInventory) inv).setArmor(equip ? item : null);
-						} else if (CHEST.isOfType(item) && entity instanceof ChestedHorse chestedHorse) { // a Donkey, Mule, Llama or TraderLlama. NOT a Horse
-							chestedHorse.setCarryingChest(equip);
+							invi.setSaddle(item);
+						} else if (HORSE_ARMOR.isOfType(item)) {
+							invi.setArmor(item);
+						} else if (CHEST.isOfType(item)) {
+							((Horse) en).setCarryingChest(true);
 						}
 					}
 				}
-			} else if (entity instanceof Wolf wolf) {
-				EntityEquipment equipment = wolf.getEquipment();
-				for (ItemType itemType : itemTypes) {
-					for (ItemStack item : itemType.getAll()) {
-						if (WOLF_ARMOR.isOfType(item))
-							equipment.setItem(EquipmentSlot.BODY, equip ? item : null);
-					}
-				}
-			} else if (HAPPY_GHAST_CLASS != null && HAPPY_GHAST_CLASS.isInstance(entity)) {
-				EntityEquipment equipment = ((Mob) entity).getEquipment();
-				for (ItemType itemType : itemTypes) {
-					for (ItemStack itemStack : itemType.getAll()) {
-						if (HAPPY_GHAST_HARNESS.isOfType(itemStack))
-							equipment.setItem(EquipmentSlot.BODY, equip ? itemStack : null);
-					}
-				}
-			} else {
-				EntityEquipment equipment = entity.getEquipment();
-				if (equipment == null)
-					continue;
-				for (ItemType itemType : itemTypes) {
-					for (ItemStack item : itemType.getAll()) {
-						if (CHESTPLATE.isOfType(item)) {
-							equipment.setChestplate(equip ? item : null);
-						} else if (LEGGINGS.isOfType(item)) {
-							equipment.setLeggings(equip ? item : null);
-						} else if (BOOTS.isOfType(item)) {
-							equipment.setBoots(equip ? item : null);
-						} else {
-							// Apply all other items to head, as all items will appear on a player's head
-							equipment.setHelmet(equip ? item : null);
-						}
-					}
-					if (unequipHelmet) { // Since players can wear any helmet, itemTypes won't have the item in the array every time
-						equipment.setHelmet(null);
-					}
-				}
-				if (entity instanceof Player player)
-					PlayerUtils.updateInventory(player);
+				continue;
 			}
+			EntityEquipment equip = en.getEquipment();
+			if (equip == null)
+				continue;
+			for (final ItemType t : ts) {
+				for (final ItemStack item : t.getAll()) {
+					// Blocks are visible in head slot, too
+					// TODO skulls; waiting for decoration aliases
+					if (HELMET.isOfType(item) || item.getType().isBlock())
+						equip.setHelmet(item);
+					else if (CHESTPLATE.isOfType(item))
+						equip.setChestplate(item);
+					else if (LEGGINGS.isOfType(item))
+						equip.setLeggings(item);
+					else if (BOOTS.isOfType(item))
+						equip.setBoots(item);
+					
+					// We have no idea where to equip other items
+					// User can set them to slot they need custom hats etc.
+				}
+			}
+			if (en instanceof Player)
+				PlayerUtils.updateInventory((Player) en);
 		}
 	}
-
+	
 	@Override
-	public String toString(@Nullable Event event, boolean debug) {
-		if (equip) {
-			assert itemTypes != null;
-			return "equip " + entities.toString(event, debug) + " with " + itemTypes.toString(event, debug);
-		} else if (itemTypes != null) {
-			return "unequip " + itemTypes.toString(event, debug) + " from " + entities.toString(event, debug);
-		} else {
-			return "unequip " + entities.toString(event, debug) + "'s equipment";
-		}
+	public boolean test(final Event e) {
+//		final Iterable<Player> ps = players.getArray(e);
+//		for (final ItemType t : types.getArray(e)) {
+//			for (final Player p : ps) {
+//				//REMIND this + think...
+//			}
+//		}
+		return false;
 	}
-
+	
+	@Override
+	public String toString(final @Nullable Event e, final boolean debug) {
+		return "equip " + entities.toString(e, debug) + " with " + types.toString(e, debug);
+	}
+	
 }

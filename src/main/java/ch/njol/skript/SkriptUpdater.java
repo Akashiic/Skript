@@ -1,3 +1,21 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript;
 
 import java.io.IOException;
@@ -13,7 +31,8 @@ import ch.njol.skript.update.ReleaseManifest;
 import ch.njol.skript.update.ReleaseStatus;
 import ch.njol.skript.update.UpdateManifest;
 import ch.njol.skript.update.Updater;
-import org.skriptlang.skript.bukkit.text.TextComponentParser;
+import ch.njol.skript.util.chat.ChatSender;
+import ch.njol.skript.util.chat.ChatMessages;
 
 /**
  * Skript's update checker.
@@ -79,8 +98,8 @@ public class SkriptUpdater extends Updater {
 					UpdateManifest update = getUpdateManifest();
 					assert update != null; // Because we just checked that one is available
 					Skript.info(sender, "" + m_update_available.toString(update.id, Skript.getVersion()));
-					sender.sendMessage(TextComponentParser.instance()
-						.parse("Download it at: <aqua><underlined><click:open_url:" + update.downloadUrl + ">" + update.downloadUrl));
+					ChatSender.send(sender, (ChatMessages.parseToArray(
+							"Download it at: <aqua><u><link:" + update.downloadUrl + ">" + update.downloadUrl)));
 					break;
 				case UNKNOWN:
 					if (isEnabled()) {
@@ -129,14 +148,14 @@ public class SkriptUpdater extends Updater {
 							if (issue.length() > 0) {
 								// TODO get issue tracker URL from manifest or something
 								processed = processed.replace("#" + issue,
-										"<aqua><underlined><click:open_url:https://github.com/SkriptLang/Skript/issues/"
+										"<aqua><u><link:https://github.com/SkriptLang/Skript/issues/"
 										+ issue + ">#" + issue + "<r>");
 							}
 						}
 						line = processed;
 						
 						assert line != null;
-						sender.sendMessage(TextComponentParser.instance().parse(line));
+						ChatSender.send(sender, (ChatMessages.parseToArray(line)));
 					}
 				}
 			}

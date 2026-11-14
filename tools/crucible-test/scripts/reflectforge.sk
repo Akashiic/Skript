@@ -1,0 +1,159 @@
+import:
+	java.lang.System
+	java.util.ArrayList
+	java.lang.Class
+	org.bukkit.Bukkit
+	org.bukkit.event.player.PlayerJoinEvent
+	org.bukkit.event.player.AsyncPlayerChatEvent
+	org.bukkit.event.player.PlayerCommandPreprocessEvent
+	org.bukkit.event.player.PlayerToggleSneakEvent
+	org.bukkit.event.entity.EntityDamageByEntityEvent
+	org.bukkit.event.entity.CreatureSpawnEvent
+	org.spigotmc.event.entity.EntityMountEvent
+	cpw.mods.fml.common.Loader
+	cpw.mods.fml.common.registry.GameRegistry
+	cpw.mods.fml.common.registry.EntityRegistry
+	net.minecraftforge.common.MinecraftForge
+	net.minecraft.server.MinecraftServer
+	net.minecraft.entity.player.EntityPlayerMP
+	net.minecraft.entity.passive.EntityPig
+	net.minecraft.item.Item
+	net.minecraft.item.ItemStack as NmsItemStack
+	ganymedes01.etfuturum.ModBlocks
+	com.akashic.kunftig.api.KunftigApi
+	com.akashic.kunftig.api.bukkit.player.KunftigPlayers
+
+function fpass(n: text):
+	send "PASS %{_n}%" to console
+
+function ffail(n: text, got: object):
+	send "FAIL %{_n}% got=%{_got}%" to console
+
+command /rforge:
+	trigger:
+		# FML / Forge (not obfuscated)
+		if Loader.isModLoaded("etfuturum") is true:
+			fpass("FML Loader.isModLoaded (%Loader.instance().getModList().size()% mods)")
+		else:
+			ffail("FML Loader.isModLoaded", Loader.isModLoaded("etfuturum"))
+		if MinecraftForge.EVENT_BUS is set:
+			fpass("Forge event bus %MinecraftForge.EVENT_BUS.getClass().getSimpleName()%")
+		else:
+			ffail("Forge event bus", MinecraftForge.EVENT_BUS)
+		# Minecraft classes: MCP class names, SRG member names at runtime
+		set {_mcs} to MinecraftServer.func_71276_C()
+		if {_mcs} is set:
+			fpass("NMS static SRG method func_71276_C (getServer): %{_mcs}.getClass().getSimpleName()%")
+		else:
+			ffail("NMS static SRG method", {_mcs})
+		set {_h} to player.getHandle()
+		if {_h} is an instance of EntityPlayerMP:
+			fpass("CraftPlayer.getHandle() -> EntityPlayerMP")
+		else:
+			ffail("getHandle", {_h})
+		set {_name} to {_h}.func_70005_c_()
+		if {_name} is name of player:
+			fpass("NMS instance SRG method func_70005_c_ (getCommandSenderName) = %{_name}%")
+		else:
+			ffail("NMS instance SRG method", {_name})
+		set {_ping} to {_h}.field_71138_i
+		fpass("NMS SRG field field_71138_i (ping) = %{_ping}%")
+		set {_v17} to the class "net.minecraft.server.v1_7_R4.EntityPlayer"
+		if {_v17} is set:
+			fpass("Bukkit-style NMS class name resolves: %{_v17}%")
+		else:
+			send "INFO net.minecraft.server.v1_7_R4.* names don't resolve from scripts (use Forge names)" to console
+		# item registry and mod items
+		set {_reg} to Item.field_150901_e
+		set {_neth} to {_reg}.func_82594_a("etfuturum:netherite_ingot")
+		if {_neth} is set:
+			fpass("Forge item registry lookup: %{_neth}.getClass().getSimpleName()%")
+		else:
+			ffail("item registry lookup", {_neth})
+		set {_uid} to GameRegistry.findUniqueIdentifierFor({_neth})
+		fpass("GameRegistry.findUniqueIdentifierFor = %{_uid}%")
+		set {_nms} to new NmsItemStack({_neth}, 3)
+		if {_nms}.field_77994_a is 3:
+			fpass("new NMS ItemStack(item, 3), stackSize SRG field")
+		else:
+			ffail("NMS ItemStack", {_nms}.field_77994_a)
+		# mod classes (Et Futurum's enum)
+		set {_pb} to ModBlocks.PRISMARINE_BLOCK
+		if "%{_pb}%" is "PRISMARINE_BLOCK":
+			fpass("mod enum constant ModBlocks.PRISMARINE_BLOCK (enabled=%{_pb}.isEnabled()%)")
+		else:
+			ffail("mod enum", {_pb})
+		# NMS entity spawn through reflection
+		set {_w} to player's world.getHandle()
+		set {_pig} to new EntityPig({_w})
+		{_pig}.func_70107_b(x-coordinate of player + 2, y-coordinate of player, z-coordinate of player)
+		{_w}.func_72838_d({_pig})
+		set {_bpig} to {_pig}.getBukkitEntity()
+		if {_bpig} is a pig:
+			fpass("NMS entity spawned through reflection is a Skript pig")
+		else:
+			ffail("NMS spawn", {_bpig})
+		# Kunftig API directly
+		set {_api} to KunftigApi.apiVersion()
+		fpass("Kunftig API version %{_api}%, ping %KunftigPlayers.getPing(player)%")
+		send "RFORGE done" to console
+
+on PlayerJoinEvent:
+	send "PASS reflect event PlayerJoinEvent: %event.getPlayer().getName()%" to console
+
+on AsyncPlayerChatEvent:
+	send "PASS async reflect event (main thread=%Bukkit.isPrimaryThread()%): %event.getMessage()%" to console
+	if event.getMessage() is "cancel me":
+		event.setCancelled(true)
+
+on all AsyncPlayerChatEvent with priority monitor:
+	send "PASS 'on all' + priority monitor: cancelled=%event.isCancelled()%" to console
+
+on PlayerCommandPreprocessEvent with priority lowest:
+	if event.getMessage() is "/uncancelme":
+		event.setCancelled(true)
+
+on all PlayerCommandPreprocessEvent with priority highest:
+	if event.getMessage() is "/uncancelme":
+		uncancel event
+		event.setMessage("/rpong")
+		send "PASS uncancel + changing a reflect event" to console
+
+command /rpong:
+	trigger:
+		send "PASS command rewritten by a reflect event ran" to console
+
+on PlayerToggleSneakEvent and EntityDamageByEntityEvent:
+	send "PASS multiple reflect events: %event.getClass().getSimpleName()%" to console
+
+on EntityMountEvent:
+	send "PASS Spigot event class in Crucible: %event.getEntity()% mounts %event.getMount()%" to console
+
+on CreatureSpawnEvent:
+	if event.getEntity() is a pig:
+		send "PASS CreatureSpawnEvent for reflected pig (%event.getSpawnReason()%)" to console
+
+command /rload:
+	trigger:
+		set {_start} to System.nanoTime()
+		set {_list} to new ArrayList()
+		loop 20000 times:
+			{_list}.add(loop-number)
+		set {_sum} to 0
+		loop 20000 times:
+			add {_list}.get(loop-number - 1) to {_sum}
+		set {_ms} to (System.nanoTime() - {_start}) / 1000000
+		send "PERF 40000 java calls in %{_ms}% ms (sum=%{_sum}%)" to console
+		set {_start} to System.nanoTime()
+		loop 2000 times:
+			set {_h} to player.getHandle()
+			set {_n} to {_h}.func_70005_c_()
+		set {_ms} to (System.nanoTime() - {_start}) / 1000000
+		send "PERF 4000 NMS reflective calls in %{_ms}% ms" to console
+		set {_start} to System.nanoTime()
+		loop 50 times:
+			create section with {_x} stored in {_sec}:
+				return {_x} + 1
+			run section {_sec} async with loop-number and store result in {_r} and wait
+		set {_ms} to (System.nanoTime() - {_start}) / 1000000
+		send "PERF 50 async sections in %{_ms}% ms (last=%{_r}%)" to console

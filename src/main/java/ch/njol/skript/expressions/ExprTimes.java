@@ -1,11 +1,34 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.expressions;
 
+import java.util.Iterator;
+import java.util.stream.IntStream;
+import java.util.stream.LongStream;
+
+import org.bukkit.event.Event;
+import org.eclipse.jdt.annotation.Nullable;
+
+import com.google.common.collect.Iterators;
 import ch.njol.skript.Skript;
 import ch.njol.skript.config.Node;
-import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
-import ch.njol.skript.doc.Name;
-import ch.njol.skript.doc.Since;
+import ch.njol.skript.doc.NoDoc;
 import ch.njol.skript.lang.Expression;
 import ch.njol.skript.lang.ExpressionType;
 import ch.njol.skript.lang.Literal;
@@ -14,26 +37,13 @@ import ch.njol.skript.lang.util.SimpleExpression;
 import ch.njol.skript.lang.util.SimpleLiteral;
 import ch.njol.skript.log.SkriptLogger;
 import ch.njol.util.Kleenean;
-import com.google.common.collect.Iterators;
-import org.bukkit.event.Event;
-import org.jetbrains.annotations.Nullable;
 
-import java.util.Iterator;
-import java.util.stream.LongStream;
-
-@Name("X Times")
-@Description({"Integers between 1 and X, used in loops to loop X times."})
-@Example("""
-	loop 20 times:
-		broadcast "%21 - loop-number% seconds left.."
-		wait 1 second
-	""")
-@Since("1.4.6")
+@NoDoc
 public class ExprTimes extends SimpleExpression<Long> {
 
 	static {
 		Skript.registerExpression(ExprTimes.class, Long.class, ExpressionType.SIMPLE,
-				"%number% time[s]", "once", "twice", "thrice");
+				"%number% time[s]", "once", "twice");
 	}
 
 	@SuppressWarnings("null")
@@ -89,8 +99,8 @@ public class ExprTimes extends SimpleExpression<Long> {
 		Number end = this.end.getSingle(e);
 		if (end == null)
 			return null;
-		long fixed = (long) (end.doubleValue() + Skript.EPSILON);
-		return LongStream.range(1, fixed + 1).iterator();
+
+		return LongStream.range(1, end.longValue() + 1).iterator();
 	}
 
 	@Override
@@ -101,12 +111,6 @@ public class ExprTimes extends SimpleExpression<Long> {
 	@Override
 	public Class<? extends Long> getReturnType() {
 		return Long.class;
-	}
-
-	@Override
-	public Expression<? extends Long> simplify() {
-		// intentionally not simplified as it would be more work than using the iterator.
-		return this;
 	}
 
 	@Override

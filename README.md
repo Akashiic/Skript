@@ -1,9 +1,138 @@
-![Skript Language](.github/assets/Cover.jpg)
+# Skript para Minecraft 1.7.10 (Crucible) no Java 21
+
+Este branch é um port do Skript **2.6.3** para servidores **Minecraft 1.7.10** com Forge + Bukkit
+(**Crucible**, Thermos, KCauldron, Cauldron), rodando no **Java 21** (também funciona no Java 8).
+
+A versão atual do Skript (2.17+) é feita para Paper 26.x e não tem como rodar na 1.7.10. Por isso
+a base é o último commit do upstream que ainda tinha suporte a versões anteriores à 1.13 (`215939ff1`).
+O código compila **direto contra a API Bukkit 1.7.10**, então tudo que está no jar existe no servidor.
+
+## Instalação
+
+1. Compile (`./gradlew build`) ou baixe o artefato do GitHub Actions; o jar fica em `build/libs/Skript.jar`.
+2. Coloque `Skript.jar` em `plugins/`.
+3. Se usar o [skript-reflect](https://github.com/Akashiic/skript-reflect) do mesmo branch, coloque ele também.
+
+Para rodar o Crucible no Java 9+, use os argumentos de JVM do próprio Crucible (`java9args.txt`).
+
+## Itens de mod e IDs numéricos
+
+Além dos aliases normais (`diamond sword`, `red wool`...), este build entende:
+
+| Sintaxe | Exemplo |
+|---|---|
+| Nome de registro do Forge `modid:nome[:data]` | `give player 1 of IC2:itemCable:3` |
+| ID vanilla `minecraft:nome[:data]` | `set block to minecraft:wool:14` |
+| ID numérico `id:<número>[:data]` | `if player's tool is id:4096:2:` |
+| Alias gerado para todo material de mod sem alias | `ic2 itemcable` (nome Bukkit do Crucible, em minúsculas e com espaços) |
+
+Biomas, entidades e encantamentos que os mods adicionam também recebem nomes gerados automaticamente.
+
+## Hooks: Crucible, NecroTempus, Et Futurum Requiem, Netherlicious e Kunftig
+
+Cada grupo de sintaxe só carrega quando o servidor tem o que ele precisa; o log mostra, por exemplo,
+`Loaded support for: Crucible APIs, Forge mods, Kunftig`. Sem eles, o mesmo jar roda num 1.7.10 comum.
+
+### Crucible (e NecroTempus)
+
+Funciona só com o Crucible:
+
+```
+on mount:                                  # e "on dismount"; expressão "the mount"
+on item damage:                            # "the item damage" (set/add/remove), event-item
+send "%ping of player%ms"
+if victim is invulnerable:
+send "<link:https://exemplo.com>clique aqui<reset> ou <tooltip:dica>passe o mouse" to player
+```
+
+Mensagens com `<link:...>`, `<cmd:...>`, `<suggest:...>` e `<tooltip:...>` saem como JSON clicável.
+
+Precisa do mod **NecroTempus** no servidor e no cliente (ele implementa essas APIs do Crucible):
+
+```
+send title "&6Bem-vindo" with subtitle "&7%player%" to player for 3 seconds
+reset title of player
+send action bar "&a+10 moedas" to player
+set tab list header of player to "&lMeu Servidor"
+set tab list footer of player to "&7online: %size of all players%"
+set {_bar} to a new boss bar named "Chefe" colored red with style 10 segments with progress 100
+add player to boss bar players of {_bar}
+set boss bar progress of {_bar} to 50
+remove boss bar {_bar}
+```
+
+Sem o NecroTempus, o console avisa uma vez: o título vira mensagem no chat e a action bar não é enviada.
+
+### Mods Forge (Et Futurum Requiem, Netherlicious e qualquer outro)
+
+* **Entidades de mod** são tipos de entidade do Skript: `<modid> <nome>` (`etfuturum rabbit`) e o nome simples
+  quando nenhuma entidade vanilla usa esse nome (`rabbit`, `armor stand`, `shulker`, `polar bear`, `hoglin`...).
+  Com o Et Futurum, os nomes modernos apontam para as entidades dele.
+
+  ```
+  spawn a polar bear at player
+  on death of a rabbit:
+  if target entity of player is an armor stand:
+  loop all foxes:
+  ```
+* **Aliases do Et Futurum** (`skript-aliases/mods/etfuturum.sk`, só carrega com o mod): prismarine, granite,
+  diorite, andesite, coarse dirt, red sandstone, concrete, banners, deepslate, copper, netherite, madeiras novas,
+  mutton, rabbit stew, totem, elytra, tipped arrows...
+* **Itens de qualquer mod** (inclusive Netherlicious) ganham aliases legíveis a partir do nome do item no
+  servidor e do nome de registro: `crimson stem`, `netherlicious crimson stem`. Nunca sobrescrevem um alias existente.
+* Arquivos de aliases podem usar a condição `mod = <modid>` para só carregar com um mod instalado.
+
+### Kunftig
+
+```
+play 10 end rod with offset of 0.3, 0.5, 0.3 and speed 0.01 at player   # partículas modernas
+play 20 red dust at player
+set persistent data "coins" of player's tool to 5                          # dados persistentes em itens
+set item model of player's tool to "teof:tucunare"                         # ícone próprio (CustomModelData)
+give player diamond sword with item model "teof:excalibur"
+on fishing bite:                                                           # pesca do 1.21.1
+	send "Fisgou!" to player
+on fishing state of lured or reel in:
+create a hologram with lines "Olá" and "Mundo" at player's location
+show hud text "Combo x3" with id "combo" to player anchored to top for 2 seconds
+```
+
+Outros eventos de pesca: `on fishing lured`, `on fishing failed attempt`, `on fishing reel in`; o estado é
+`event-fishing state`. No `on fish` e nos estados há os valores do anzol moderno (`min fishing wait time`,
+`max fishing wait time`, `min fishing lure time`, `fishing bite time`, `fishing bite window`, `%entities% is in open water`...).
+Partículas modernas, modelos de item, hologramas e HUD só aparecem para clientes com o Kunftig (as partículas
+são desenhadas pelo Et Futurum Requiem; os outros jogadores veem a partícula 1.7.10 mais próxima). Dados
+persistentes de itens guardados em variáveis sobrevivem a reinícios.
+
+## O que mudou em relação ao Skript 2.6.3
+
+* Removido do Skript base o que não existe no Bukkit 1.7.10: entidades, eventos e blocos da 1.8+,
+  BlockData, mão secundária, atributos, resource packs, game rules como classe, APIs do Paper, bStats e
+  timings. Boa parte volta pelos hooks abaixo quando o servidor tem o Crucible e os mods.
+* Hooks de região (WorldGuard 7, GriefPrevention, Residence, PreciousStones) foram removidos.
+  O hook do Vault continua.
+* O Skript reconhece Crucible/Thermos/KCauldron como plataforma suportada e não se desativa.
+* Variáveis com itens agora guardam o data value (cor da lã, metadados de itens de mod).
+* Se um mod for removido, os IDs dos outros materiais em `materials.json` não se deslocam mais.
+* Aliases de itens que não existem na 1.7.10 são pulados e aparecem resumidos em uma linha no log
+  (com `verbosity: debug` no `config.sk` eles são listados).
+
+## Compilar
+
+Precisa de Java 17+ para rodar o Gradle (o projeto gera bytecode Java 8):
+
+```
+./gradlew build
+```
+
+O projeto compila contra `lib/crucible-bukkit-api.jar`, a API Bukkit 1.7.10 como o Crucible a entrega
+(gerada a partir do código e dos patches do Crucible por `scripts/build-crucible-api.sh`), e contra
+`lib/kunftig-api.jar` (módulo `api/` do [Kunftig](https://github.com/Akashiic/Kunftig)).
 
 ---
 
-# Skript
-**Skript** is a Minecraft plugin for Paper, which allows server owners and other people
+# Skript [![Build Status](https://travis-ci.org/SkriptLang/Skript.svg?branch=master)](https://travis-ci.org/SkriptLang/Skript)
+Skript is a plugin for Paper/Spigot, which allows server owners and other people
 to modify their servers without learning Java. It can also be useful if you
 *do* know Java; some tasks are quicker to do with Skript, and so it can be used
 for prototyping etc.
@@ -12,32 +141,27 @@ This Github fork of Skript is based on Mirreski's improvements which was built
 on Njol's original Skript.
 
 ## Requirements
-Skript requires **Paper** to work. You heard it right, **Spigot** does *not* work.
+Skript requires **Spigot** to work. You heard it right, Bukkit does *not* work.
+**Paper**, which is a fork of Spigot, is recommended; it is required for some
+parts of Skript to be available.
 
-Skript supports the last 18 months of Minecraft versions, counting from the release date of Skript's newest version.
-For example, this means that 1.20.4 is supported, but 1.20.3 is *not*.
+Skript supports only the **latest** patch versions of Minecraft 1.9+.
+For example, this means that 1.16.4 is supported, but 1.16.3 is *not*.
+Testing with all old patch versions is not feasible for us.
 
-New Minecraft versions will be supported as soon as possible.
+Minecraft 1.8 and earlier are not, and will not be supported. New Minecraft
+versions will be supported as soon as possible.
 
 ## Download
 You can find the downloads for each version with their release notes in the [releases page](https://github.com/SkriptLang/Skript/releases).
 
-Two major feature updates are expected each year in January and July, with monthly patches occurring in between. For full details, please review our [release model](CLOCKWORK_RELEASE_MODEL.md).
-
 ## Documentation
-Documentation is available [here](https://docs.skriptlang.org/) for the
+Documentation is available [here](https://skriptlang.github.io/Skript) for the
 latest version of Skript.
 
 ## Reporting Issues
 Please see our [contribution guidelines](https://github.com/SkriptLang/Skript/blob/master/.github/contributing.md)
 before reporting issues.
-
-## Help Us Test
-Wanting to help test Skript's new features and releases?
-You can head on over to our [Official Testing Discord](https://discord.gg/ZPsZAg6ygu), and whenever we start testing new features/releases you will be the first to know.
-
-Please note this is not a help Discord.
-If you require assistance with how to use Skript please check out the [Relevant Links](https://github.com/SkriptLang/Skript#relevant-links) section for a list of available resources to assist you.
 
 ## A Note About Add-ons
 We don't support add-ons here, even though some of Skript developers have also
@@ -70,17 +194,33 @@ only used to provide compatibility with old WorldGuard versions.
 
 ### Testing
 Skript has some tests written in Skript. Running them requires a Minecraft
-server, but our build script will create one for you. Running the tests is easy:
+server, but our build script can fetch it for you. Running tests is easy:
 
 ```
-./gradlew (quickTest|skriptTest|skriptTestJava21)
+./gradlew (quickTest|skriptTest|skriptTestFull)
 ```
 
-<code>quickTest</code> runs the test suite on newest supported server version.
-<code>skriptTestJava21</code> (1.21.4+) runs the tests on Java 21 supported versions.
-<code>skriptTest</code> runs the tests on all versions (currently identical to the Java 21 test).
+<code>quickTest</code> runs the test suite on newest supported server.
+<code>skriptTest</code> additionally runs the tests on oldest supported
+server, and on 1.12 (pre-flattening). <code>skriptTestFull</code> runs
+tests on **ALL** supported versions, some of which do not work on Java 9+.
 
-By running the tests, you agree to Mojang's End User License Agreement.
+By running tests, you agree to Mojang's End User License Agreement.
+
+### Importing to Eclipse
+With new Eclipse versions, there is integrated Gradle support, and it actually works now.
+So, first get latest Eclipse, then import Skript as any Gradle project. Just
+make sure to **keep** the configuration when the importer asks for that!
+
+If you encounter strange issues, make sure you follow the instructions above and have
+actually downloaded latest Eclipse or update your installation correctly. Skript's
+new Gradle version (starting from dev26) does not work very well with older Eclipse
+versions. Also, do *not* use Gradle STS; it is outdated.
+
+### Importing to IDEA
+You'll need to make sure that nullness annotations are working correctly. Also,
+when sending pull requests, make sure not to change IDEA configuration files
+that may have been stored in the repository.
 
 ### Releasing
 ```
@@ -142,7 +282,7 @@ dependencies {
 }
 ```
 
-An example of the version tag would be ```2.8.5```.
+An example of the version tag would be ```dev37c```.
 
 > Note: If Gradle isn't able to resolve Skript's dependencies, just [disable the resolution of transitive dependencies](https://docs.gradle.org/current/userguide/resolution_rules.html#sec:disabling_resolution_transitive_dependencies) for Skript in your project.
 
@@ -152,14 +292,12 @@ Or, if you use Maven:
     <groupId>com.github.SkriptLang</groupId>
     <artifactId>Skript</artifactId>
     <version>[versionTag]</version>
-    <scope>provided</scope>
 </dependency>
 ```
 
 ## Relevant Links
 * [skUnity forums](https://forums.skunity.com)
-* [skUnity addon releases](https://forums.skunity.com/forums/addon-releases)
-* [skUnity Discord invite](https://discord.gg/0l3WlzBPKX7WNjkf)
+* [Add-on releases at skUnity](https://forums.skunity.com/forums/addon-releases)
 * [Skript Chat Discord invite](https://discord.gg/0lx4QhQvwelCZbEX)
 * [Skript Hub](https://skripthub.net)
 * [Original Skript at Bukkit](https://dev.bukkit.org/bukkit-plugins/skript) (inactive)
@@ -170,6 +308,5 @@ contact us about any problems you might have with them.
 ## Developers
 You can find all contributors [here](https://github.com/SkriptLang/Skript/graphs/contributors).
 
-All code is owned by its writer, licensed for others under GPLv3 (see [LICENSE](LICENSE)).
-Some contributors may choose to release their code under the MIT License.
-Further information can be found within [LICENSING.md](LICENSING.md).
+All code is owned by its writer, licensed for others under GPLv3 (see LICENSE)
+unless otherwise specified.

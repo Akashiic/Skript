@@ -1,3 +1,21 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.classes;
 
 import java.io.NotSerializableException;
@@ -8,7 +26,7 @@ import java.util.concurrent.Callable;
 
 import org.bukkit.Bukkit;
 import org.bukkit.World;
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.SkriptAPIException;
@@ -16,6 +34,9 @@ import ch.njol.skript.util.Task;
 import ch.njol.yggdrasil.Fields;
 import ch.njol.yggdrasil.YggdrasilSerializer;
 
+/**
+ * @author Peter Güttinger
+ */
 public abstract class Serializer<T> extends YggdrasilSerializer<T> {
 	
 	@Nullable
@@ -76,12 +97,10 @@ public abstract class Serializer<T> extends YggdrasilSerializer<T> {
 	 */
 	@Override
 	public abstract Fields serialize(T o) throws NotSerializableException;
-
+	
 	@Override
-	public void deserialize(T o, Fields f) throws StreamCorruptedException, NotSerializableException {
-		throw new SkriptAPIException("deserialize(Object, Fields) has not been overridden in " + getClass() + " (serializer of " + info + ")");
-	}
-
+	public abstract void deserialize(T o, Fields f) throws StreamCorruptedException, NotSerializableException;
+	
 	/**
 	 * Not currently used (everything happens on Bukkit's main thread).
 	 * 
@@ -136,7 +155,7 @@ public abstract class Serializer<T> extends YggdrasilSerializer<T> {
 	 * @param s
 	 * @return The deserialised object or null if the input is invalid. An error message may be logged to specify the cause.
 	 */
-	@Deprecated(since = "2.3.0", forRemoval = true)
+	@Deprecated
 	@Nullable
 	public T deserialize(final String s) {
 		return null; // if this method is not overridden then no objects of this class will ever have been saved using the old format, so any input is invalid.

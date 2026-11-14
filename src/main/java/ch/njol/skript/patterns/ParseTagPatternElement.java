@@ -1,19 +1,34 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.patterns;
 
-import ch.njol.skript.patterns.SkriptPattern.StringificationProperties;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * A {@link PatternElement} that applies a parse mark when matched.
  */
 public class ParseTagPatternElement extends PatternElement {
 
-	private @Nullable String tag;
+	@Nullable
+	private String tag;
 	private final int mark;
 
 	public ParseTagPatternElement(int mark) {
@@ -21,7 +36,7 @@ public class ParseTagPatternElement extends PatternElement {
 		this.mark = mark;
 	}
 
-	public ParseTagPatternElement(@NotNull String tag) {
+	public ParseTagPatternElement(String tag) {
 		this.tag = tag;
 		int mark = 0;
 		try {
@@ -36,27 +51,18 @@ public class ParseTagPatternElement extends PatternElement {
 			if (next instanceof LiteralPatternElement) {
 				// (:a)
 				tag = next.toString().trim();
-			} else {
-				// Get the inner element from either a group or optional pattern element
-				PatternElement inner = null;
-				if (next instanceof GroupPatternElement) {
-					inner = ((GroupPatternElement) next).getPatternElement();
-				} else if (next instanceof OptionalPatternElement) {
-					inner = ((OptionalPatternElement) next).getPatternElement();
-				}
-
-				if (inner instanceof ChoicePatternElement choicePatternElement) {
-					// :(a|b) or :[a|b]
-					List<PatternElement> patternElements = choicePatternElement.getPatternElements();
-					for (int i = 0; i < patternElements.size(); i++) {
-						PatternElement patternElement = patternElements.get(i);
-						// Prevent a pattern such as :(a|b|) from being turned into (a:a|b:b|:), instead (a:a|b:b|)
-						if (patternElement instanceof LiteralPatternElement && !patternElement.toString().isEmpty()) {
-							ParseTagPatternElement newTag = new ParseTagPatternElement(patternElement.toString().trim());
-							newTag.setNext(patternElement);
-							newTag.originalNext = patternElement;
-							patternElements.set(i, newTag);
-						}
+			} else if (next instanceof GroupPatternElement && ((GroupPatternElement) next).getPatternElement() instanceof ChoicePatternElement) {
+				// :(a|b)
+				ChoicePatternElement choicePatternElement = (ChoicePatternElement) ((GroupPatternElement) next).getPatternElement();
+				List<PatternElement> patternElements = choicePatternElement.getPatternElements();
+				for (int i = 0; i < patternElements.size(); i++) {
+					PatternElement patternElement = patternElements.get(i);
+					// Prevent a pattern such as :(a|b|) from being turned into (a:a|b:b|:), instead (a:a|b:b|)
+					if (patternElement instanceof LiteralPatternElement && !patternElement.toString().isEmpty()) {
+						ParseTagPatternElement newTag = new ParseTagPatternElement(patternElement.toString().trim());
+						newTag.setNext(patternElement);
+						newTag.originalNext = patternElement;
+						patternElements.set(i, newTag);
 					}
 				}
 			}
@@ -65,7 +71,8 @@ public class ParseTagPatternElement extends PatternElement {
 	}
 
 	@Override
-	public @Nullable MatchResult match(String expr, MatchResult matchResult) {
+	@Nullable
+	public MatchResult match(String expr, MatchResult matchResult) {
 		if (tag != null && !tag.isEmpty())
 			matchResult.tags.add(tag);
 		matchResult.mark ^= mark;
@@ -74,33 +81,13 @@ public class ParseTagPatternElement extends PatternElement {
 
 	@Override
 	public String toString() {
-		return toString(StringificationProperties.DEFAULT);
-	}
-
-	@Override
-	public String toString(StringificationProperties properties) {
-		if (properties.excludeParseTags()) {
-			return "";
+		if (tag != null) {
+			if (tag.isEmpty())
+				return "";
+			return tag + ":";
+		} else {
+			return mark + "¦";
 		}
-		if (tag == null) {
-			return mark + ":";
-		}
-		if (tag.isEmpty()) {
-			return "";
-		}
-		return tag + ":";
-	}
-
-	/**
-	 * {@inheritDoc}
-	 * @param clean Whether the parse mark/tag should be excluded.
-	 */
-	@Override
-	public Set<String> getCombinations(boolean clean) {
-		Set<String> combinations = new HashSet<>();
-		if (!clean)
-			combinations.add(toString());
-		return combinations;
 	}
 
 }

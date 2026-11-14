@@ -1,3 +1,21 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.expressions;
 
 import java.util.ArrayList;
@@ -7,11 +25,11 @@ import org.bukkit.entity.HumanEntity;
 import org.bukkit.event.Event;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.PlayerInventory;
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.lang.Expression;
@@ -25,13 +43,11 @@ import ch.njol.util.Kleenean;
 
 @Name("Inventory Slot")
 @Description({"Represents a slot in an inventory. It can be used to change the item in an inventory too."})
-@Example("""
-	if slot 0 of player is air:
-		set slot 0 of player to 2 stones
-		remove 1 stone from slot 0 of player
-		add 2 stones to slot 0 of player
-		clear slot 1 of player
-	""")
+@Examples({"if slot 0 of player is air:",
+	"\tset slot 0 of player to 2 stones",
+	"\tremove 1 stone from slot 0 of player",
+	"\tadd 2 stones to slot 0 of player",
+	"\tclear slot 1 of player"})
 @Since("2.2-dev24")
 public class ExprInventorySlot extends SimpleExpression<Slot> {
 	

@@ -1,72 +1,83 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.expressions;
+
+import org.bukkit.entity.LivingEntity;
+import org.bukkit.event.Event;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.classes.Changer.ChangeMode;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.expressions.base.SimplePropertyExpression;
-import ch.njol.skript.lang.Expression;
-import ch.njol.skript.lang.SkriptParser.ParseResult;
-import ch.njol.util.Kleenean;
-import ch.njol.util.Math2;
 import ch.njol.util.coll.CollectionUtils;
-import org.bukkit.entity.LivingEntity;
-import org.bukkit.event.Event;
-import org.jetbrains.annotations.Nullable;
-import org.skriptlang.skript.lang.script.ScriptWarning;
 
 @Name("No Damage Ticks")
 @Description("The number of ticks that an entity is invulnerable to damage for.")
-@Example("""
-	on damage:
-		set victim's invulnerability ticks to 20 #Victim will not take damage for the next second
-	""")
-@Since("2.5, 2.11 (deprecated)")
-@Deprecated(since = "2.11.0", forRemoval = true)
+@Examples({"on damage:",
+		"	set victim's invulnerability ticks to 20 #Victim will not take damage for the next second"})
+@Since("2.5")
 public class ExprNoDamageTicks extends SimplePropertyExpression<LivingEntity, Long> {
 	
 	static {
-		registerDefault(ExprNoDamageTicks.class, Long.class,"(invulnerability|invincibility|no damage) tick[s]", "livingentities");
+		register(ExprNoDamageTicks.class, Long.class, "(invulnerability|no damage) tick[s]", "livingentities");
 	}
 
 	@Override
-	public boolean init(Expression<?>[] expressions, int matchedPattern, Kleenean isDelayed, ParseResult parseResult) {
-		ScriptWarning.printDeprecationWarning("This expression is deprecated. Please use 'invulnerability time' instead of 'invulnerability ticks'.");
-		return super.init(expressions, matchedPattern, isDelayed, parseResult);
-	}
-
-	@Override
-	public Long convert(LivingEntity entity) {
-		return (long) entity.getNoDamageTicks();
+	public Long convert(LivingEntity e) {
+		return (long) e.getNoDamageTicks();
 	}
 	
 	@Override
-	public Class<?> @Nullable [] acceptChange(ChangeMode mode) {
-		return switch (mode) {
-			case SET, DELETE, RESET, ADD, REMOVE -> CollectionUtils.array(Number.class);
-			default -> null;
-		};
+	@Nullable
+	public Class<?>[] acceptChange(final ChangeMode mode) {
+		if (mode == ChangeMode.REMOVE_ALL)
+			return null;
+		return CollectionUtils.array(Number.class);
 	}
 	
 	@Override
-	public void change(Event event, Object @Nullable [] delta, ChangeMode mode) {
-		int providedTicks = 0;
-		if (delta != null && delta[0] instanceof Number number)
-			providedTicks = number.intValue();
-		for (LivingEntity entity : getExpr().getArray(event)) {
+	public void change(final Event e, final @Nullable Object[] delta, final ChangeMode mode) {
+		int d = delta == null ? 0 : ((Number) delta[0]).intValue();
+		for (LivingEntity le : getExpr().getArray(e)) {
 			switch (mode) {
-				case SET, DELETE, RESET -> entity.setNoDamageTicks(providedTicks);
-				case ADD -> {
-					int current = entity.getNoDamageTicks();
-					int value = Math2.fit(0, current + providedTicks, Integer.MAX_VALUE);
-					entity.setNoDamageTicks(value);
-				}
-				case REMOVE -> {
-					int current = entity.getNoDamageTicks();
-					int value = Math2.fit(0, current - providedTicks, Integer.MAX_VALUE);
-					entity.setNoDamageTicks(value);
-				}
+				case ADD:
+					int r1 = le.getNoDamageTicks() + d;
+					if (r1 < 0) r1 = 0;
+					le.setNoDamageTicks(r1);
+					break;
+				case SET:
+					le.setNoDamageTicks(d);
+					break;
+				case DELETE:
+				case RESET:
+					le.setNoDamageTicks(0);
+					break;
+				case REMOVE:
+					int r2 = le.getNoDamageTicks() - d;
+					if (r2 < 0) r2 = 0;
+					le.setNoDamageTicks(r2);
+					break;
+				case REMOVE_ALL:
+					assert false;		
 			}
 		}
 	}
@@ -77,7 +88,7 @@ public class ExprNoDamageTicks extends SimplePropertyExpression<LivingEntity, Lo
 	}
 	
 	@Override
-	public Class<Long> getReturnType() {
+	public Class<? extends Long> getReturnType() {
 		return Long.class;
 	}
 	

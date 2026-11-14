@@ -1,5 +1,56 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.aliases;
 
+import java.io.IOException;
+import java.io.NotSerializableException;
+import java.io.StreamCorruptedException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+
+import java.util.LinkedHashMap;
+import java.util.ArrayList;
+import ch.njol.yggdrasil.Fields.FieldContext;
+import org.bukkit.Bukkit;
+import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
+import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
+import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.EntityType;
+import org.bukkit.inventory.ItemFactory;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.PotionMeta;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.inventory.meta.SkullMeta;
+import org.eclipse.jdt.annotation.Nullable;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import ch.njol.util.EnumTypeAdapter;
 import ch.njol.skript.Skript;
 import ch.njol.skript.bukkitutil.BukkitUnsafe;
 import ch.njol.skript.bukkitutil.ItemUtils;
@@ -9,32 +60,6 @@ import ch.njol.skript.localization.Message;
 import ch.njol.skript.variables.Variables;
 import ch.njol.yggdrasil.Fields;
 import ch.njol.yggdrasil.YggdrasilSerializable.YggdrasilExtendedSerializable;
-import org.bukkit.Bukkit;
-import org.bukkit.Material;
-import org.bukkit.block.Block;
-import org.bukkit.block.BlockState;
-import org.bukkit.block.data.BlockData;
-import org.bukkit.enchantments.Enchantment;
-import org.bukkit.inventory.ItemFactory;
-import org.bukkit.inventory.ItemFlag;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.inventory.meta.MusicInstrumentMeta;
-import org.bukkit.inventory.meta.PotionMeta;
-import org.bukkit.potion.PotionEffect;
-import org.jetbrains.annotations.Nullable;
-import org.skriptlang.skript.bukkit.text.TextComponentParser;
-
-import java.io.IOException;
-import java.io.NotSerializableException;
-import java.io.StreamCorruptedException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
 
 public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 	
@@ -42,7 +67,7 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 		Variables.yggdrasil.registerSingleClass(ItemData.class, "NewItemData");
 		Variables.yggdrasil.registerSingleClass(OldItemData.class, "ItemData");
 	}
-
+	
 	/**
 	 * Represents old ItemData (before aliases rework and MC 1.13).
 	 */
@@ -55,15 +80,37 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 
 	static final ItemFactory itemFactory = Bukkit.getServer().getItemFactory();
 	
+	static final MaterialRegistry materialRegistry;
+	
+	
 	// Load or create material registry
 	static {
+		Gson gson = new GsonBuilder().registerTypeAdapterFactory(EnumTypeAdapter.factory).serializeNulls().create();
 		Path materialsFile = Paths.get(Skript.getInstance().getDataFolder().getAbsolutePath(), "materials.json");
 		if (Files.exists(materialsFile)) {
+			String content = null;
 			try {
-				Files.delete(materialsFile);
+				content = new String(Files.readAllBytes(materialsFile), StandardCharsets.UTF_8);
 			} catch (IOException e) {
-				Skript.exception(e, "Failed to remove legacy material registry file!");
+				Skript.exception(e, "Loading material registry failed!");
 			}
+			if (content != null) {
+				String[] names = gson.fromJson(content, String[].class);
+				assert names != null;
+				materialRegistry = MaterialRegistry.load(names);
+			} else {
+				materialRegistry = new MaterialRegistry();
+			}
+		} else {
+			materialRegistry = new MaterialRegistry();
+		}
+		
+		// Always rewrite material registry, in case some updates got applied to it
+		String content = gson.toJson(materialRegistry.getMaterials());
+		try {
+			Files.write(materialsFile, content.getBytes(StandardCharsets.UTF_8));
+		} catch (IOException e) {
+			Skript.exception(e, "Saving material registry failed!");
 		}
 	}
 	
@@ -71,11 +118,13 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 	
 	/**
 	 * Before 1.13, data values ("block states") are applicable to items.
-	 *
-	 * @deprecated before 1.13 is no longer supported.
 	 */
-	@Deprecated(since = "2.7.0", forRemoval = true)
-	public static final boolean itemDataValues = false;
+	public static final boolean itemDataValues = !Skript.isRunningMinecraft(1, 13);
+	
+	/**
+	 * ItemStack, which is used for everything but serialization.
+	 */
+	transient ItemStack stack;
 	
 	/**
 	 * Type of the item as Bukkit material. Serialized manually.
@@ -86,18 +135,14 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 	 * If this represents all possible items.
 	 */
 	boolean isAnything;
-
-	/**
-	 * ItemStack, which is used for everything but serialization.
-	 */
-	transient @Nullable ItemStack stack;
-
+	
 	/**
 	 * When this ItemData represents a block, this contains information to
 	 * allow comparing it against other blocks.
 	 */
-	@Nullable BlockValues blockValues;
-
+	@Nullable
+	transient BlockValues blockValues;
+	
 	/**
 	 * Whether this represents an item (that definitely cannot have
 	 * block states) or a block, which might have them.
@@ -125,10 +170,9 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 	
 	public ItemData(Material type, @Nullable String tags) {
 		this.type = type;
-
-		if (type.isItem())
-			this.stack = new ItemStack(type);
-		this.blockValues = BlockCompat.INSTANCE.getBlockValues(type);
+		
+		this.stack = new ItemStack(type);
+		this.blockValues = BlockCompat.INSTANCE.getBlockValues(stack);
 		if (tags != null) {
 			applyTags(tags);
 		}
@@ -136,9 +180,8 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 	
 	public ItemData(Material type, int amount) {
 		this.type = type;
-		if (type.isItem())
-			this.stack = new ItemStack(type, Math.abs(amount));
-		this.blockValues = BlockCompat.INSTANCE.getBlockValues(type);
+		this.stack = new ItemStack(type, Math.abs(amount));
+		this.blockValues = BlockCompat.INSTANCE.getBlockValues(stack);
 	}
 	
 	public ItemData(Material type) {
@@ -146,17 +189,12 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 	}
 	
 	public ItemData(ItemData data) {
-		this.stack = data.stack != null ? data.stack.clone() : null;
+		this.stack = data.stack.clone();
 		this.type = data.type;
 		this.blockValues = data.blockValues;
 		this.isAlias = data.isAlias;
 		this.plain = data.plain;
 		this.itemFlags = data.itemFlags;
-	}
-
-	public ItemData(Material material, @Nullable BlockValues values) {
-		this.type = material;
-		this.blockValues = values;
 	}
 	
 	public ItemData(ItemStack stack, @Nullable BlockValues values) {
@@ -181,24 +219,15 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 		this(stack, BlockCompat.INSTANCE.getBlockValues(stack));
 		this.itemForm = true;
 	}
-
-	/**
-	 * @deprecated Use {@link ItemData#ItemData(BlockData)} instead.
-	 */
-	@Deprecated(since = "2.8.4", forRemoval = true)
-	public ItemData(BlockState blockState) {
-		this(blockState.getBlockData());
-	}
-
-	public ItemData(BlockData blockData) {
-		this.type = blockData.getMaterial();
-		if (type.isItem())
-			this.stack = new ItemStack(type);
-		this.blockValues = BlockCompat.INSTANCE.getBlockValues(blockData);
+	
+	public ItemData(BlockState block) {
+		this.type = ItemUtils.asItem(block.getType());
+		this.stack = new ItemStack(type);
+		this.blockValues = BlockCompat.INSTANCE.getBlockValues(block);
 	}
 	
 	public ItemData(Block block) {
-		this(block.getBlockData());
+		this(block.getState());
 	}
 	
 	/**
@@ -220,12 +249,13 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 		if (type != item.getType())
 			return false; // Obvious mismatch
 		
-		if (stack != null && itemFlags != 0) { // Either stack has tags (or durability)
+		if (itemFlags != 0) { // Either stack has tags (or durability)
 			if (ItemUtils.getDamage(stack) != ItemUtils.getDamage(item))
 				return false; // On 1.12 and below, damage is not in meta
 			if (stack.hasItemMeta() == item.hasItemMeta()) // Compare ItemMeta as in isSimilar() of ItemStack
-				return !stack.hasItemMeta() || itemFactory.equals(stack.getItemMeta(), item.getItemMeta());
-			return false;
+				return stack.hasItemMeta() ? itemFactory.equals(stack.getItemMeta(), item.getItemMeta()) : true;
+			else
+				return false;
 		}
 		return true;
 	}
@@ -241,12 +271,10 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 	
 	public String toString(final boolean debug, final boolean plural) {
 		StringBuilder builder = new StringBuilder(Aliases.getMaterialName(this, plural));
-		ItemMeta meta = stack != null ? stack.getItemMeta() : null;
+		ItemMeta meta = stack.getItemMeta();
 		if (meta != null && meta.hasDisplayName()) {
-			builder.append(" ")
-				.append(m_named)
-				.append(" ")
-				.append(TextComponentParser.instance().toString(meta.displayName()));
+			builder.append(" ").append(m_named).append(" ");
+			builder.append(meta.getDisplayName());
 		}
 		return builder.toString();
 	}
@@ -266,7 +294,7 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 			return false;
 		
 		ItemData other = (ItemData) obj;
-		if (isAlias()) { // This is alias, other item might not be
+		if (isAlias) { // This is alias, other item might not be
 			return other.matchAlias(this).isAtLeast(MatchQuality.SAME_ITEM);
 		} else { // This is not alias, but other might be
 			return matchAlias(other).isAtLeast(MatchQuality.SAME_ITEM);
@@ -276,7 +304,7 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 	@Override
 	public int hashCode() {
 		int hash = type.hashCode(); // Has collisions, but probably not too many of them
-		if (blockValues == null || blockValues.isDefault()) {
+		if (blockValues == null || (blockValues != null && blockValues.isDefault())) {
 			hash = hash * 37 + 1;
 		}
 		return hash;
@@ -311,14 +339,17 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 		if (item.getType() != getType()) {
 			return MatchQuality.DIFFERENT;
 		}
-
 		BlockValues values = blockValues;
-		// Items (held in inventories) don't have block values
-		// If this is an item, given item must not have them either
-		if (itemForm && item.blockValues != null && !item.blockValues.isDefault()) {
-			return MatchQuality.SAME_MATERIAL;
+		if (!itemDataValues) {
+			// Items (held in inventories) don't have block values
+			// If this is an item, given item must not have them either
+			if (itemForm && item.blockValues != null && !item.blockValues.isDefault()) {
+				return MatchQuality.SAME_MATERIAL;
+			}
+		} else if (itemFlags != 0 && ItemUtils.getDamage(stack) != ItemUtils.getDamage(item.stack)) {
+			return MatchQuality.DIFFERENT; // On 1.12 and below, items may share a material but have a different data value (ex: white wool vs red wool)
 		}
-
+		
 		/*
 		 * Initially, expect exact match. Lower expectations as new differences
 		 * between items are discovered.
@@ -345,7 +376,7 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 		}
 		
 		// See if we need to compare item metas (excluding durability)
-		if (quality.isAtLeast(MatchQuality.SAME_ITEM) && this.hasItemMeta() || item.hasItemMeta()) { // Item meta checks could lower this
+		if (quality.isAtLeast(MatchQuality.SAME_ITEM)) { // Item meta checks could lower this
 			MatchQuality metaQuality = compareItemMetas(getItemMeta(), item.getItemMeta());
 			
 			// If given item doesn't care about meta, promote to SAME_ITEM
@@ -371,7 +402,8 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 	
 	/**
 	 * Compares {@link ItemMeta}s for {@link #matchAlias(ItemData)}.
-	 * Note that this method assumes the metas are coming from similar types.
+	 * Note that this does NOT compare everything; only the most
+	 * important bits.
 	 * @param first Meta of this item.
 	 * @param second Meta of given item.
 	 * @return Match quality of metas.
@@ -408,37 +440,29 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 				quality = newQuality;
 		}
 		
-		// Item flags
-		Set<ItemFlag> ourFlags = first.getItemFlags();
-		Set<ItemFlag> theirFlags = second.getItemFlags();
-		if (!Objects.equals(ourFlags, theirFlags)) {
-			newQuality = (!ourFlags.isEmpty() && theirFlags.isEmpty()) ? MatchQuality.SAME_ITEM : MatchQuality.SAME_MATERIAL;
-			if (!newQuality.isBetter(quality))
-				quality = newQuality;
+		// Potion data
+		if (second instanceof PotionMeta) {
+			if (!(first instanceof PotionMeta)) {
+				return MatchQuality.DIFFERENT; // Second is a potion, first is clearly not
+			}
+			// Base potion type is the data value on 1.7.10 (compared elsewhere), so compare custom effects
+			List<PotionEffect> ourEffects = ((PotionMeta) first).getCustomEffects();
+			List<PotionEffect> theirEffects = ((PotionMeta) second).getCustomEffects();
+			return !Objects.equals(ourEffects, theirEffects) ? MatchQuality.SAME_MATERIAL : quality;
 		}
-
-		// awful but we have to make these values the same so that they don't matter for comparison
-		// clone to avoid affecting user
-		first = first.clone();
-		second = second.clone();
-
-		first.setDisplayName(null);
-		second.setDisplayName(null);
-
-		first.setLore(null);
-		second.setLore(null);
-
-		for (Enchantment ourEnchant : ourEnchants.keySet())
-			first.removeEnchant(ourEnchant);
-		for (Enchantment theirEnchant : theirEnchants.keySet())
-			second.removeEnchant(theirEnchant);
-
-		for (ItemFlag ourFlag : ourFlags)
-			first.removeItemFlags(ourFlag);
-		for (ItemFlag theirFlag : theirFlags)
-			second.removeItemFlags(theirFlag);
-
-		return first.equals(second) ? quality : MatchQuality.SAME_MATERIAL;
+		
+		// Skull owner
+		if (second instanceof SkullMeta) {
+			if (!(first instanceof SkullMeta)) {
+				return MatchQuality.DIFFERENT; // Second is a skull, first is clearly not
+			}
+			// Compare skull owners
+			String ourOwner = ((SkullMeta) first).getOwner();
+			String theirOwner = ((SkullMeta) second).getOwner();
+			return !Objects.equals(ourOwner, theirOwner) ? MatchQuality.SAME_MATERIAL : quality;
+		}
+		
+		return quality;
 	}
 	
 	/**
@@ -483,12 +507,8 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 	 * It is not a copy, so please be careful.
 	 * @return Item stack.
 	 */
-	public @Nullable ItemStack getStack() {
+	public ItemStack getStack() {
 		return stack;
-	}
-
-	private boolean hasItemMeta() {
-		return stack != null && stack.hasItemMeta();
 	}
 	
 	@Override
@@ -506,7 +526,7 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 	}
 	
 	public ItemMeta getItemMeta() {
-		ItemMeta meta = stack != null ? stack.getItemMeta() : null;
+		ItemMeta meta = stack.getItemMeta();
 		if (meta == null) { // AIR has null item meta!
 			meta = itemFactory.getItemMeta(Material.STONE);
 		}
@@ -515,8 +535,6 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 	}
 	
 	public void setItemMeta(ItemMeta meta) {
-		if (stack == null)
-			return;
 		stack.setItemMeta(meta);
 		isAlias = false; // This is no longer exact alias
 		plain = false; // This is no longer a plain item
@@ -524,14 +542,10 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 	}
 	
 	public int getDurability() {
-		if (stack == null)
-			return 0; // no damage?
 		return ItemUtils.getDamage(stack);
 	}
 	
 	public void setDurability(int durability) {
-		if (stack == null)
-			return;
 		ItemUtils.setDamage(stack, durability);
 		isAlias = false; // Change happened
 		plain = false; // This is no longer a plain item
@@ -567,37 +581,125 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 		return getType() == other.getType() && ((isPlain() && other.isPlain()) || (isPlain() && other.isAlias()) || (isAlias() && other.isPlain()));
 	}
 
+	/**
+	 * Saves item data that 1.7.10's {@link ItemMeta} doesn't keep (e.g. Kunftig's persistent data container)
+	 * when items are stored in variables. Registered by {@link ch.njol.skript.hooks.ModHooks mod hooks}.
+	 */
+	public interface SerializerExtension {
+		
+		/**
+		 * @param stack The item being saved.
+		 * @return The data to save, or null if there is none.
+		 */
+		@Nullable
+		String save(ItemStack stack);
+		
+		/**
+		 * @param stack The item being loaded.
+		 * @param data What {@link #save(ItemStack)} returned.
+		 * @return The item with the data applied (may be a different stack).
+		 */
+		ItemStack load(ItemStack stack, String data);
+		
+	}
+	
+	private static final String EXTENSION_PREFIX = "ext-";
+	
+	private static final Map<String, SerializerExtension> serializerExtensions = new LinkedHashMap<>();
+	
+	/**
+	 * @param id Identifier of the data, e.g. {@code kunftig}. Must stay the same, it is saved in variables.
+	 * @param extension The extension.
+	 */
+	public static void registerSerializerExtension(String id, SerializerExtension extension) {
+		serializerExtensions.put(id, extension);
+	}
+	
+	/**
+	 * Adds the data of every {@link SerializerExtension} for the given item to the fields.
+	 * Used for item types and for item stacks stored in variables.
+	 */
+	public static void saveExtensions(ItemStack stack, Fields fields) {
+		for (Map.Entry<String, SerializerExtension> extension : serializerExtensions.entrySet()) {
+			String data;
+			try {
+				data = extension.getValue().save(stack);
+			} catch (RuntimeException | LinkageError e) {
+				Skript.exception(e, "Could not save the " + extension.getKey() + " data of an item");
+				continue;
+			}
+			if (data != null)
+				fields.putObject(EXTENSION_PREFIX + extension.getKey(), data);
+		}
+	}
+	
+	/**
+	 * Removes the extension data from the fields.
+	 * @return Extension id to its data.
+	 */
+	public static Map<String, String> takeExtensions(Fields fields) throws StreamCorruptedException {
+		Map<String, String> extensionData = new LinkedHashMap<>();
+		List<String> extensionIds = new ArrayList<>();
+		for (FieldContext field : fields) {
+			if (field.getID().startsWith(EXTENSION_PREFIX))
+				extensionIds.add(field.getID());
+		}
+		for (String id : extensionIds) {
+			Object data = fields.getAndRemoveObject(id, Object.class);
+			if (data instanceof String)
+				extensionData.put(id.substring(EXTENSION_PREFIX.length()), (String) data);
+		}
+		return extensionData;
+	}
+	
+	/**
+	 * Applies extension data taken with {@link #takeExtensions(Fields)} to an item.
+	 * Data of extensions that are no longer registered (hook not installed) is dropped.
+	 * @return The item with the data (may be a different stack).
+	 */
+	public static ItemStack applyExtensions(ItemStack stack, Map<String, String> extensionData) {
+		for (Map.Entry<String, String> data : extensionData.entrySet()) {
+			SerializerExtension extension = serializerExtensions.get(data.getKey());
+			if (extension == null)
+				continue;
+			try {
+				stack = extension.load(stack, data.getValue());
+			} catch (RuntimeException | LinkageError e) {
+				Skript.exception(e, "Could not load the " + data.getKey() + " data of an item");
+			}
+		}
+		return stack;
+	}
+	
 	@Override
 	public Fields serialize() throws NotSerializableException {
 		Fields fields = new Fields(this); // ItemStack is transient, will be ignored
-		fields.putObject("key", type.getKey().toString());
-		fields.putObject("meta", stack != null ? stack.getItemMeta() : null);
+		fields.putPrimitive("id", materialRegistry.getId(type));
+		fields.putObject("meta", stack.getItemMeta());
+		// On 1.7.10 the data value (wool color, modded item metadata...) is part of the item's identity
+		fields.putPrimitive("durability", stack.getDurability());
+		saveExtensions(stack, fields);
 		return fields;
 	}
 
-	private static final Material[] materials = Material.values();
-
 	@Override
 	public void deserialize(Fields fields) throws StreamCorruptedException, NotSerializableException {
-		if (fields.hasField("key")) {
-			String key = fields.getAndRemoveObject("key", String.class);
-			if (key == null)
-				throw new StreamCorruptedException("Material key is null");
-			this.type = Material.matchMaterial(key);
-		} else {
-			// attempt back compat deserialization, though using ordinals is not reliable
-			this.type = materials[fields.getAndRemovePrimitive("id", int.class)];
+		try {
+			this.type = materialRegistry.getMaterial(fields.getAndRemovePrimitive("id", int.class));
+		} catch (IllegalArgumentException e) {
+			throw new StreamCorruptedException(e.getMessage());
 		}
-
 		ItemMeta meta = fields.getAndRemoveObject("meta", ItemMeta.class);
-
-		// Initialize ItemStack
-		if (meta != null && type.isItem()) {
-			this.stack = new ItemStack(type);
-			stack.setItemMeta(meta); // Just set meta to it
-		}
-
+		// Variables saved by older versions don't have the data value
+		short durability = fields.contains("durability") ? fields.getAndRemovePrimitive("durability", short.class) : 0;
+		// Data of serializer extensions; always removed, so items still load when the hook that saved it is gone
+		Map<String, String> extensionData = takeExtensions(fields);
 		fields.setFields(this); // Everything but ItemStack and Material
+		
+		// Initialize ItemStack
+		this.stack = new ItemStack(type, 1, durability);
+		stack.setItemMeta(meta); // Just set meta to it
+		this.stack = applyExtensions(stack, extensionData);
 	}
 	
 	/**
@@ -610,23 +712,20 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 	 * <li>Name: custom names made with anvil do not change item type
 	 * </ul>
 	 * @return A modified copy of this item data.
-	 * @deprecated Use {@link #getBaseCopy()} instead if you want a plain copy.
 	 */
-	@Deprecated(since = "INSERT_VERSION", forRemoval = true)
 	public ItemData aliasCopy() {
 		ItemData data = new ItemData();
-		if (stack != null) {
-			data.stack = new ItemStack(type, 1);
-			if (stack.hasItemMeta()) {
-				ItemMeta meta = stack.getItemMeta(); // Creates a copy
-				meta.setDisplayName(null); // Clear display name
-				if (!itemFactory.getItemMeta(type).equals(meta)) // there may be different tags (e.g. potions)
-					data.itemFlags |= ItemFlags.CHANGED_TAGS;
-				data.stack.setItemMeta(meta);
-			}
-			if (ItemUtils.getDamage(stack) > 0) // https://github.com/SkriptLang/Skript/issues/7687
-				ItemUtils.setDamage(data.stack, 0); // Set to undamaged iff item is damaged
+		data.stack = new ItemStack(type, 1);
+		
+		if (stack.hasItemMeta()) {
+			ItemMeta meta = stack.getItemMeta(); // Creates a copy
+			meta.setDisplayName(null); // Clear display name
+			data.stack.setItemMeta(meta);
 		}
+		if (!itemDataValues) {
+			ItemUtils.setDamage(data.stack, 0); // Set to undamaged
+		}
+		
 		data.type = type;
 		data.blockValues = blockValues;
 		data.itemForm = itemForm;
@@ -634,65 +733,35 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 	}
 
 	/**
-	 * Returns a base version of this item data, i.e. only contains
-	 * the minimum ItemMeta info to represent the item, in the case of potions/goat horns.
- 	 * @return Plain item type.
+	 * Applies an item meta to this item. Currently, it copies the following,
+	 * provided that they exist in given meta:
+	 * <ul>
+	 * <li>Lore
+	 * <li>Display name
+	 * <li>Enchantments
+	 * <li>Item flags
+	 * </ul>
+	 * @param meta Item meta.
 	 */
-	public @Nullable ItemData getBaseCopy() {
-		ItemData data = new ItemData();
-		data.type = type;
-		data.blockValues = blockValues;
-		data.itemForm = itemForm;
-		if (stack != null) {
-			data.stack = new ItemStack(type, 1);
-			if (stack.hasItemMeta()) {
-				ItemMeta meta = stack.getItemMeta();
-				if (meta instanceof PotionMeta potionMeta) {
-					copyPotionInfo(potionMeta, data);
-				} else if (meta instanceof MusicInstrumentMeta musicMeta) {
-					copyMusicInfo(musicMeta, data);
-				}
+	public void applyMeta(ItemMeta meta) {
+		ItemMeta our = getItemMeta();
+		if (meta.hasLore())
+			our.setLore(meta.getLore());
+		if (meta.hasDisplayName())
+			our.setDisplayName(meta.getDisplayName());
+		if (meta.hasEnchants()) {
+			for (Map.Entry<Enchantment, Integer> entry : meta.getEnchants().entrySet()) {
+				our.addEnchant(entry.getKey(), entry.getValue(), true);
 			}
 		}
-		return data;
+		setItemMeta(meta);
 	}
-
-	private static void copyPotionInfo(PotionMeta potionMeta, ItemData data) {
-		PotionMeta newMeta = (PotionMeta) itemFactory.getItemMeta(data.type);
-		if (newMeta.equals(potionMeta))
-			return;
-		// copy potion meta info
-		if (potionMeta.hasBasePotionType())
-			newMeta.setBasePotionType(potionMeta.getBasePotionType());
-		if (potionMeta.hasCustomEffects()) {
-			for (PotionEffect effect : potionMeta.getCustomEffects()) {
-				newMeta.addCustomEffect(effect, false);
-			}
-		}
-		if (potionMeta.hasColor())
-			newMeta.setColor(potionMeta.getColor());
-		if (potionMeta.hasCustomPotionName())
-			newMeta.setCustomPotionName(potionMeta.getCustomPotionName());
-		data.itemFlags = ItemFlags.CHANGED_TAGS;
-		data.setItemMeta(newMeta);
-	}
-
-	private static void copyMusicInfo(MusicInstrumentMeta musicMeta, ItemData data) {
-		MusicInstrumentMeta newMeta = (MusicInstrumentMeta) itemFactory.getItemMeta(data.type);
-		if (newMeta.equals(musicMeta))
-			return;
-		newMeta.setInstrument(musicMeta.getInstrument());
-		data.itemFlags = ItemFlags.CHANGED_TAGS;
-		data.setItemMeta(newMeta);
-	}
-
+	
 	/**
 	 * Applies tags to this item.
 	 * @param tags Tags in Mojang's JSON format.
 	 */
 	public void applyTags(String tags) {
-		if (stack == null)
-			return;
 		BukkitUnsafe.modifyItemStack(stack, tags);
 		itemFlags |= ItemFlags.CHANGED_TAGS;
 	}

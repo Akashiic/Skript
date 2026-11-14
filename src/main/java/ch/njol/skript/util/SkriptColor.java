@@ -1,13 +1,22 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.util;
-
-import ch.njol.skript.localization.Adjective;
-import ch.njol.skript.localization.Language;
-import ch.njol.skript.variables.Variables;
-import ch.njol.yggdrasil.Fields;
-import org.bukkit.ChatColor;
-import org.bukkit.DyeColor;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.io.NotSerializableException;
 import java.io.StreamCorruptedException;
@@ -17,6 +26,18 @@ import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
+
+import org.bukkit.ChatColor;
+import org.bukkit.DyeColor;
+import org.eclipse.jdt.annotation.NonNull;
+import org.eclipse.jdt.annotation.Nullable;
+
+import ch.njol.skript.Skript;
+import ch.njol.skript.localization.Adjective;
+import ch.njol.skript.localization.Language;
+import ch.njol.skript.variables.Variables;
+import ch.njol.yggdrasil.Fields;
 
 @SuppressWarnings("null")
 public enum SkriptColor implements Color {
@@ -24,7 +45,7 @@ public enum SkriptColor implements Color {
 	BLACK(DyeColor.BLACK, ChatColor.BLACK),
 	DARK_GREY(DyeColor.GRAY, ChatColor.DARK_GRAY),
 	// DyeColor.LIGHT_GRAY on 1.13, DyeColor.SILVER on earlier (dye colors were changed in 1.12)
-	LIGHT_GREY(DyeColor.LIGHT_GRAY, ChatColor.GRAY),
+	LIGHT_GREY(DyeColor.getByColor(org.bukkit.Color.fromRGB(Skript.isRunningMinecraft(1, 12) ? 0x9D9D97 : 0x999999)), ChatColor.GRAY),
 	WHITE(DyeColor.WHITE, ChatColor.WHITE),
 	
 	DARK_BLUE(DyeColor.BLUE, ChatColor.DARK_BLUE),
@@ -47,7 +68,6 @@ public enum SkriptColor implements Color {
 	private final static Map<String, SkriptColor> names = new HashMap<>();
 	private final static Set<SkriptColor> colors = new HashSet<>();
 	private final static String LANGUAGE_NODE = "colors";
-	private final static Map<Character, SkriptColor> BY_CHAR = new HashMap<>();
 	
 	static {
 		colors.addAll(Arrays.asList(values()));
@@ -58,12 +78,8 @@ public enum SkriptColor implements Color {
 				color.setAdjective(new Adjective(node + ".adjective"));
 				for (String name : Language.getList(node + ".names"))
 					names.put(name.toLowerCase(Locale.ENGLISH), color);
-				BY_CHAR.put(color.asChatColor().getChar(), color);
 			}
 		});
-
-		Variables.yggdrasil.registerSingleClass(SkriptColor.class, "SkriptColor");
-		Variables.yggdrasil.registerSingleClass(DyeColor.class, "DyeColor");
 	}
 	
 	private ChatColor chat;
@@ -80,27 +96,7 @@ public enum SkriptColor implements Color {
 	public org.bukkit.Color asBukkitColor() {
 		return dye.getColor();
 	}
-
-	@Override
-	public int getAlpha() {
-		return dye.getColor().getAlpha();
-	}
-
-	@Override
-	public int getRed() {
-		return dye.getColor().getRed();
-	}
-
-	@Override
-	public int getGreen() {
-		return dye.getColor().getGreen();
-	}
-
-	@Override
-	public int getBlue() {
-		return dye.getColor().getBlue();
-	}
-
+	
 	@Override
 	public DyeColor asDyeColor() {
 		return dye;
@@ -118,7 +114,7 @@ public enum SkriptColor implements Color {
 	}
 	
 	@Override
-	public void deserialize(@NotNull Fields fields) throws StreamCorruptedException {
+	public void deserialize(@NonNull Fields fields) throws StreamCorruptedException {
 		dye = fields.getObject("dye", DyeColor.class);
 		chat = fields.getObject("chat", ChatColor.class);
 		try {
@@ -138,13 +134,13 @@ public enum SkriptColor implements Color {
 	public ChatColor asChatColor() {
 		return chat;
 	}
-
-	@Deprecated(since = "2.3.6", forRemoval = true)
+	
+	@Deprecated
 	public byte getWoolData() {
 		return dye.getWoolData();
 	}
-
-	@Deprecated(since = "2.3.6", forRemoval = true)
+	
+	@Deprecated
 	public byte getDyeData() {
 		return (byte) (15 - dye.getWoolData());
 	}
@@ -180,9 +176,10 @@ public enum SkriptColor implements Color {
 	
 	public static SkriptColor fromBukkitColor(org.bukkit.Color color) {
 		for (SkriptColor c : colors) {
-			if (c.asBukkitColor().equals(color) || c.asDyeColor().getFireworkColor().equals(color))
+			if (c.asBukkitColor().equals(color))
 				return c;
 		}
+		assert false;
 		return null;
 	}
 	
@@ -191,7 +188,7 @@ public enum SkriptColor implements Color {
 	 * @param data short to match against a defined Skript Color.
 	 * @return Skript Color if matched up with the defined short
 	 */
-	@Deprecated(since = "2.3.6", forRemoval = true)
+	@Deprecated
 	@Nullable
 	public static SkriptColor fromDyeData(short data) {
 		if (data < 0 || data >= 16)
@@ -211,7 +208,7 @@ public enum SkriptColor implements Color {
 	 * @param data short to match against a defined Skript Color.
 	 * @return Skript Color if matched up with the defined short
 	 */
-	@Deprecated(since = "2.3.6", forRemoval = true)
+	@Deprecated
 	@Nullable
 	public static SkriptColor fromWoolData(short data) {
 		if (data < 0 || data >= 16)
@@ -234,15 +231,6 @@ public enum SkriptColor implements Color {
 	 */
 	public static String replaceColorChar(String s) {
 		return s.replace('\u00A7', '&');
-	}
-
-	/**
-	 * Retrieve a {@link SkriptColor} correlating to the color character from {@code character}
-	 * @param character
-	 * @return The resulting {@link SkriptColor}
-	 */
-	public static @Nullable SkriptColor fromColorChar(char character) {
-		return BY_CHAR.get(character);
 	}
 
 	@Override

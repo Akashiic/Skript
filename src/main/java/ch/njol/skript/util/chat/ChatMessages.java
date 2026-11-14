@@ -1,14 +1,22 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.util.chat;
-
-import ch.njol.skript.Skript;
-import ch.njol.skript.SkriptAddon;
-import ch.njol.skript.localization.Language;
-import ch.njol.skript.util.Utils;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import net.md_5.bungee.api.ChatColor;
-import org.jetbrains.annotations.Nullable;
-import org.skriptlang.skript.bukkit.text.TextComponentParser;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -21,11 +29,20 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import org.eclipse.jdt.annotation.Nullable;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import ch.njol.skript.Skript;
+import ch.njol.skript.SkriptAddon;
+import ch.njol.skript.localization.Language;
+import ch.njol.skript.localization.LanguageChangeListener;
+import ch.njol.skript.util.Utils;
+import org.bukkit.ChatColor;
+
 /**
  * Handles parsing chat messages.
- * @deprecated See {@link TextComponentParser}.
  */
-@Deprecated(since = "2.15", forRemoval = true)
 public class ChatMessages {
 	
 	/**
@@ -70,28 +87,32 @@ public class ChatMessages {
 	 */
 	public static void registerListeners() {
 		// When language changes or server is loaded loop through all chatcodes
-		Language.addListener(() -> {
-			codes.clear();
-
-			Skript.debug("Parsing message style lang files");
-			for (SkriptChatCode code : SkriptChatCode.values()) {
-				assert code != null;
-				registerChatCode(code);
+		Language.addListener(new LanguageChangeListener() {
+			
+			@Override
+			public void onLanguageChange() {
+				codes.clear();
+				
+				Skript.debug("Parsing message style lang files");
+				for (SkriptChatCode code : SkriptChatCode.values()) {
+					assert code != null;
+					registerChatCode(code);
+				}
+				
+				// Re-register any missing addon chat codes
+				for (ChatCode code : addonCodes) {
+					assert code != null;
+					registerChatCode(code);
+				}
+				
+				// Add formatting chars
+				addColorChar('k', SkriptChatCode.obfuscated);
+				addColorChar('l', SkriptChatCode.bold);
+				addColorChar('m', SkriptChatCode.strikethrough);
+				addColorChar('n', SkriptChatCode.underlined);
+				addColorChar('o', SkriptChatCode.italic);
+				addColorChar('r', SkriptChatCode.reset);
 			}
-
-			// Re-register any missing addon chat codes
-			for (ChatCode code : addonCodes) {
-				assert code != null;
-				registerChatCode(code);
-			}
-
-			// Add formatting chars
-			addColorChar('k', SkriptChatCode.obfuscated);
-			addColorChar('l', SkriptChatCode.bold);
-			addColorChar('m', SkriptChatCode.strikethrough);
-			addColorChar('n', SkriptChatCode.underlined);
-			addColorChar('o', SkriptChatCode.italic);
-			addColorChar('r', SkriptChatCode.reset);
 		});
 	}
 	
@@ -125,7 +146,10 @@ public class ChatMessages {
 	}
 	
 	static {
-		Gson nullableGson = new GsonBuilder().registerTypeAdapter(boolean.class, new MessageComponent.BooleanSerializer()).create();
+		Gson nullableGson = new GsonBuilder()
+			.registerTypeAdapter(boolean.class, new MessageComponent.BooleanSerializer())
+			.registerTypeAdapter(ChatColor.class, new MessageComponent.ColorSerializer())
+			.create();
 		assert nullableGson != null;
 		gson = nullableGson;
 	}
@@ -148,7 +172,7 @@ public class ChatMessages {
 		 * DO NOT USE!
 		 */
 		@SuppressWarnings("unused")
-		@Deprecated(since = "2.3.0", forRemoval = true)
+		@Deprecated
 		public String text = "";
 		
 		/**
@@ -209,7 +233,7 @@ public class ChatMessages {
 					}
 					name = name.toLowerCase(Locale.ENGLISH); // Tags are case-insensitive
 					
-					boolean tryHex = name.startsWith("#");
+					boolean tryHex = Utils.HEX_SUPPORTED && name.startsWith("#");
 					ChatColor chatColor = null;
 					if (tryHex) {
 						chatColor = Utils.parseHexColor(name);
@@ -257,7 +281,7 @@ public class ChatMessages {
 				
 				char color = chars[i + 1];
 				
-				boolean tryHex = color == 'x';
+				boolean tryHex = Utils.HEX_SUPPORTED && color == 'x';
 				ChatColor chatColor = null;
 				if (tryHex && i + 14 < chars.length) { // Try to parse hex "&x&1&2&3&4&5&6"
 					chatColor = Utils.parseHexColor(msg.substring(i + 2, i + 14).replace("&", "").replace("§", ""));
@@ -420,7 +444,7 @@ public class ChatMessages {
 
 				char color = chars[i + 1];
 
-				boolean tryHex = color == 'x';
+				boolean tryHex = Utils.HEX_SUPPORTED && color == 'x';
 				ChatColor chatColor = null;
 				if (tryHex && i + 14 < chars.length) { // Try to parse hex "&x&1&2&3&4&5&6"
 					chatColor = Utils.parseHexColor(msg.substring(i + 2, i + 14).replace("&", "").replace("§", ""));
@@ -516,8 +540,6 @@ public class ChatMessages {
 			to.insertion = from.insertion;
 		if (to.hoverEvent == null)
 			to.hoverEvent = from.hoverEvent;
-		if (to.font == null)
-			to.font = from.font;
 	}
 
 	public static void shareStyles(MessageComponent[] components) {
@@ -554,36 +576,25 @@ public class ChatMessages {
 		registerChatCode(code);
 	}
 	
-	private static final Pattern HEX_COLOR_PATTERN = Pattern.compile("[§&]x");
-	private static final Pattern ANY_COLOR_PATTERN = Pattern.compile("(?i)[&§][0-9a-folkrnm]");
-	
 	/**
 	 * Strips all styles from given string.
 	 * @param text String to strip styles from.
 	 * @return A string without styles.
 	 */
 	public static String stripStyles(String text) {
-		String previous;
-		String result = text;
-		do {
-			previous = result;
-			
-			List<MessageComponent> components = parse(result);
-			StringBuilder builder = new StringBuilder();
-			for (MessageComponent component : components) { // This also strips bracket tags ex. <red> <ttp:..> etc.
-				if (component.translation != null)
-					builder.append(component.translation);
-				if (component.keybind != null)
-					builder.append(component.keybind);
-				builder.append(component.text);
-			}
-			String plain = builder.toString();
+		List<MessageComponent> components = parse(text);
+		StringBuilder sb = new StringBuilder();
+		for (MessageComponent component : components) { // This also strips bracket tags ex. <red> <ttp:..> etc.
+			sb.append(component.text);
+		}
+		String plain = sb.toString();
 
-			plain = HEX_COLOR_PATTERN.matcher(plain).replaceAll("");
-			
-			result = ANY_COLOR_PATTERN.matcher(plain).replaceAll(""); // strips colors & or § (ex. &5)
-		} while (!previous.equals(result));
-		
-		return result;
+		if (Utils.HEX_SUPPORTED) // Strip '§x', '&x'
+			plain = plain.replaceAll("[§&]x", "");
+
+		plain = plain.replaceAll("(?i)[&§][0-9a-folkrnm]", ""); // strips colors & or § (ex. &5)
+
+		assert plain != null;
+		return plain;
 	}
 }

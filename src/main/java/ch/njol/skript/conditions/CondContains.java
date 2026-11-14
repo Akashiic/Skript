@@ -1,77 +1,84 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.conditions;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.SkriptConfig;
 import ch.njol.skript.aliases.ItemType;
+import ch.njol.skript.classes.Comparator.Relation;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.lang.Condition;
 import ch.njol.skript.lang.Expression;
-import ch.njol.skript.lang.Literal;
-import ch.njol.skript.lang.SimplifiedCondition;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
-import ch.njol.skript.lang.VerboseAssert;
 import ch.njol.skript.lang.util.SimpleExpression;
-import ch.njol.skript.lang.util.common.AnyContains;
-import ch.njol.skript.util.LiteralUtils;
+import ch.njol.skript.registrations.Comparators;
 import ch.njol.util.Kleenean;
 import ch.njol.util.StringUtils;
 import org.bukkit.event.Event;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.jetbrains.annotations.Nullable;
-import org.skriptlang.skript.common.properties.elements.conditions.PropCondContains;
-import org.skriptlang.skript.lang.comparator.Comparators;
-import org.skriptlang.skript.lang.comparator.Relation;
-import org.skriptlang.skript.lang.converter.Converters;
+import org.eclipse.jdt.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.Objects;
-import java.util.StringJoiner;
 
-/**
- * @deprecated This is being removed in favor of {@link PropCondContains}
- */
 @Name("Contains")
-@Description("Checks whether an inventory contains an item, a text contains another piece of text, "
-	+ "a container contains something, "
-	+ "or a list (e.g. {list variable::*} or 'drops') contains another object.")
-@Example("block contains 20 cobblestone")
-@Example("player has 4 flint and 2 iron ingots")
-@Example("{list::*} contains 5")
+@Description("Checks whether an inventory contains an item, a text contains another piece of text, " +
+		"or a list (e.g. {list variable::*} or 'drops') contains another object.")
+@Examples({"block contains 20 cobblestone",
+		"player has 4 flint and 2 iron ingots",
+		"{list::*} contains 5"})
 @Since("1.0")
-@Deprecated(since="2.13", forRemoval = true)
-public class CondContains extends Condition implements VerboseAssert {
+public class CondContains extends Condition {
 
 	static {
-		if (!SkriptConfig.useTypeProperties.value())
-			Skript.registerCondition(CondContains.class,
-				"%inventories% (has|have) %itemtypes% [in [(the[ir]|his|her|its)] inventory]",
-				"%inventories% (doesn't|does not|do not|don't) have %itemtypes% [in [(the[ir]|his|her|its)] inventory]",
-				"%inventories/strings/objects% contain[(1¦s)] %itemtypes/strings/objects%",
-				"%inventories/strings/objects% (doesn't|does not|do not|don't) contain %itemtypes/strings/objects%"
-			);
+		Skript.registerCondition(CondContains.class,
+			"%inventories% (has|have) %itemtypes% [in [(the[ir]|his|her|its)] inventory]",
+			"%inventories% (doesn't|does not|do not|don't) have %itemtypes% [in [(the[ir]|his|her|its)] inventory]",
+			"%inventories/strings/objects% contain[(1¦s)] %itemtypes/strings/objects%",
+			"%inventories/strings/objects% (doesn't|does not|do not|don't) contain %itemtypes/strings/objects%"
+		);
 	}
 
 	/**
 	 * The type of check to perform
 	 */
 	private enum CheckType {
-		STRING, INVENTORY, OBJECTS, UNKNOWN, CONTAINER
+		STRING, INVENTORY, OBJECTS, UNKNOWN
 	}
 
+	@SuppressWarnings("NotNullFieldNotInitialized")
 	private Expression<?> containers;
+	@SuppressWarnings("NotNullFieldNotInitialized")
 	private Expression<?> items;
 
 	private boolean explicitSingle;
+	@SuppressWarnings("NotNullFieldNotInitialized")
 	private CheckType checkType;
 
 	@Override
 	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult) {
-		containers = LiteralUtils.defendExpression(exprs[0]);
-		items = LiteralUtils.defendExpression(exprs[1]);
+		containers = exprs[0];
+		items = exprs[1];
 
 		explicitSingle = matchedPattern == 2 && parseResult.mark != 1 || containers.isSingle();
 
@@ -81,15 +88,15 @@ public class CondContains extends Condition implements VerboseAssert {
 			checkType = CheckType.UNKNOWN;
 		}
 
-		this.setNegated(matchedPattern % 2 == 1);
-		return LiteralUtils.canInitSafely(containers, items);
+		setNegated(matchedPattern % 2 == 1);
+		return true;
 	}
 
 	@Override
-	public boolean check(Event event) {
+	public boolean check(Event e) {
 		CheckType checkType = this.checkType;
 
-		Object[] containerValues = containers.getAll(event);
+		Object[] containerValues = containers.getAll(e);
 
 		if (containerValues.length == 0)
 			return isNegated();
@@ -101,11 +108,6 @@ public class CondContains extends Condition implements VerboseAssert {
 				checkType = CheckType.INVENTORY;
 			} else if (explicitSingle
 				&& Arrays.stream(containerValues)
-				.allMatch(object -> object instanceof AnyContains<?>
-					|| Converters.converterExists(object.getClass(), AnyContains.class))) {
-				checkType = CheckType.CONTAINER;
-			} else if (explicitSingle
-				&& Arrays.stream(containerValues)
 				.allMatch(String.class::isInstance)) {
 				checkType = CheckType.STRING;
 			} else {
@@ -113,90 +115,48 @@ public class CondContains extends Condition implements VerboseAssert {
 			}
 		}
 
-		return switch (checkType) {
-			case INVENTORY -> SimpleExpression.check(containerValues, o -> {
+		if (checkType == CheckType.INVENTORY) {
+			return SimpleExpression.check(containerValues, o -> {
 				Inventory inventory = (Inventory) o;
 
-				return items.check(event, o1 -> {
-					if (o1 instanceof ItemType type) {
-						return type.isContainedIn(inventory);
-					} else if (o1 instanceof ItemStack stack) {
-						return inventory.containsAtLeast(stack, stack.getAmount());
-					} else if (o1 instanceof Inventory) {
+				return items.check(e, o1 -> {
+					if (o1 instanceof ItemType)
+						return ((ItemType) o1).isContainedIn(inventory);
+					else if (o1 instanceof ItemStack)
+						return inventory.containsAtLeast((ItemStack) o1, ((ItemStack) o1).getAmount());
+					else if (o1 instanceof Inventory)
 						return Objects.equals(inventory, o1);
-					}
-					return false;
+					else
+						return false;
 				});
 			}, isNegated(), containers.getAnd());
-			case STRING -> {
-				boolean caseSensitive = SkriptConfig.caseSensitive.value();
+		} else if (checkType == CheckType.STRING) {
+			boolean caseSensitive = SkriptConfig.caseSensitive.value();
 
-				yield SimpleExpression.check(containerValues, o -> {
-					String string = (String) o;
+			return SimpleExpression.check(containerValues, o -> {
+				String string = (String) o;
 
-					return items.check(event, o1 -> {
-						if (o1 instanceof String text) {
-							return StringUtils.contains(string, text, caseSensitive);
-						} else {
-							return false;
-						}
-					});
-				}, isNegated(), containers.getAnd());
-			}
-			case CONTAINER -> SimpleExpression.check(containerValues, object -> {
-				AnyContains container;
-				if (object instanceof AnyContains<?>) {
-					container = (AnyContains) object;
-				} else {
-					container = Converters.convert(object, AnyContains.class);
-				}
-				if (container == null)
-					return false;
-				return items.check(event, container::checkSafely);
-			}, isNegated(), containers.getAnd());
-			default -> {
-				assert checkType == CheckType.OBJECTS;
-				yield items.check(event, o1 -> {
-					for (Object o2 : containerValues) {
-						if (Comparators.compare(o1, o2) == Relation.EQUAL)
-							return true;
+				return items.check(e, o1 -> {
+					if (o1 instanceof String) {
+						return StringUtils.contains(string, (String) o1, caseSensitive);
+					} else {
+						return false;
 					}
-					return false;
-				}, isNegated());
-			}
-		};
-	}
-
-	@Override
-	public String getExpectedMessage(Event event) {
-		StringJoiner joiner = new StringJoiner(" ");
-		joiner.add("to");
-		if (isNegated()) {
-			joiner.add("not");
-		}
-		joiner.add("find %s".formatted(VerboseAssert.getExpressionValue(items, event)));
-		return joiner.toString();
-	}
-
-	@Override
-	public String getReceivedMessage(Event event) {
-		StringJoiner joiner = new StringJoiner(" ");
-		if (!isNegated()) {
-			joiner.add("no");
+				});
+			}, isNegated(), containers.getAnd());
 		} else {
-			joiner.add("a");
+			assert checkType == CheckType.OBJECTS;
+
+			return items.check(e, o1 -> {
+				for (Object o2 : containerValues) {
+					if (Comparators.compare(o1, o2) == Relation.EQUAL)
+						return true;
+				}
+				return false;
+			}, isNegated());
 		}
-		joiner.add("match in %s".formatted(VerboseAssert.getExpressionValue(containers, event)));
-		return joiner.toString();
 	}
-
-	@Override
-	public Condition simplify() {
-		if (containers instanceof Literal<?> && items instanceof Literal<?>)
-			return SimplifiedCondition.fromCondition(this);
-		return this;
-	}
-
+	
 	@Override
 	public String toString(@Nullable Event e, boolean debug) {
 		return containers.toString(e, debug) + (isNegated() ? " doesn't contain " : " contains ") + items.toString(e, debug);

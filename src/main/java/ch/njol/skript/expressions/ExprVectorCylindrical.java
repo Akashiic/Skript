@@ -1,37 +1,54 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.expressions;
+
+import org.bukkit.event.Event;
+import org.bukkit.util.Vector;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.lang.Expression;
 import ch.njol.skript.lang.ExpressionType;
-import ch.njol.skript.lang.Literal;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.skript.lang.util.SimpleExpression;
 import ch.njol.util.Kleenean;
+import ch.njol.util.VectorMath;
 import ch.njol.util.coll.CollectionUtils;
-import org.bukkit.event.Event;
-import org.bukkit.util.Vector;
-import org.jetbrains.annotations.Nullable;
-import ch.njol.skript.lang.simplification.SimplifiedLiteral;
 
+/**
+ * @author bi0qaw
+ */
 @Name("Vectors - Cylindrical Shape")
 @Description("Forms a 'cylindrical shaped' vector using yaw to manipulate the current point.")
-@Example("""
-	loop 360 times:
-		set {_v} to cylindrical vector radius 1, yaw loop-value, height 2
-	""")
-@Example("set {_v} to cylindrical vector radius 1, yaw 90, height 2")
+@Examples({"loop 360 times:",
+		"	set {_v} to cylindrical vector radius 1, yaw loop-value, height 2",
+		"set {_v} to cylindrical vector radius 1, yaw 90, height 2"})
 @Since("2.2-dev28")
 public class ExprVectorCylindrical extends SimpleExpression<Vector> {
 
-	private static final double DEG_TO_RAD = Math.PI / 180;
-
 	static {
 		Skript.registerExpression(ExprVectorCylindrical.class, Vector.class, ExpressionType.SIMPLE,
-				"[a] [new] cylindrical vector [from|with] [radius] %number%, [yaw] %number%(,[ and]| and) [height] %number%");
+				"[a] [new] cylindrical vector [(from|with)] [radius] %number%, [yaw] %number%(,| and) [height] %number%");
 	}
 
 	@SuppressWarnings("null")
@@ -48,13 +65,13 @@ public class ExprVectorCylindrical extends SimpleExpression<Vector> {
 
 	@Override
 	@SuppressWarnings("null")
-	protected Vector[] get(Event event) {
-		Number radius = this.radius.getSingle(event);
-		Number yaw = this.yaw.getSingle(event);
-		Number height = this.height.getSingle(event);
-		if (radius == null || yaw == null || height == null)
+	protected Vector[] get(Event e) {
+		Number r = radius.getSingle(e);
+		Number y = yaw.getSingle(e);
+		Number h = height.getSingle(e);
+		if (r == null || y == null || h == null)
 			return null;
-		return CollectionUtils.array(fromCylindricalCoordinates(radius.doubleValue(), ExprYawPitch.fromSkriptYaw(yaw.floatValue()), height.doubleValue()));
+		return CollectionUtils.array(VectorMath.fromCylindricalCoordinates(r.doubleValue(), VectorMath.fromSkriptYaw(y.floatValue()), h.doubleValue()));
 	}
 
 	@Override
@@ -68,24 +85,9 @@ public class ExprVectorCylindrical extends SimpleExpression<Vector> {
 	}
 
 	@Override
-	public Expression<? extends Vector> simplify() {
-		if (radius instanceof Literal<Number> && yaw instanceof Literal<Number> && height instanceof Literal<Number>)
-			return SimplifiedLiteral.fromExpression(this);
-		return this;
-	}
-
-	@Override
-	public String toString(@Nullable Event event, boolean debug) {
-		return "cylindrical vector with radius " + radius.toString(event, debug) + ", yaw " +
-				yaw.toString(event, debug) + " and height " + height.toString(event, debug);
-	}
-
-	public static Vector fromCylindricalCoordinates(double radius, double phi, double height) {
-		double r = Math.abs(radius);
-		double p = phi * DEG_TO_RAD;
-		double x = r * Math.cos(p);
-		double z = r * Math.sin(p);
-		return new Vector(x, height, z);
+	public String toString(@Nullable Event e, boolean debug) {
+		return "cylindrical vector with radius " + radius.toString(e, debug) + ", yaw " +
+				yaw.toString(e, debug) + " and height " + height.toString(e, debug);
 	}
 
 }

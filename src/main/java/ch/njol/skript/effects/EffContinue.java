@@ -1,111 +1,88 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.effects;
 
 import ch.njol.skript.Skript;
-import ch.njol.skript.classes.data.JavaClasses;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
-import ch.njol.skript.lang.*;
+import ch.njol.skript.lang.Effect;
+import ch.njol.skript.lang.Expression;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
+import ch.njol.skript.lang.TriggerItem;
+import ch.njol.skript.lang.TriggerSection;
 import ch.njol.skript.lang.parser.ParserInstance;
+import ch.njol.skript.sections.SecLoop;
+import ch.njol.skript.sections.SecWhile;
 import ch.njol.util.Kleenean;
-import ch.njol.util.StringUtils;
 import org.bukkit.event.Event;
-import org.jetbrains.annotations.Nullable;
-import org.jetbrains.annotations.UnknownNullability;
+import org.eclipse.jdt.annotation.Nullable;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Name("Continue")
-@Description("Moves the loop to the next iteration. You may also continue an outer loop from an inner one." +
-	" The loops are labelled from 1 until the current loop, starting with the outermost one.")
-@Example("""
-	# Broadcast online moderators
-	loop all players:
-		if loop-value does not have permission "moderator":
-			continue # filter out non moderators
-		broadcast "%loop-player% is a moderator!" # Only moderators get broadcast
-	""")
-@Example("""
-	# Game starting counter
-	set {_counter} to 11
-	while {_counter} > 0:
-		remove 1 from {_counter}
-		wait a second
-		if {_counter} != 1, 2, 3, 5 or 10:
-			continue # only print when counter is 1, 2, 3, 5 or 10
-		broadcast "Game starting in %{_counter}% second(s)"
-	""")
-@Since("2.2-dev37, 2.7 (while loops), 2.8.0 (outer loops)")
+@Description("Skips the value currently being looped, moving on to the next value if it exists.")
+@Examples({"loop all players:",
+		"\tif loop-value does not have permission \"moderator\":",
+		"\t\tcontinue # filter out non moderators",
+		"\tbroadcast \"%loop-player% is a moderator!\" # Only moderators get broadcast"})
+@Since("2.2-dev37, INSERT VERSION (while loops)")
 public class EffContinue extends Effect {
 
 	static {
-		Skript.registerEffect(EffContinue.class,
-			"continue [this loop|[the] [current] loop]",
-			"continue [the] <" + JavaClasses.INTEGER_NUMBER_PATTERN + ">(st|nd|rd|th) loop"
-		);
+		Skript.registerEffect(EffContinue.class, "continue [loop]");
 	}
 
-	// Used for toString
-	private int level;
-
-	private @UnknownNullability LoopSection loop;
-	private @UnknownNullability List<SectionExitHandler> sectionsToExit;
-	private int breakLevels;
+	@SuppressWarnings("NotNullFieldNotInitialized")
+	private TriggerSection section;
 
 	@Override
-    public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult) {
-		ParserInstance parser = getParser();
-		int loops = parser.getCurrentSections(LoopSection.class).size();
-		if (loops == 0) {
-			Skript.error("The 'continue' effect may only be used in loops");
+	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult) {
+		List<TriggerSection> currentSections = ParserInstance.get().getCurrentSections().stream()
+			.filter(s -> s instanceof SecLoop || s instanceof SecWhile)
+			.collect(Collectors.toList());
+		
+		if (currentSections.isEmpty()) {
+			Skript.error("Continue may only be used in while or loops");
 			return false;
 		}
-
-		level = matchedPattern == 0 ? loops : Integer.parseInt(parseResult.regexes.get(0).group());
-		if (level < 1)
-			return false;
-
-		// ParserInstance#getSections counts from the innermost section, so we need to invert the level 
-		int levels = loops - level + 1;
-		if (levels <= 0) {
-			Skript.error("Can't continue the " + StringUtils.fancyOrderNumber(level) + " loop as there " +
-				(loops == 1 ? "is only 1 loop" : "are only " + loops + " loops") + " present");
-			return false;
-		}
-
-        List<TriggerSection> innerSections = parser.getSections(levels, LoopSection.class);
-		breakLevels = innerSections.size();
-		loop = (LoopSection) innerSections.remove(0);
-		sectionsToExit = innerSections.stream()
-			.filter(SectionExitHandler.class::isInstance)
-			.map(SectionExitHandler.class::cast)
-			.toList();
+		
+		section = currentSections.get(currentSections.size() - 1);
 		return true;
 	}
 
 	@Override
-	protected void execute(Event event) {
+	protected void execute(Event e) {
 		throw new UnsupportedOperationException();
 	}
 
+	@Nullable
 	@Override
-	protected @Nullable TriggerItem walk(Event event) {
-		debug(event, false);
-		for (SectionExitHandler section : sectionsToExit)
-			section.exit(event);
-		return loop;
+	protected TriggerItem walk(Event e) {
+		return section;
 	}
 
 	@Override
-	public ExecutionIntent executionIntent() {
-		return ExecutionIntent.stopSections(breakLevels);
-	}
-
-	@Override
-	public String toString(@Nullable Event event, boolean debug) {
-		return "continue" + (level == -1 ? "" : " the " + StringUtils.fancyOrderNumber(level) + " loop");
+	public String toString(@Nullable Event e, boolean debug) {
+		return "continue";
 	}
 
 }

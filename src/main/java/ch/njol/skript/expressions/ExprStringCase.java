@@ -1,13 +1,30 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.expressions;
 
-import ch.njol.skript.lang.Literal;
 import org.apache.commons.lang.WordUtils;
 import org.bukkit.event.Event;
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.lang.Expression;
@@ -15,24 +32,23 @@ import ch.njol.skript.lang.ExpressionType;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.skript.lang.util.SimpleExpression;
 import ch.njol.util.Kleenean;
-import ch.njol.skript.lang.simplification.SimplifiedLiteral;
 
 @Name("Case Text")
 @Description("Copy of given text in Lowercase, Uppercase, Proper Case, camelCase, PascalCase, Snake_Case, and Kebab-Case")
-@Example("\"Oops!\" in lowercase # oops!")
-@Example("\"oops!\" in uppercase # OOPS!")
-@Example("\"hellO i'm steve!\" in proper case # HellO I'm Steve!")
-@Example("\"hellO i'm steve!\" in strict proper case # Hello I'm Steve!")
-@Example("\"spAwn neW boSs ()\" in camel case # spAwnNeWBoSs()")
-@Example("\"spAwn neW boSs ()\" in strict camel case # spawnNewBoss()")
-@Example("\"geneRate ranDom numBer ()\" in pascal case # GeneRateRanDomNumBer()")
-@Example("\"geneRate ranDom numBer ()\" in strict pascal case # GenerateRandomNumber()")
-@Example("\"Hello Player!\" in snake case # Hello_Player!")
-@Example("\"Hello Player!\" in lower snake case # hello_player!")
-@Example("\"Hello Player!\" in upper snake case # HELLO_PLAYER!")
-@Example("\"What is your name?\" in kebab case # What-is-your-name?")
-@Example("\"What is your name?\" in lower kebab case # what-is-your-name?")
-@Example("\"What is your name?\" in upper kebab case # WHAT-IS-YOUR-NAME?")
+@Examples({"\"Oops!\" in lowercase # oops!",
+	"\"oops!\" in uppercase # OOPS!",
+	"\"hellO i'm steve!\" in proper case # HellO I'm Steve!",
+	"\"hellO i'm steve!\" in strict proper case # Hello I'm Steve!",
+	"\"spAwn neW boSs ()\" in camel case # spAwnNeWBoSs()",
+	"\"spAwn neW boSs ()\" in strict camel case # spawnNewBoss()",
+	"\"geneRate ranDom numBer ()\" in pascal case # GeneRateRanDomNumBer()",
+	"\"geneRate ranDom numBer ()\" in strict pascal case # GenerateRandomNumber()",
+	"\"Hello Player!\" in snake case # Hello_Player!",
+	"\"Hello Player!\" in lower snake case # hello_player!",
+	"\"Hello Player!\" in upper snake case # HELLO_PLAYER!",
+	"\"What is your name?\" in kebab case # What-is-your-name?",
+	"\"What is your name?\" in lower kebab case # what-is-your-name?",
+	"\"What is your name?\" in upper kebab case # WHAT-IS-YOUR-NAME?"})
 @Since("2.2-dev16 (lowercase and uppercase), 2.5 (advanced cases)")
 public class ExprStringCase extends SimpleExpression<String> {
 	
@@ -137,35 +153,22 @@ public class ExprStringCase extends SimpleExpression<String> {
 	}
 
 	@Override
-	public Expression<? extends String> simplify() {
-		if (expr instanceof Literal<String>)
-			return SimplifiedLiteral.fromExpression(this);
-		return this;
-	}
-
-	@Override
-	public String toString(@Nullable Event event, boolean debug) {
-		String mode = "";
+	public String toString(@Nullable Event e, boolean debug) {
 		switch (type) {
 			case 0: // Basic Case Change 
-				mode = (casemode == 1) ? "uppercase" : "lowercase";
-				break;
+				return (casemode == 1) ? "uppercase" : "lowercase";
 			case 1: // Proper Case 
-				mode = ((casemode == 3) ? "strict" : "lenient") + " proper case";
-				break;
+				return ((casemode == 3) ? "strict" : "lenient") + " proper case";
 			case 2: // Camel Case 
-				mode = ((casemode == 3) ? "strict" : "lenient") + " camel case";
-				break;
+				return ((casemode == 3) ? "strict" : "lenient") + " camel case";
 			case 3: // Pascal Case 
-				mode = ((casemode == 3) ? "strict" : "lenient") + " pascal case";
-				break;
+				return ((casemode == 3) ? "strict" : "lenient") + " pascal case";
 			case 4: // Snake Case 
-				mode = ((casemode == 0) ? "" : ((casemode == 1)) ? "upper " : "lower ") + "snake case";
-				break;
+				return ((casemode == 0) ? "" : ((casemode == 1)) ? "upper " : "lower ") + "snake case";
 			case 5: // Kebab Case 
-				mode = ((casemode == 0) ? "" : ((casemode == 1)) ? "upper " : "lower ") + "kebab case";
+				return ((casemode == 0) ? "" : ((casemode == 1)) ? "upper " : "lower ") + "kebab case";
 		}
-		return mode + " " + expr.toString(event, debug);
+		return ""; // Shouldn't reach here anyways 
 	}
 	
 	@SuppressWarnings("null")

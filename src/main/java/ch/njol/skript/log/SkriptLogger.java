@@ -1,3 +1,21 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.log;
 
 import java.util.Collection;
@@ -7,13 +25,12 @@ import java.util.logging.Logger;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.config.Node;
 import ch.njol.skript.lang.parser.ParserInstance;
 import ch.njol.skript.log.LogHandler.LogResult;
-import org.skriptlang.skript.bukkit.text.TextComponentParser;
 
 /**
  * @author Peter Güttinger
@@ -151,7 +168,7 @@ public abstract class SkriptLogger {
 	public static void log(@Nullable LogEntry entry) {
 		if (entry == null)
 			return;
-		if (Skript.debug() && getNode() != null && getNode().debug())
+		if (Skript.testing() && getNode() != null && getNode().debug())
 			System.out.print("---> " + entry.level + "/" + ErrorQuality.get(entry.quality) + ": " + entry + " ::" + LogEntry.findCaller());
 		for (LogHandler h : getHandlers()) {
 			LogResult r = h.log(entry);
@@ -166,15 +183,7 @@ public abstract class SkriptLogger {
 			}
 		}
 		entry.logged();
-
-		// In a testing environment, we do not want to pollute console with these debug messages.
-		// It is desirable that the logging process still runs to near completion, as it provides additional testing
-		//  for syntax implementations (e.g. toString functionality).
-		if (Skript.testing() && entry.getLevel() == DEBUG) {
-			return;
-		}
-
-		sendFormatted(Bukkit.getConsoleSender(), Skript.getSkriptPrefix() + entry.toFormattedString());
+		sendFormatted(Bukkit.getConsoleSender(), "[Skript] " + entry.toFormattedString());
 	}
 	
 	public static void logAll(Collection<LogEntry> entries) {
@@ -200,11 +209,10 @@ public abstract class SkriptLogger {
 	 */
 	public static void sendFormatted(CommandSender commandSender, String message) {
 		if (commandSender instanceof ConsoleCommandSender) {
-			for (String s : message.split("\n")) {
-				commandSender.sendMessage(TextComponentParser.instance().parse(s));
-			}
+			for (String s : message.split("\n"))
+				Bukkit.getConsoleSender().sendMessage(s);
 		} else {
-			commandSender.sendMessage(TextComponentParser.instance().parse(message));
+			commandSender.sendMessage(message);
 		}
 	}
 

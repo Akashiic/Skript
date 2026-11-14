@@ -1,0 +1,12 @@
+import:
+	java.util.concurrent.ConcurrentHashMap
+
+command /rlimit:
+	executable by: console
+	trigger:
+		set {_m} to new ConcurrentHashMap()
+		{_m}.put("a", 1)
+		set {_t} to {_m}.[ConcurrentHashMap]table
+		send "LIMIT private field in a package Crucible doesn't open: %{_t}%" to console
+		set {_size} to {_m}.size()
+		send "LIMIT public call still works: size=%{_size}%" to console

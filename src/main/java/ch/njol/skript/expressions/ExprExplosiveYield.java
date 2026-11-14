@@ -1,97 +1,105 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.expressions;
 
-import ch.njol.skript.Skript;
-import ch.njol.skript.classes.Changer.ChangeMode;
-import ch.njol.skript.doc.*;
-import ch.njol.skript.expressions.base.SimplePropertyExpression;
-import ch.njol.util.Math2;
-import ch.njol.util.coll.CollectionUtils;
 import org.bukkit.entity.Creeper;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Explosive;
-import org.bukkit.entity.Ghast;
 import org.bukkit.event.Event;
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
-import java.util.function.Consumer;
-import java.util.function.Supplier;
+import ch.njol.skript.Skript;
+import ch.njol.skript.classes.Changer.ChangeMode;
+import ch.njol.skript.doc.Description;
+import ch.njol.skript.doc.Examples;
+import ch.njol.skript.doc.Name;
+import ch.njol.skript.doc.RequiredPlugins;
+import ch.njol.skript.doc.Since;
+import ch.njol.skript.expressions.base.SimplePropertyExpression;
+import ch.njol.util.coll.CollectionUtils;
 
 @Name("Explosive Yield")
-@Description({
-	"The yield of an explosive (creeper, ghast, primed tnt, fireball, etc.). This is how big of an explosion is caused by the entity.",
-	"Read <a href='https://minecraft.wiki/w/Explosion'>this wiki page</a> for more information.",
-	"The yield of ghasts can only be set to between 0 and 127."
-})
-@Example("""
-	on spawn of a creeper:
-		set the explosive yield of the event-entity to 10
-	""")
-@Since("2.5, 2.11 (ghasts)")
+@Description({"The yield of an explosive (primed tnt, fireball, etc.). This is how big of an explosion is caused by the entity.",
+				"Read <a href='https://minecraft.gamepedia.com/Explosion'>this wiki page</a> for more information"})
+@Examples({"on spawn of a creeper:",
+			"\tset the explosive yield of the event-entity to 10"})
+@Since("2.5")
 public class ExprExplosiveYield extends SimplePropertyExpression<Entity, Number> {
 
-	private static final boolean SUPPORTS_GHASTS = Skript.methodExists(Ghast.class, "getExplosionPower");
-
 	static {
-		register(ExprExplosiveYield.class, Number.class, "explosive (yield|radius|size|power)", "entities");
+		register(ExprExplosiveYield.class, Number.class, "explosive (yield|radius|size)", "entities");
 	}
 
 	@Override
-	public @Nullable Number convert(Entity entity) {
-		if (entity instanceof Explosive explosive) {
-			return explosive.getYield();
-		} else if (entity instanceof Creeper creeper) {
-			return creeper.getExplosionRadius();
-		} else if (SUPPORTS_GHASTS && entity instanceof Ghast ghast) {
-			return ghast.getExplosionPower();
+	public Number convert(Entity e) {
+		if (e instanceof Explosive)
+			return ((Explosive) e).getYield();
+		return 0;
+	}
+
+	@Override
+	@Nullable
+	public Class<?>[] acceptChange(final ChangeMode mode) {
+		switch (mode) {
+			case SET:
+			case ADD:
+			case REMOVE:
+			case DELETE:
+				return CollectionUtils.array(Number.class);
+			default:
+				return null;
 		}
-		return null;
 	}
 
 	@Override
-	public Class<?> @Nullable [] acceptChange(ChangeMode mode) {
-		return switch (mode) {
-			case SET, DELETE, ADD, REMOVE -> CollectionUtils.array(Number.class);
-			default -> null;
-		};
-	}
-
-	@Override
-	public void change(Event event, Object @Nullable [] delta, ChangeMode mode) {
-		Number number = delta != null ? (Number) delta[0] : 0;
-		float floatValue = Math2.fit(0, number.floatValue(), Float.MAX_VALUE);
-		int intValue = Math2.fit(0, number.intValue(), Integer.MAX_VALUE);
-
+	public void change(final Event event, final @Nullable Object[] delta, final ChangeMode mode) {
+		Number change = delta != null ? (Number) delta[0] : 0;
 		for (Entity entity : getExpr().getArray(event)) {
-			if (entity instanceof Explosive explosive) {
-				changeExplosion(mode, floatValue, explosive::getYield, explosive::setYield, Float.MAX_VALUE);
-			} else if (entity instanceof Creeper creeper) {
-				changeExplosion(mode, intValue, creeper::getExplosionRadius, creeper::setExplosionRadius, Integer.MAX_VALUE);
-			} else if (SUPPORTS_GHASTS && entity instanceof Ghast ghast) {
-				changeExplosion(mode, intValue, ghast::getExplosionPower, ghast::setExplosionPower, 127);
+			if (entity instanceof Explosive) {
+				Explosive e = (Explosive) entity;
+				float f = change.floatValue();
+				if (f < 0) // Negative values will throw an error.
+					return;
+				switch (mode) {
+					case SET:
+						e.setYield(f);
+						break;
+					case ADD:
+						float add = e.getYield() + f;
+						if (add < 0)
+							return;
+						e.setYield(add);
+						break;
+					case REMOVE:
+						float subtract = e.getYield() - f;
+						if (subtract < 0)
+							return;
+						e.setYield(subtract);
+						break;	
+					case DELETE:
+						e.setYield(0);
+						break;
+					default:
+						assert false;
+				}
 			}
 		}
-	}
-
-	private void changeExplosion(ChangeMode mode, float value, Supplier<Float> getter, Consumer<Float> setter, float max) {
-		setter.accept(Math2.fit(0F,
-			switch (mode) {
-				case SET, DELETE -> value;
-				case ADD -> getter.get() + value;
-				case REMOVE -> getter.get() - value;
-				default -> throw new IllegalArgumentException("Unexpected mode: " + mode);
-			},
-			max));
-	}
-
-	private void changeExplosion(ChangeMode mode, int value, Supplier<Integer> getter, Consumer<Integer> setter, int max) {
-		setter.accept(Math2.fit(0,
-				switch (mode) {
-					case SET, DELETE -> value;
-					case ADD -> getter.get() + value;
-					case REMOVE -> getter.get() - value;
-					default -> throw new IllegalArgumentException("Unexpected mode: " + mode);
-				},
-			max));
 	}
 
 	@Override

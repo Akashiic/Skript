@@ -1,0 +1,18 @@
+# Default language entries of the forge hook (merged into default.lang, same format)
+
+entities:
+	# Entities of Forge mods (see ch.njol.skript.hooks.forge.ForgeEntityData). The patterns match any words that
+	# don't start with an age; only names of mod entities are accepted, everything else falls through to the
+	# other entity types. 0: singular, 1: plural with s, 2: plural with es, 3: plural with ies (y).
+	forge entity:
+		name: mod entit¦y¦ies
+		pattern: <age> <(?i)(?!(?:baby|young|adult|grown)[ -])[a-z][a-z -]*[a-z]>
+	forge entity s:
+		name: mod entit¦y¦ies
+		pattern: <age> <(?i)(?!(?:baby|young|adult|grown)[ -])[a-z][a-z -]*[a-z]>(1¦s)
+	forge entity es:
+		name: mod entit¦y¦ies
+		pattern: <age> <(?i)(?!(?:baby|young|adult|grown)[ -])[a-z][a-z -]*[a-z]>(1¦es)
+	forge entity ies:
+		name: mod entit¦y¦ies
+		pattern: <age> <(?i)(?!(?:baby|young|adult|grown)[ -])[a-z][a-z -]*[a-z]>(1¦ies)

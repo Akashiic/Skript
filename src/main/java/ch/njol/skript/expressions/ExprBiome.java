@@ -1,15 +1,32 @@
+/**
+ *   This file is part of Skript.
+ *
+ *  Skript is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Skript is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Skript.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Copyright Peter Güttinger, SkriptLang team and contributors
+ */
 package ch.njol.skript.expressions;
 
-import ch.njol.skript.lang.Literal;
 import org.bukkit.Location;
 import org.bukkit.block.Biome;
 import org.bukkit.event.Event;
-import org.jetbrains.annotations.Nullable;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.classes.Changer.ChangeMode;
 import ch.njol.skript.doc.Description;
-import ch.njol.skript.doc.Example;
+import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
 import ch.njol.skript.doc.Since;
 import ch.njol.skript.expressions.base.PropertyExpression;
@@ -18,7 +35,6 @@ import ch.njol.skript.lang.ExpressionType;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.skript.util.Direction;
 import ch.njol.util.Kleenean;
-import ch.njol.skript.lang.simplification.SimplifiedLiteral;
 
 /**
  * @author Peter Güttinger
@@ -27,13 +43,11 @@ import ch.njol.skript.lang.simplification.SimplifiedLiteral;
 @Description({"The biome at a certain location. Please note that biomes are only defined for x/z-columns",
 	"(i.e. the <a href='#ExprAltitude'>altitude</a> (y-coordinate) doesn't matter), up until Minecraft 1.15.x.",
 	"As of Minecraft 1.16, biomes are now 3D (per block vs column)."})
-@Example("""
-    # damage player in deserts constantly
-    every real minute:
-    	loop all players:
-    		biome at loop-player is desert
-    		damage the loop-player by 1
-    """)
+@Examples({"# damage player in deserts constantly",
+		"every real minute:",
+		"	loop all players:",
+		"		biome at loop-player is desert",
+		"		damage the loop-player by 1"})
 @Since("1.4.4, 2.6.1 (3D biomes)")
 public class ExprBiome extends PropertyExpression<Location, Biome> {
 
@@ -79,17 +93,11 @@ public class ExprBiome extends PropertyExpression<Location, Biome> {
 	}
 
 	@Override
-	public Expression<? extends Biome> simplify() {
-		if (getExpr() instanceof Literal<? extends Location>)
-			return SimplifiedLiteral.fromExpression(this);
-		return this;
-	}
-
-	@Override
 	public String toString(@Nullable Event event, boolean debug) {
 		return "the biome at " + getExpr().toString(event, debug);
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public boolean setTime(int time) {
 		super.setTime(time, getExpr());
