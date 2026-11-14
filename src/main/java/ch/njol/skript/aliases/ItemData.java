@@ -615,13 +615,11 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 		serializerExtensions.put(id, extension);
 	}
 	
-	@Override
-	public Fields serialize() throws NotSerializableException {
-		Fields fields = new Fields(this); // ItemStack is transient, will be ignored
-		fields.putPrimitive("id", materialRegistry.getId(type));
-		fields.putObject("meta", stack.getItemMeta());
-		// On 1.7.10 the data value (wool color, modded item metadata...) is part of the item's identity
-		fields.putPrimitive("durability", stack.getDurability());
+	/**
+	 * Adds the data of every {@link SerializerExtension} for the given item to the fields.
+	 * Used for item types and for item stacks stored in variables.
+	 */
+	public static void saveExtensions(ItemStack stack, Fields fields) {
 		for (Map.Entry<String, SerializerExtension> extension : serializerExtensions.entrySet()) {
 			String data;
 			try {
@@ -633,6 +631,54 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 			if (data != null)
 				fields.putObject(EXTENSION_PREFIX + extension.getKey(), data);
 		}
+	}
+	
+	/**
+	 * Removes the extension data from the fields.
+	 * @return Extension id to its data.
+	 */
+	public static Map<String, String> takeExtensions(Fields fields) throws StreamCorruptedException {
+		Map<String, String> extensionData = new LinkedHashMap<>();
+		List<String> extensionIds = new ArrayList<>();
+		for (FieldContext field : fields) {
+			if (field.getID().startsWith(EXTENSION_PREFIX))
+				extensionIds.add(field.getID());
+		}
+		for (String id : extensionIds) {
+			Object data = fields.getAndRemoveObject(id, Object.class);
+			if (data instanceof String)
+				extensionData.put(id.substring(EXTENSION_PREFIX.length()), (String) data);
+		}
+		return extensionData;
+	}
+	
+	/**
+	 * Applies extension data taken with {@link #takeExtensions(Fields)} to an item.
+	 * Data of extensions that are no longer registered (hook not installed) is dropped.
+	 * @return The item with the data (may be a different stack).
+	 */
+	public static ItemStack applyExtensions(ItemStack stack, Map<String, String> extensionData) {
+		for (Map.Entry<String, String> data : extensionData.entrySet()) {
+			SerializerExtension extension = serializerExtensions.get(data.getKey());
+			if (extension == null)
+				continue;
+			try {
+				stack = extension.load(stack, data.getValue());
+			} catch (RuntimeException | LinkageError e) {
+				Skript.exception(e, "Could not load the " + data.getKey() + " data of an item");
+			}
+		}
+		return stack;
+	}
+	
+	@Override
+	public Fields serialize() throws NotSerializableException {
+		Fields fields = new Fields(this); // ItemStack is transient, will be ignored
+		fields.putPrimitive("id", materialRegistry.getId(type));
+		fields.putObject("meta", stack.getItemMeta());
+		// On 1.7.10 the data value (wool color, modded item metadata...) is part of the item's identity
+		fields.putPrimitive("durability", stack.getDurability());
+		saveExtensions(stack, fields);
 		return fields;
 	}
 
@@ -647,32 +693,13 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 		// Variables saved by older versions don't have the data value
 		short durability = fields.contains("durability") ? fields.getAndRemovePrimitive("durability", short.class) : 0;
 		// Data of serializer extensions; always removed, so items still load when the hook that saved it is gone
-		Map<String, String> extensionData = new LinkedHashMap<>();
-		List<String> extensionIds = new ArrayList<>();
-		for (FieldContext field : fields) {
-			if (field.getID().startsWith(EXTENSION_PREFIX))
-				extensionIds.add(field.getID());
-		}
-		for (String id : extensionIds) {
-			Object data = fields.getAndRemoveObject(id, Object.class);
-			if (data instanceof String)
-				extensionData.put(id.substring(EXTENSION_PREFIX.length()), (String) data);
-		}
+		Map<String, String> extensionData = takeExtensions(fields);
 		fields.setFields(this); // Everything but ItemStack and Material
 		
 		// Initialize ItemStack
 		this.stack = new ItemStack(type, 1, durability);
 		stack.setItemMeta(meta); // Just set meta to it
-		for (Map.Entry<String, String> data : extensionData.entrySet()) {
-			SerializerExtension extension = serializerExtensions.get(data.getKey());
-			if (extension == null)
-				continue; // Hook not installed anymore, the data is dropped
-			try {
-				this.stack = extension.load(stack, data.getValue());
-			} catch (RuntimeException | LinkageError e) {
-				Skript.exception(e, "Could not load the " + data.getKey() + " data of an item");
-			}
-		}
+		this.stack = applyExtensions(stack, extensionData);
 	}
 	
 	/**

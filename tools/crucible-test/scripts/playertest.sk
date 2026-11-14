@@ -1,0 +1,124 @@
+command /pttitle:
+	trigger:
+		send title "&6Bem-vindo" with subtitle "&7%player%" to player for 3 seconds
+		send action bar "&a+10 moedas" to player
+		set tab list header of player to "&lMeu Servidor"
+		set tab list footer of player to "&7online: %size of all players%"
+		send "TAB header=%tab list header of player% footer=%tab list footer of player%" to console
+		reset title of player
+		send "PT title done" to console
+
+command /ptbar:
+	trigger:
+		set {_bar} to a new boss bar named "Chefe" colored red with style 10 segments with progress 100
+		add player to boss bar players of {_bar}
+		set boss bar progress of {_bar} to 50
+		send "BAR %{_bar}% title=%boss bar title of {_bar}% progress=%boss bar progress of {_bar}% color=%boss bar color of {_bar}% players=%boss bar players of {_bar}%" to console
+		set {pt::bar} to {_bar}
+
+command /ptbaroff:
+	trigger:
+		remove boss bar {pt::bar}
+		send "BAR removed" to console
+
+command /ptchat:
+	trigger:
+		send "PING %ping of player%" to console
+		send "<link:https://exemplo.com>clique aqui<reset> ou <tooltip:dica>passe o mouse" to player
+		send "&cvermelho &lnegrito" to player
+		broadcast "<cmd:/pttitle>clique para titulo"
+
+command /ptgive:
+	trigger:
+		give player 2 prismarine bricks
+		give player 1 granite
+		give player 3 crimson stem
+		give player 1 red concrete
+		give player 1 diamond sword of sharpness 5 named "&bExcalibur"
+		give player 1 id:35:14
+		give player 1 netherite ingot
+		send "GIVE done, tool=%player's tool%" to console
+		loop items in player's inventory:
+			send "INV %loop-item% (%type of loop-item%)" to console
+
+command /ptspawn:
+	trigger:
+		spawn a hoglin at player
+		spawn a strider at player
+		spawn an armor stand at player
+		spawn a rabbit at player
+		spawn a stray at player
+		wait 2 ticks
+		loop entities in radius 10 of player:
+			send "NEAR %loop-entity%" to console
+
+command /ptride:
+	trigger:
+		spawn a strider at player
+		set {_s} to last spawned entity
+		make player ride {_s}
+		wait 5 ticks
+		send "RIDE vehicle=%vehicle of player%" to console
+		eject passengers of {_s}
+
+command /ptkill:
+	trigger:
+		loop entities in radius 20 of player:
+			if loop-entity is not a player:
+				kill loop-entity
+
+on mount:
+	send "EVENT mount: %entity% -> %the mount%" to console
+
+on dismount:
+	send "EVENT dismount: %entity%" to console
+
+on death of a hoglin:
+	send "EVENT hoglin died: %victim%" to console
+
+on death of a strider:
+	send "EVENT strider died" to console
+
+on join:
+	send "EVENT join %player% ping=%ping of player%" to console
+
+command /ptrespawn:
+	trigger:
+		kill player
+		wait 5 ticks
+		force player to respawn
+		wait 5 ticks
+		send "RESPAWN health=%health of player% alive=%player.isDead()%" to console
+
+command /ptsave:
+	trigger:
+		set {pt::item} to 3 of crimson stem
+		set {pt::efr} to 2 of prismarine bricks
+		set {pt::sword} to diamond sword of sharpness 5 named "Excalibur"
+		set {pt::type} to "hoglin" parsed as entity type
+		set {pt::type2} to "stray" parsed as entity type
+		send "SAVED %{pt::item}% | %{pt::efr}% | %{pt::sword}% | %{pt::type}% | %{pt::type2}%" to console
+
+command /ptload:
+	executable by: console
+	trigger:
+		send "LOADED %{pt::item}% | %{pt::efr}% | %{pt::sword}% / %enchantments of {pt::sword}% | %{pt::type}% | %{pt::type2}%" to console
+		set {_s} to {pt::efr}.getRandom()
+		send "LOADED efr stack %{_s}.getType()%:%{_s}.getDurability()%" to console
+
+command /ptsword:
+	trigger:
+		set player's tool to diamond sword
+		spawn a pig at location 2 meters in front of player
+		set {_p} to last spawned entity
+		if {_p} is invulnerable:
+			send "INVULNERABLE pig yes" to console
+		else:
+			send "INVULNERABLE pig no" to console
+
+on item damage:
+	send "EVENT item damage: %event-item% amount=%the item damage%" to console
+	set the item damage to 0
+
+on damage of a pig:
+	send "EVENT pig damaged by %attacker% with %attacker's tool%" to console

@@ -97,8 +97,9 @@ create a hologram with lines "Olá" and "Mundo" at player's location
 show hud text "Combo x3" with id "combo" to player anchored to top for 2 seconds
 ```
 
-Outros eventos de pesca: `on fishing lured`, `on fishing failed attempt`, `on fishing reel in`. No `on fish` e
-nos estados há os valores do anzol moderno (`fishing wait time`, `lure time`, `bite time`, `is in open water`...).
+Outros eventos de pesca: `on fishing lured`, `on fishing failed attempt`, `on fishing reel in`; o estado é
+`event-fishing state`. No `on fish` e nos estados há os valores do anzol moderno (`min fishing wait time`,
+`max fishing wait time`, `min fishing lure time`, `fishing bite time`, `fishing bite window`, `%entities% is in open water`...).
 Partículas modernas, modelos de item, hologramas e HUD só aparecem para clientes com o Kunftig (as partículas
 são desenhadas pelo Et Futurum Requiem; os outros jogadores veem a partícula 1.7.10 mais próxima). Dados
 persistentes de itens guardados em variáveis sobrevivem a reinícios.

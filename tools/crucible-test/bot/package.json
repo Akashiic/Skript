@@ -1,0 +1,12 @@
+{
+  "name": "skript-crucible-test-bot",
+  "private": true,
+  "description": "Test bot for the Crucible 1.7.10 test server (FML handshake, logs chat and plugin channels)",
+  "scripts": {
+    "postinstall": "node patch-forge-handshake.js"
+  },
+  "dependencies": {
+    "minecraft-protocol": "1.47.0",
+    "minecraft-protocol-forge": "^1.0.0"
+  }
+}

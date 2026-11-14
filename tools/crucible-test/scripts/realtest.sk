@@ -1,0 +1,115 @@
+import:
+	org.bukkit.Bukkit
+
+function show(name: text, i: itemtype):
+	if {_i} is not set:
+		send "ALIAS %{_name}% -> NOT SET" to console
+		stop
+	set {_s} to {_i}.getRandom()
+	send "ALIAS %{_name}% -> %{_i}% = %{_s}.getType()%:%{_s}.getDurability()%" to console
+
+command /rtaliases:
+	executable by: console
+	trigger:
+		show("granite", granite)
+		show("polished andesite", polished andesite)
+		show("prismarine bricks", prismarine bricks)
+		show("coarse dirt", coarse dirt)
+		show("red sandstone", red sandstone)
+		show("sea lantern", sea lantern)
+		show("red concrete", red concrete)
+		show("blue banner", blue banner)
+		show("netherite ingot", netherite ingot)
+		show("deepslate", deepslate)
+		show("crimson stem", crimson stem)
+		show("warped planks", warped planks)
+		show("basalt", basalt)
+		show("gilded blackstone", gilded blackstone)
+		show("netherlicious crimson stem", netherlicious crimson stem)
+		show("soul soil", soul soil)
+		show("stone", stone)
+		show("red wool", red wool)
+		show("diamond sword", diamond sword)
+		show("any natural stone", any natural stone)
+
+command /rtspawn:
+	executable by: console
+	trigger:
+		set {_l} to location(0.5, 5, 0.5, world "world")
+		loop "polar bear", "rabbit", "armor stand", "shulker", "fox", "husk", "stray", "bee", "zombie villager", "hoglin", "strider", "piglin", "zombified piglin", "etfuturum endermite", "pig":
+			set {_t} to loop-value parsed as entity type
+			if {_t} is not set:
+				send "SPAWN %loop-value% -> type NOT PARSED" to console
+			else:
+				spawn {_t} at {_l}
+				set {_e} to last spawned entity
+				send "SPAWN %loop-value% -> type %{_t}% spawned %{_e}% (bukkit %{_e}.getType()%, %{_e}.getClass().getSimpleName()%)" to console
+
+command /rtcount:
+	executable by: console
+	trigger:
+		set {_r::*} to all rabbits
+		set {_h::*} to all hoglins
+		set {_a::*} to all armor stands
+		set {_p::*} to all pigs
+		send "COUNT rabbits=%size of {_r::*}% hoglins=%size of {_h::*}% armor stands=%size of {_a::*}% pigs=%size of {_p::*}%" to console
+		loop all entities:
+			set {_tags} to ""
+			if loop-entity is a stray:
+				set {_tags} to "%{_tags}% stray"
+			if loop-entity is a strider:
+				set {_tags} to "%{_tags}% strider"
+			if loop-entity is a skeleton:
+				set {_tags} to "%{_tags}% skeleton"
+			if loop-entity is a rabbit:
+				set {_tags} to "%{_tags}% rabbit"
+			if loop-entity is a husk:
+				set {_tags} to "%{_tags}% husk"
+			if loop-entity is a zombie:
+				set {_tags} to "%{_tags}% zombie"
+			if loop-entity is a zombie villager:
+				set {_tags} to "%{_tags}% zombie-villager"
+			if loop-entity is an armor stand:
+				set {_tags} to "%{_tags}% armor-stand"
+			send "ENTITY %loop-entity% nms=%loop-entity.getHandle().getClass().getSimpleName()% is:%{_tags}%" to console
+
+command /rtkill:
+	executable by: console
+	trigger:
+		loop all entities:
+			if loop-entity is not a player:
+				kill loop-entity
+
+on death of a stray:
+	send "EVENT death of stray: %victim%" to console
+
+on death of a hoglin:
+	send "EVENT death of hoglin: %victim%" to console
+
+on spawn of a rabbit:
+	send "EVENT spawn of rabbit: %entity%" to console
+
+command /rtsave:
+	executable by: console
+	trigger:
+		set {rt::item} to 3 of crimson stem
+				set {rt::type2} to "hoglin" parsed as entity type
+		set {rt::efr} to 2 of prismarine bricks
+		send "SAVED %{rt::item}% %{rt::type2}% %{rt::efr}%" to console
+
+command /rtload:
+	executable by: console
+	trigger:
+		send "LOADED item=%{rt::item}% type2=%{rt::type2}% efr=%{rt::efr}%" to console
+
+command /rtrabbit:
+	executable by: console
+	trigger:
+		set {_l} to location(5.5, 5, 5.5, world "world")
+		spawn a rabbit at {_l}
+		set {_r} to last spawned entity
+		spawn an armor stand at {_l}
+		set {_a} to last spawned entity
+		loop 5 times:
+			send "TRACK rabbit valid=%{_r}.isValid()% dead=%{_r}.isDead()% loc=%location of {_r}% | stand valid=%{_a}.isValid()% dead=%{_a}.isDead()% loc=%location of {_a}%" to console
+			wait 10 ticks

@@ -1,0 +1,98 @@
+import:
+	org.bukkit.Bukkit
+	com.akashic.kunftig.api.bukkit.fishing.KunftigFishingBukkit
+	com.akashic.kunftig.api.bukkit.fishing.KunftigFishEvent
+	com.akashic.kunftig.api.bukkit.fishing.KunftigFishEvent$State as KState
+
+command /ktpart:
+	trigger:
+		play 10 end rod with offset of 0.3, 0.5, 0.3 and speed 0.01 at player
+		play 20 red dust at player
+		play 5 soul fire flame at player
+		send "KT particles sent" to console
+
+command /ktdata:
+	trigger:
+		set player's tool to diamond sword
+		set persistent data "coins" of player's tool to 5
+		set persistent data "owner" of player's tool to "Tester"
+		set item model of player's tool to "teof:excalibur"
+		set {_c} to persistent data "coins" of player's tool
+		set {_o} to persistent data "owner" of player's tool
+		set {_m} to item model of player's tool
+		set {_k::*} to persistent data keys of player's tool
+		send "KT data coins=%{_c}% owner=%{_o}% model=%{_m}% keys=%{_k::*}%" to console
+		set {kt::saved} to player's tool
+		give player diamond pickaxe with item model "teof:picareta"
+		send "KT gave model pickaxe" to console
+
+command /ktdataload:
+	executable by: console
+	trigger:
+		set {_c} to persistent data "coins" of {kt::saved}
+		set {_m} to item model of {kt::saved}
+		send "KT restored coins=%{_c}% model=%{_m}% item=%{kt::saved}%" to console
+
+command /ktholo:
+	trigger:
+		create a hologram with lines "Olá" and "Mundo" at player's location
+		set {_h} to last created hologram
+		set {_l::*} to hologram lines of {_h}
+		send "KT holo %{_h}% lines=%{_l::*}%" to console
+		show hud text "Combo x3" with id "combo" to player anchored to top for 2 seconds
+		show hud bar 0.5 with id "mana" to player anchored to bottom
+		send "KT hud sent" to console
+		wait 1 second
+		remove hologram {_h}
+
+command /ktfish:
+	trigger:
+		set {_c} to location of player
+		loop blocks in radius 6 around {_c}:
+			if y-coordinate of loop-block < y-coordinate of player:
+				if y-coordinate of loop-block > 0:
+					set loop-block to water
+		set player's tool to fishing rod
+		send "KT pond ready around %{_c}%" to console
+
+command /ktstate:
+	trigger:
+		set {_hook} to player.getHandle().field_71104_cf
+		send "KT nms hook=%{_hook}% below=%block below player% 2below=%block 2 below player%" to console
+		loop entities in radius 30 of player:
+			send "KT near %loop-entity% at %location of loop-entity% block=%block at loop-entity%" to console
+
+on fish:
+	set {_h} to event.getHook()
+	set {kt::hook} to {_h}
+	send "EVENT fish state=%event.getState()% hook=%location of {_h}% block=%block at {_h}% wait=%fishing wait time% bite=%fishing bite time%" to console
+
+on fishing lured:
+	send "EVENT KUNFTIG lured: state=%event-fishing state% min wait=%min fishing wait time% bite window=%fishing bite window% hook=%fishing hook%" to console
+
+on fishing bite:
+	send "EVENT KUNFTIG bite" to console
+
+on fishing failed attempt:
+	send "EVENT KUNFTIG failed attempt" to console
+
+on fishing reel in:
+	send "EVENT KUNFTIG reel in" to console
+
+command /ktwatch:
+	trigger:
+		loop 40 times:
+			if {kt::hook} is set:
+				send "WATCH %loop-number% hook valid=%{kt::hook}.isValid()% dead=%{kt::hook}.isDead()% at %location of {kt::hook}% in %block at {kt::hook}%" to console
+			wait 2 ticks
+
+on fish with priority lowest:
+	send "PRIO lowest cancelled=%event.isCancelled()%" to console
+
+on fish with priority monitor:
+	send "PRIO monitor cancelled=%event.isCancelled()% hookdead=%event.getHook().isDead()%" to console
+	if "%event.getState()%" is "FISHING":
+		set {_m} to KunftigFishingBukkit.of(event.getHook())
+		send "MODERN hook %{_m}% wait=%{_m}.getMinWaitTime()%" to console
+		loop KState.LURED, KState.BITE, KState.FAILED_ATTEMPT and KState.REEL_IN:
+			Bukkit.getPluginManager().callEvent(new KunftigFishEvent(player, {_m}, loop-value))

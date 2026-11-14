@@ -73,6 +73,7 @@ import ch.njol.skript.bukkitutil.EnchantmentUtils;
 import ch.njol.skript.bukkitutil.ItemUtils;
 import ch.njol.skript.classes.ClassInfo;
 import ch.njol.skript.classes.ConfigurationSerializer;
+import ch.njol.skript.classes.ItemStackSerializer;
 import ch.njol.skript.classes.EnumSerializer;
 import ch.njol.skript.classes.Parser;
 import ch.njol.skript.classes.Serializer;
@@ -955,7 +956,7 @@ public class BukkitClasses {
 					}
 				})
 				.cloner(ItemStack::clone)
-				.serializer(new ConfigurationSerializer<>()));
+				.serializer(new ItemStackSerializer()));
 		
 		Classes.registerClass(new ClassInfo<>(Item.class, "itementity")
 				.name(ClassInfo.NO_DOC)
