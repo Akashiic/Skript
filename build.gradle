@@ -27,7 +27,7 @@ tasks.withType(JavaCompile).configureEach {
 
 repositories {
 	mavenCentral()
-	maven { url = 'https://jitpack.io' } // Bukkit 1.7.10 API and Vault
+	maven { url = 'https://jitpack.io' } // Vault
 }
 
 configurations {
@@ -36,8 +36,18 @@ configurations {
 }
 
 dependencies {
-	// Final Bukkit API commit (1.7.10-R0.1-SNAPSHOT), built by JitPack from github.com/Bukkit/Bukkit
-	compileOnly 'com.github.Bukkit:Bukkit:f210234'
+	// The Bukkit 1.7.10 API as Crucible ships it (titles, particles, boss bars, Player.Spigot, BungeeCord chat...).
+	// Regenerate with scripts/build-crucible-api.sh. Features that only exist on Crucible are registered only when
+	// the server has them, so this jar also runs on other 1.7.10 servers.
+	compileOnly files('lib/crucible-bukkit-api.jar')
+	// Libraries the 1.7.10 server provides (same versions as the Bukkit 1.7.10 API)
+	compileOnly 'com.google.guava:guava:10.0.1'
+	compileOnly 'commons-lang:commons-lang:2.6'
+	compileOnly 'org.yaml:snakeyaml:1.12'
+
+	// Kunftig's plugin API (github.com/Akashiic/Kunftig, api/ module). Optional at runtime: the hooks only load
+	// when the Kunftig mod is installed.
+	compileOnly files('lib/kunftig-api.jar')
 
 	// Not provided by 1.7.10 servers (CraftBukkit 1.7.10 relocates its own copy), so it is shaded
 	shade 'com.google.code.gson:gson:2.10.1'
@@ -49,7 +59,7 @@ dependencies {
 	compileOnly('com.github.MilkBowl:VaultAPI:1.7.1') {
 		transitive = false
 	}
-	compileOnly fileTree(dir: 'lib', include: '*.jar')
+	compileOnly files('lib/SQLibrary-7.1.jar')
 }
 
 processResources {

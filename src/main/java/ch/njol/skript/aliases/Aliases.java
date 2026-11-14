@@ -45,6 +45,7 @@ import ch.njol.skript.config.Config;
 import ch.njol.skript.config.Node;
 import ch.njol.skript.config.SectionNode;
 import ch.njol.skript.entity.EntityData;
+import ch.njol.skript.hooks.ModHooks;
 import ch.njol.skript.localization.ArgsMessage;
 import ch.njol.skript.localization.Language;
 import ch.njol.skript.localization.Message;
@@ -96,6 +97,8 @@ public abstract class Aliases {
 		AliasesParser parser = new AliasesParser(provider);
 		
 		// Register standard conditions
+		// 'mod = etfuturum': the section only loads when that Forge mod is installed (Crucible/Thermos/KCauldron)
+		parser.registerCondition("mod", ModHooks::isModLoaded);
 		parser.registerCondition("minecraft version", (str) -> {
 			int orNewer = str.indexOf("or newer"); // For example: 1.12 or newer
 			if (orNewer != -1) {

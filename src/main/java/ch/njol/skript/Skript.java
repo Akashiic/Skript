@@ -37,6 +37,7 @@ import ch.njol.skript.config.Config;
 import ch.njol.skript.doc.Documentation;
 import ch.njol.skript.events.EvtSkript;
 import ch.njol.skript.hooks.Hook;
+import ch.njol.skript.hooks.ModHooks;
 import ch.njol.skript.lang.Condition;
 import ch.njol.skript.lang.Effect;
 import ch.njol.skript.lang.Expression;
@@ -514,6 +515,11 @@ public final class Skript extends JavaPlugin implements Listener {
 			setEnabled(false);
 			return;
 		}
+		
+		// Syntax for Crucible's backported APIs and for Forge mods (Et Futurum Requiem, Netherlicious, Kunftig...)
+		ModHooks.load();
+		if (!ModHooks.getLoaded().isEmpty())
+			info("Loaded support for: " + String.join(", ", ModHooks.getLoaded()));
 
 		Commands.registerListeners();
 		
