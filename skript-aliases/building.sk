@@ -59,23 +59,9 @@ old blocks before flattening:
 	minecraft version = 1.12.2 or older
 	# Stones
 	stone [block¦s] = minecraft:stone {Damage:0}
-	[raw] granite¦s = minecraft:stone {Damage:1}
-	(smooth|polished) granite¦s = minecraft:stone {Damage:2}
-	any granite¦s = raw granite, polished granite
-
-	[raw] diorite¦s = minecraft:stone {Damage:3}
-	(smooth|polished) diorite¦s = minecraft:stone {Damage:4}
-	any diorite¦s = raw diorite, polished diorite
-
-	[raw] andesite¦s = minecraft:stone {Damage:5}
-	(smooth|polished) andesite¦s = minecraft:stone {Damage:6}
-	any andesite¦s = raw andesite, polished andesite
-
-	any [natural] stone¦s = stone, any granite, any diorite, any andesite
 
 	# Sediments
 	grass [block¦s] = minecraft:grass
-	coarse dirt [block¦s] = minecraft:dirt {Damage:1}
 	podzol [block¦s] = minecraft:dirt {Damage:2}
 	[nether] quartz ore¦s = minecraft:quartz_ore
 	unlit redstone ore¦s = minecraft:redstone_ore
@@ -234,7 +220,6 @@ old blocks before flattening:
 	dark prismarine [block¦s] = minecraft:prismarine {Damage:2}
 	any prismarine = raw prismarine, prismarine bricks, dark prismarine
 	sea lantern¦s = minecraft:sea_lantern
-	wet sponge¦s = minecraft:sponge {Damage:1}
 
 	# Miscellaneous
 	[unlit] pumpkin¦s = minecraft:pumpkin
@@ -243,6 +228,35 @@ old blocks before flattening:
 	any ice [block¦s] = ice, packed ice
 	hay [(bale|block)¦s] = minecraft:hay_block
 	snow block¦s = minecraft:snow
+
+
+# Data values of existing blocks that Minecraft 1.8 added; they don't exist on 1.7.10.
+# On 1.7.10, Et Futurum Requiem provides these blocks (see mods/etfuturum.sk).
+data value blocks added in 1.8:
+	minecraft version = 1.8 or newer
+	minecraft version = 1.12.2 or older
+	[raw] granite¦s = minecraft:stone {Damage:1}
+	(smooth|polished) granite¦s = minecraft:stone {Damage:2}
+	any granite¦s = raw granite, polished granite
+
+	[raw] diorite¦s = minecraft:stone {Damage:3}
+	(smooth|polished) diorite¦s = minecraft:stone {Damage:4}
+	any diorite¦s = raw diorite, polished diorite
+
+	[raw] andesite¦s = minecraft:stone {Damage:5}
+	(smooth|polished) andesite¦s = minecraft:stone {Damage:6}
+	any andesite¦s = raw andesite, polished andesite
+
+	any [natural] stone¦s = stone, any granite, any diorite, any andesite
+
+	coarse dirt [block¦s] = minecraft:dirt {Damage:1}
+	wet sponge¦s = minecraft:sponge {Damage:1}
+
+natural stone on 1.7.10:
+	minecraft version = 1.7.10 or older
+	# Et Futurum Requiem adds granite, diorite and andesite to this group (see mods/etfuturum.sk)
+	any [natural] stone¦s = stone
+
 
 # 1.13 removed data values and separated tons of blocks into their own IDs.
 # This section contains building blocks whose IDs were changed by 1.13.

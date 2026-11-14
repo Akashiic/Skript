@@ -28,6 +28,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.Set;
+import java.util.List;
+import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -46,6 +51,7 @@ import ch.njol.skript.config.Node;
 import ch.njol.skript.config.SectionNode;
 import ch.njol.skript.entity.EntityData;
 import ch.njol.skript.hooks.ModHooks;
+import ch.njol.skript.hooks.forge.ForgeRegistry;
 import ch.njol.skript.localization.ArgsMessage;
 import ch.njol.skript.localization.Language;
 import ch.njol.skript.localization.Message;
@@ -471,8 +477,33 @@ public abstract class Aliases {
 	 * On Crucible this includes the materials generated for modded items and blocks,
 	 * e.g. {@code IC2_ITEMCABLE} becomes usable as {@code ic2 itemcable}.
 	 */
+	/**
+	 * Creates aliases for materials that don't have any, which on Forge/Bukkit hybrids (Crucible, Thermos...)
+	 * are the blocks and items of mods. With Forge, names come from the server's name for each item (and each
+	 * data value of items with subtypes, e.g. "crimson planks"), then from the Forge registry name
+	 * ("netherlicious:CrimsonStem" -> "crimson stem"). Plain names are taken in mod priority order (Et Futurum
+	 * Requiem, Netherlicious, then the others alphabetically) and never override an existing alias; every item
+	 * also gets the names prefixed with its mod id ("netherlicious crimson stem"), which are always unique.
+	 * Without Forge, or when that fails, materials without any alias get their Bukkit material name ("ic2 itemcable").
+	 */
 	private static void loadMissingAliases() {
+		List<Material> missing = new ArrayList<>();
 		for (Material material : Material.values()) {
+			if (!provider.hasAliasForMaterial(material))
+				missing.add(material);
+		}
+		
+		if (ModHooks.isForge()) {
+			try {
+				// All mod materials, also the ones with aliases from alias files (e.g. mods/etfuturum.sk): their
+				// data values that the files don't name still get names, existing names are never touched
+				loadModAliases(Arrays.asList(Material.values()));
+			} catch (RuntimeException | LinkageError e) {
+				Skript.exception(e, "Could not create aliases for mod items");
+			}
+		}
+		
+		for (Material material : missing) {
 			if (provider.hasAliasForMaterial(material))
 				continue;
 			String name = material.name().toLowerCase(Locale.ENGLISH).replace('_', ' ').trim();
@@ -484,6 +515,98 @@ public abstract class Aliases {
 			} catch (Exception e) {
 				Skript.debug("Could not create alias for material " + material.name() + ": " + e);
 			}
+		}
+	}
+	
+	/**
+	 * Name of a generated alias for a mod item, with the data value it is for (-1: any).
+	 */
+	private static final class GeneratedName {
+		final String name;
+		final short data;
+		
+		GeneratedName(String name, short data) {
+			this.name = name;
+			this.data = data;
+		}
+	}
+	
+	private static void loadModAliases(List<Material> materials) {
+		final class ModItem {
+			final Material material;
+			final ForgeRegistry.RegistryName registryName;
+			final List<GeneratedName> names = new ArrayList<>();
+			
+			ModItem(Material material, ForgeRegistry.RegistryName registryName) {
+				this.material = material;
+				this.registryName = registryName;
+			}
+		}
+		
+		List<ModItem> items = new ArrayList<>();
+		for (Material material : materials) {
+			ForgeRegistry.RegistryName registryName = ForgeRegistry.getRegistryName(material);
+			if (registryName == null || registryName.modId.equalsIgnoreCase("minecraft"))
+				continue;
+			ModItem item = new ModItem(material, registryName);
+			// Names the server gives the item, one per data value for items with subtypes
+			Set<String> seen = new HashSet<>();
+			if (ForgeRegistry.hasSubtypes(material)) {
+				for (short data = 0; data < 16; data++) {
+					String name = ForgeRegistry.getDisplayName(material, data);
+					if (name == null)
+						continue;
+					name = ForgeRegistry.toWords(name);
+					if (seen.add(name))
+						item.names.add(new GeneratedName(name, data));
+				}
+			} else {
+				String name = ForgeRegistry.getDisplayName(material, (short) 0);
+				if (name != null && seen.add(ForgeRegistry.toWords(name)))
+					item.names.add(new GeneratedName(ForgeRegistry.toWords(name), (short) -1));
+			}
+			// The registry name, for any data value
+			String registryWords = ForgeRegistry.toWords(registryName.name);
+			if (seen.add(registryWords))
+				item.names.add(new GeneratedName(registryWords, (short) -1));
+			items.add(item);
+		}
+		items.sort((a, b) -> {
+			int c = ForgeRegistry.priorityKey(a.registryName.modId).compareTo(ForgeRegistry.priorityKey(b.registryName.modId));
+			return c != 0 ? c : a.registryName.name.compareToIgnoreCase(b.registryName.name);
+		});
+		
+		int count = 0;
+		// The first alias of an item is the name Skript displays it with, so plain names go first...
+		for (ModItem item : items) {
+			for (GeneratedName name : item.names) {
+				if (loadGeneratedAlias(name.name, item.material, name.data))
+					count++;
+			}
+		}
+		// ... then the ones with the mod id, which only clash if a mod registers the same name twice
+		for (ModItem item : items) {
+			String modId = ForgeRegistry.toWords(item.registryName.modId);
+			for (GeneratedName name : item.names) {
+				if (!name.name.startsWith(modId + " ") && loadGeneratedAlias(modId + " " + name.name, item.material, name.data))
+					count++;
+			}
+		}
+		if (count > 0)
+			Skript.debug("Created " + count + " aliases for " + items.size() + " mod items");
+	}
+	
+	private static boolean loadGeneratedAlias(String name, Material material, short data) {
+		// Words only; must not start with a number (that would read as an amount)
+		if (!name.matches("[a-z][a-z0-9' ]*") || provider.getAlias(name) != null)
+			return false;
+		try {
+			String id = material.name() + (data >= 0 ? " {Damage:" + data + "}" : "");
+			parser.loadAlias(name.endsWith("s") ? name : name + "¦s", id);
+			return true;
+		} catch (Exception e) {
+			Skript.debug("Could not create alias '" + name + "' for " + material + ": " + e);
+			return false;
 		}
 	}
 	

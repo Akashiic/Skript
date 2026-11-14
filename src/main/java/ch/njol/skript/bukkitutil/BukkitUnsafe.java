@@ -23,6 +23,7 @@ import java.io.InputStream;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 import org.bukkit.Bukkit;
@@ -141,7 +142,9 @@ public class BukkitUnsafe {
 			}
 			if (vanilla) // Bukkit name might still match the Vanilla name
 				return Material.matchMaterial(id.substring(10));
-			return null;
+			// Forge registry names are case-sensitive, but alias files are read in lowercase. Crucible names the
+			// material of 'netherlicious:CrimsonStem' NETHERLICIOUS_CRIMSONSTEM, which can be found in any case.
+			return Material.getMaterial(id.toUpperCase(Locale.ENGLISH).replaceAll("(:|\\s)", "_").replaceAll("\\W", ""));
 		}
 		
 		// Numeric id
