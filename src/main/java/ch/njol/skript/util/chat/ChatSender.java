@@ -31,46 +31,56 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * Sends Skript's chat components on Minecraft 1.7.10, which has no Bungee chat API.
+ * Sends Skript's chat components on Minecraft 1.7.10.
  * <p>
- * Plain messages (colours and styles only) are sent as legacy section-sign text.
- * Messages that use click/hover events or insertions are sent to players as raw JSON
- * through Vanilla's {@code /tellraw}, which 1.7.10 supports.
+ * Plain messages (colours and styles only) are sent as legacy section-sign text. Messages with click/hover events
+ * are sent to players as JSON chat: through the BungeeCord chat API on Crucible ({@link BungeeConverter}), otherwise
+ * through Vanilla's {@code /tellraw} when the server has it, otherwise as legacy text without the events.
  */
 public final class ChatSender {
 
 	private ChatSender() {}
 
+	private static final boolean BUNGEE_CHAT = Skript.classExists("net.md_5.bungee.api.chat.BaseComponent")
+			&& Skript.methodExists(Player.class, "spigot");
+
+	/**
+	 * @return Whether the server has the BungeeCord chat API (Crucible), i.e. {@link BungeeConverter} can be used.
+	 */
+	public static boolean hasBungeeChat() {
+		return BUNGEE_CHAT;
+	}
+
 	/**
 	 * Converts components to legacy (section sign) text. Click and hover events are dropped.
+	 * Each component starts from default formatting, like siblings of a JSON chat message do.
 	 */
 	public static String toLegacy(List<MessageComponent> components) {
 		StringBuilder sb = new StringBuilder();
-		for (MessageComponent c : components)
-			appendLegacy(sb, c);
+		for (MessageComponent c : components) {
+			if (c.text.isEmpty())
+				continue;
+			if (c.color != null)
+				sb.append(c.color);
+			else if (c.reset || sb.length() > 0)
+				sb.append(ChatColor.RESET);
+			if (c.bold)
+				sb.append(ChatColor.BOLD);
+			if (c.italic)
+				sb.append(ChatColor.ITALIC);
+			if (c.underlined)
+				sb.append(ChatColor.UNDERLINE);
+			if (c.strikethrough)
+				sb.append(ChatColor.STRIKETHROUGH);
+			if (c.obfuscated)
+				sb.append(ChatColor.MAGIC);
+			sb.append(c.text);
+		}
 		return sb.toString();
 	}
 
 	public static String toLegacy(MessageComponent... components) {
 		return toLegacy(Arrays.asList(components));
-	}
-
-	private static void appendLegacy(StringBuilder sb, MessageComponent c) {
-		if (c.reset)
-			sb.append(ChatColor.RESET);
-		if (c.color != null)
-			sb.append(c.color);
-		if (c.bold)
-			sb.append(ChatColor.BOLD);
-		if (c.italic)
-			sb.append(ChatColor.ITALIC);
-		if (c.underlined)
-			sb.append(ChatColor.UNDERLINE);
-		if (c.strikethrough)
-			sb.append(ChatColor.STRIKETHROUGH);
-		if (c.obfuscated)
-			sb.append(ChatColor.MAGIC);
-		sb.append(c.text);
 	}
 
 	/**
@@ -89,28 +99,40 @@ public final class ChatSender {
 	}
 
 	public static void send(CommandSender receiver, List<MessageComponent> components) {
-		if (receiver instanceof Player && needsJson(components) && canUseTellraw()) {
-			sendJson((Player) receiver, ChatMessages.toJson(components));
-		} else {
-			receiver.sendMessage(toLegacy(components));
+		if (receiver instanceof Player && needsJson(components)) {
+			if (BUNGEE_CHAT) {
+				BungeeConverter.send(receiver, components);
+				return;
+			}
+			if (canUseTellraw()) {
+				sendJson((Player) receiver, ChatMessages.toJson(components));
+				return;
+			}
 		}
+		receiver.sendMessage(toLegacy(components));
 	}
 
 	public static void send(Collection<? extends CommandSender> receivers, List<MessageComponent> components) {
-		if (needsJson(components) && canUseTellraw()) {
-			String json = ChatMessages.toJson(components);
-			String legacy = toLegacy(components);
-			for (CommandSender receiver : receivers) {
-				if (receiver instanceof Player)
-					sendJson((Player) receiver, json);
-				else
-					receiver.sendMessage(legacy);
+		if (needsJson(components)) {
+			if (BUNGEE_CHAT) {
+				BungeeConverter.send(receivers, components);
+				return;
 			}
-		} else {
-			String legacy = toLegacy(components);
-			for (CommandSender receiver : receivers)
-				receiver.sendMessage(legacy);
+			if (canUseTellraw()) {
+				String json = ChatMessages.toJson(components);
+				String legacy = toLegacy(components);
+				for (CommandSender receiver : receivers) {
+					if (receiver instanceof Player)
+						sendJson((Player) receiver, json);
+					else
+						receiver.sendMessage(legacy);
+				}
+				return;
+			}
 		}
+		String legacy = toLegacy(components);
+		for (CommandSender receiver : receivers)
+			receiver.sendMessage(legacy);
 	}
 
 	/**

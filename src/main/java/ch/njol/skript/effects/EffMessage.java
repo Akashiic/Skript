@@ -42,12 +42,14 @@ import ch.njol.skript.lang.ExpressionList;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.skript.lang.VariableString;
 import ch.njol.skript.util.chat.ChatMessages;
+import ch.njol.skript.util.chat.ChatSender;
 import ch.njol.util.Kleenean;
 
 @Name("Message")
 @Description({"Sends a message to the given player. Only styles written",
 		"in given string or in <a href=expressions.html#ExprColoured>formatted expressions</a> will be parsed.",
-		"On Minecraft 1.7.10 all formatting is sent as legacy color codes; click and hover events are not supported."})
+		"On Minecraft 1.7.10, click and hover events (e.g. <code>&lt;link:...&gt;</code>, <code>&lt;tooltip:...&gt;</code>) need Crucible, "
+		+ "which sends them as JSON chat; on other servers they are sent through /tellraw if available, otherwise dropped."})
 @Examples({"message \"A wild %player% appeared!\"",
 		"message \"This message is a distraction. Mwahaha!\"",
 		"send \"Your kill streak is %{kill streak::%uuid of player%}%.\" to player",
@@ -93,67 +95,43 @@ public class EffMessage extends Effect {
 		for (Expression<?> message : getMessages()) {
 
 			Object[] messageArray = null;
-			String formattedMessage = null;
+			List<MessageComponent> components = null;
 
 			for (CommandSender receiver : commandSenders) {
 				if (receiver instanceof Player && message instanceof VariableString) {
-					if (formattedMessage == null)
-						formattedMessage = toLegacyText(((VariableString) message).getMessageComponents(e));
-				} else {
-					if (messageArray == null)
-						messageArray = message.getArray(e);
+					// Process formatting that is safe
+					if (components == null)
+						components = ((VariableString) message).getMessageComponents(e);
+					// Click and hover events are sent as JSON chat when the server supports it (Crucible)
+					ChatSender.send(receiver, components);
+					continue;
 				}
 
+				if (messageArray == null)
+					messageArray = message.getArray(e);
+
 				if (receiver instanceof Player) {
-					// 1.7.10 has no chat component API, so all formatting is converted to legacy color codes.
-					// Click and hover events are not available.
-					if (message instanceof VariableString) { // Process formatting that is safe
-						receiver.sendMessage(formattedMessage);
-					} else if (message instanceof ExprColoured && ((ExprColoured) message).isUnsafeFormat()) { // Manually marked as trusted
-						for (Object object : messageArray) {
-							receiver.sendMessage(toLegacyText(ChatMessages.parse((String) object)));
-						}
+					if (message instanceof ExprColoured && ((ExprColoured) message).isUnsafeFormat()) { // Manually marked as trusted
+						for (Object object : messageArray)
+							ChatSender.send(receiver, ChatMessages.parse((String) object));
 					} else { // It is just a string, no idea if it comes from a trusted source -> don't parse anything
-						for (Object object : messageArray) {
-							receiver.sendMessage(toLegacyText(ChatMessages.fromParsedString(toString(object))));
-						}
+						for (Object object : messageArray)
+							ChatSender.send(receiver, ChatMessages.fromParsedString(toString(object)));
 					}
 				} else { // Not a player, send plain text with legacy formatting
-					for (Object object : messageArray) {
+					for (Object object : messageArray)
 						receiver.sendMessage(toString(object));
-					}
 				}
 			}
 		}
 	}
 
 	/**
-	 * Converts Skript's message components to a legacy formatted (§-coded) string, since Minecraft 1.7.10
-	 * servers have no chat component API. Each component starts from default formatting, like siblings
-	 * in a JSON chat message do.
+	 * Converts Skript's message components to a legacy formatted (§-coded) string.
+	 * Click and hover events are dropped.
 	 */
 	static String toLegacyText(List<MessageComponent> components) {
-		StringBuilder sb = new StringBuilder();
-		for (MessageComponent component : components) {
-			if (component.text.isEmpty())
-				continue;
-			if (component.color != null)
-				sb.append(component.color.toString());
-			else if (sb.length() > 0)
-				sb.append(org.bukkit.ChatColor.RESET);
-			if (component.bold)
-				sb.append(org.bukkit.ChatColor.BOLD);
-			if (component.italic)
-				sb.append(org.bukkit.ChatColor.ITALIC);
-			if (component.underlined)
-				sb.append(org.bukkit.ChatColor.UNDERLINE);
-			if (component.strikethrough)
-				sb.append(org.bukkit.ChatColor.STRIKETHROUGH);
-			if (component.obfuscated)
-				sb.append(org.bukkit.ChatColor.MAGIC);
-			sb.append(component.text);
-		}
-		return sb.toString();
+		return ChatSender.toLegacy(components);
 	}
 
 	private Expression<?>[] getMessages() {

@@ -33,6 +33,7 @@ import ch.njol.skript.registrations.Classes;
 import ch.njol.skript.util.LiteralUtils;
 import ch.njol.skript.bukkitutil.PlayerUtils;
 import ch.njol.skript.util.chat.ChatMessages;
+import ch.njol.skript.util.chat.ChatSender;
 import ch.njol.util.Kleenean;
 import ch.njol.util.coll.CollectionUtils;
 import org.bukkit.Bukkit;
@@ -88,14 +89,11 @@ public class EffBroadcast extends Effect {
 
 		for (Expression<?> message : getMessages()) {
 			if (message instanceof VariableString) {
-				// 1.7.10 has no chat component API, so formatting is converted to legacy color codes
-				String formatted = EffMessage.toLegacyText(((VariableString) message).getMessageComponents(e));
-				receivers.forEach(receiver -> receiver.sendMessage(formatted));
+				// Click and hover events are sent as JSON chat when the server supports it (Crucible)
+				ChatSender.send(receivers, ((VariableString) message).getMessageComponents(e));
 			} else if (message instanceof ExprColoured && ((ExprColoured) message).isUnsafeFormat()) { // Manually marked as trusted
-				for (Object realMessage : message.getArray(e)) {
-					String formatted = EffMessage.toLegacyText(ChatMessages.parse((String) realMessage));
-					receivers.forEach(receiver -> receiver.sendMessage(formatted));
-				}
+				for (Object realMessage : message.getArray(e))
+					ChatSender.send(receivers, ChatMessages.parse((String) realMessage));
 			} else {
 				for (Object messageObject : message.getArray(e)) {
 					String realMessage = messageObject instanceof String ? (String) messageObject : Classes.toString(messageObject);

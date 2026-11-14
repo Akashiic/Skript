@@ -18,6 +18,8 @@
  */
 package ch.njol.skript.effects;
 
+import java.lang.reflect.Method;
+
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.entity.PlayerDeathEvent;
@@ -92,8 +94,11 @@ public class EffRespawn extends Effect {
 	 */
 	private static void respawn(Player p) {
 		try {
-			Object spigot = p.getClass().getMethod("spigot").invoke(p);
-			spigot.getClass().getMethod("respawn").invoke(spigot);
+			// Look the methods up on the public API types: the implementation (CraftPlayer's anonymous
+			// Player.Spigot subclass) isn't public, so invoking its methods reflectively would fail
+			Method spigot = Player.class.getMethod("spigot");
+			Method respawn = spigot.getReturnType().getMethod("respawn");
+			respawn.invoke(spigot.invoke(p));
 		} catch (ReflectiveOperationException | LinkageError ex) {
 			if (!respawnErrored) {
 				respawnErrored = true;

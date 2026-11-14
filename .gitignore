@@ -222,3 +222,6 @@ gradle-app.setting
 
 # Skript test runners
 test_runners/
+
+# Compile-only API jars of this build (see build.gradle and scripts/build-crucible-api.sh)
+!lib/*.jar
