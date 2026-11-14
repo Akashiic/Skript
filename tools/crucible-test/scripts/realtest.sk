@@ -93,7 +93,7 @@ command /rtsave:
 	executable by: console
 	trigger:
 		set {rt::item} to 3 of crimson stem
-				set {rt::type2} to "hoglin" parsed as entity type
+		set {rt::type2} to "hoglin" parsed as entity type
 		set {rt::efr} to 2 of prismarine bricks
 		send "SAVED %{rt::item}% %{rt::type2}% %{rt::efr}%" to console
 

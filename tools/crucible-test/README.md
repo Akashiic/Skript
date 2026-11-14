@@ -52,4 +52,16 @@ Copie `scripts/*.sk` para `plugins/Skript/scripts/` e dê OP ao bot (`op Tester`
 * `kunftigtest.sk` (bot): `/ktpart`, `/ktdata` e `/ktdataload` (dados persistentes depois de reiniciar), `/ktholo`,
   `/ktfish` + `!use` (dispara os quatro estados de pesca do Kunftig com a boia real).
 
-Tudo que esses scripts imprimem vai para o console do servidor (linhas começando com `ALIAS`, `SPAWN`, `EVENT`, `KT`...).
+* `reflectcore.sk` (console, `/rcore`): 40 verificações do skript-reflect: imports, estáticos, sobrecargas,
+  construtores, campos privados do JDK, arrays, collect/spread, bits, null, enums internos, utilitários de classe,
+  opção calculada, biblioteca externa (coloque `commons-math3-3.6.1.jar` em `plugins/skript-reflect/`), `try`,
+  proxies (inclusive em outra thread e no scheduler), seções sync/async, efeitos/expressões/condições/propriedades e
+  eventos customizados, efeito com delay e parse adiado.
+* `reflectforge.sk` (bot, `/rforge`, `/rload`): FML/Forge, NMS com nomes SRG, registro de itens, enum do Et Futurum,
+  spawn por NMS, API do Kunftig, eventos Bukkit por classe (assíncrono, `on all`, prioridade, `uncancel`, vários de uma
+  vez, evento Spigot de montaria) e desempenho.
+* `rlimit.sk`: campo privado num pacote que o Crucible não abre (o erro explica o `--add-opens`).
+* `reflect_a_usepreload.sk` + `reflect_z_defpreload.sk` (`/rpre`): pré-carregamento (`enable-preloading: true` no
+  `config.yml` do skript-reflect, reinicie o servidor).
+
+Tudo que esses scripts imprimem vai para o console do servidor (linhas começando com `ALIAS`, `SPAWN`, `EVENT`, `KT`, `PASS`/`FAIL`...).

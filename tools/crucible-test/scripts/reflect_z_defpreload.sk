@@ -1,0 +1,8 @@
+expression preload-test twice of %number%:
+	return type: number
+	get:
+		return expr-1 * 2
+
+effect preload-test announce:
+	trigger:
+		send "PRELOAD effect defined in a later file ran" to console
