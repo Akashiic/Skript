@@ -249,6 +249,17 @@ public abstract class EntityData<E extends Entity> implements SyntaxElement, Ygg
 		infos.add((EntityDataInfo<EntityData<?>>) info);
 	}
 	
+	/**
+	 * Registers entity data that is asked first by {@link #fromEntity(Entity)}, before the entity data
+	 * registered for Bukkit interfaces. For hooks whose {@link #init(Class, Entity)} decides itself which
+	 * entities it represents, e.g. mod entities that extend vanilla ones (a modded skeleton is still a
+	 * Bukkit Skeleton, but should be shown with the mod's name).
+	 */
+	@SuppressWarnings("unchecked")
+	public static <E extends Entity, T extends EntityData<E>> void registerFirst(final Class<T> dataClass, final String name, final Class<E> entityClass, final int defaultName, final String... codeNames) throws IllegalArgumentException {
+		infos.add(0, (EntityDataInfo<EntityData<?>>) new EntityDataInfo<>(dataClass, name, codeNames, defaultName, entityClass));
+	}
+	
 	transient EntityDataInfo<?> info;
 	protected int matchedPattern = 0;
 	private Kleenean plural = Kleenean.UNKNOWN;

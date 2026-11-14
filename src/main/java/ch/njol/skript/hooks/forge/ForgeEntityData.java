@@ -105,7 +105,7 @@ public class ForgeEntityData extends EntityData<Entity> {
 		buildNames();
 		Class<? extends Entity> entityClass = Entity.class;
 		try {
-			// So that EntityData.fromEntity() asks this class about mod entities (vanilla entities are matched earlier)
+			// So that EntityData.fromEntity() asks this class about every entity
 			@SuppressWarnings("unchecked")
 			Class<? extends Entity> craftEntity = (Class<? extends Entity>) Class.forName(
 					org.bukkit.Bukkit.getServer().getClass().getPackage().getName() + ".entity.CraftEntity");
@@ -119,7 +119,9 @@ public class ForgeEntityData extends EntityData<Entity> {
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	private static void register(Class<? extends Entity> entityClass) {
-		EntityData.register((Class) ForgeEntityData.class, "forge entity", (Class) entityClass, 0,
+		// Asked first, so that mod entities extending vanilla ones (Et Futurum's stray, Netherlicious' strider)
+		// are shown with the mod's name instead of "skeleton" or "horse"; init() refuses vanilla entities
+		EntityData.registerFirst((Class) ForgeEntityData.class, "forge entity", (Class) entityClass, 0,
 				"forge entity", "forge entity s", "forge entity es", "forge entity ies");
 	}
 
