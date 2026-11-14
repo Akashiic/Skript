@@ -84,6 +84,9 @@ public class VisualEffect implements SyntaxElement, YggdrasilSerializable {
 			if (e != null)
 				e.playEffect(type.getEntityEffect());
 
+		} else if (type.isParticle()) {
+			type.getParticlePlayer().play(type.getParticle(), type.getData(this.data, l), l, ps, count, dX, dY, dZ, speed, radius);
+
 		} else {
 			throw new IllegalStateException();
 		}

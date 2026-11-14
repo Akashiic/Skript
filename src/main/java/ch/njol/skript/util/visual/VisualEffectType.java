@@ -35,6 +35,12 @@ public class VisualEffectType {
 	private static final String LANGUAGE_NODE = "visual effects";
 
 	private final Enum<?> effect;
+	
+	/**
+	 * Plays this effect if it is a particle registered by a hook, null otherwise.
+	 */
+	@Nullable
+	private ParticlePlayer particlePlayer;
 
 	private String pattern;
 	private Noun name;
@@ -83,8 +89,27 @@ public class VisualEffectType {
 		return effect instanceof EntityEffect;
 	}
 
+	/**
+	 * Minecraft 1.7.10 has no Bukkit particle API, so particles come from hooks (see {@link ParticlePlayer}).
+	 */
 	public boolean isParticle() {
-		return false; // No particle API on Minecraft 1.7.10
+		return particlePlayer != null;
+	}
+	
+	/**
+	 * @return The particle constant of a particle registered by a hook.
+	 */
+	public Enum<?> getParticle() {
+		if (!isParticle())
+			throw new IllegalStateException();
+		return effect;
+	}
+	
+	public ParticlePlayer getParticlePlayer() {
+		ParticlePlayer player = particlePlayer;
+		if (player == null)
+			throw new IllegalStateException();
+		return player;
 	}
 
 	public Effect getEffect() {
@@ -99,6 +124,18 @@ public class VisualEffectType {
 		return (EntityEffect) effect;
 	}
 
+	/**
+	 * A particle played by {@code player}. Like Bukkit effects, it needs a pattern and a name in the language file:
+	 * {@code visual effects.<enum class simple name>.<constant>.pattern} and {@code .name}.
+	 */
+	@Nullable
+	static VisualEffectType of(Enum<?> particle, ParticlePlayer player) {
+		VisualEffectType type = of(particle);
+		if (type != null)
+			type.particlePlayer = player;
+		return type;
+	}
+	
 	@Nullable
 	static VisualEffectType of(Enum<?> effect) {
 		Objects.requireNonNull(effect);

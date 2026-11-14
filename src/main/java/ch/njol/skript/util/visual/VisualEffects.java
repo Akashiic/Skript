@@ -79,6 +79,28 @@ public class VisualEffects {
 		return StringUtils.join(names, ", ");
 	}
 
+	/**
+	 * Particles registered by hooks with {@link #registerParticles}, with the player of each.
+	 */
+	private static final Map<Enum<?>, ParticlePlayer> hookParticles = new LinkedHashMap<>();
+	
+	/**
+	 * Adds particle kinds to Skript's visual effects, e.g. {@code play 10 end rod at player}. Each constant needs
+	 * {@code visual effects.<enum class simple name>.<constant>.pattern} and {@code .name} in the language file;
+	 * constants without them are skipped. A pattern may start with one expression, whose value is the effect's data
+	 * (register a data supplier for it with {@link #registerDataSupplier}, which must be done before this).
+	 * Must be called while Skript accepts registrations.
+	 * 
+	 * @param particles Particle constants.
+	 * @param player What plays them.
+	 */
+	public static void registerParticles(Enum<?>[] particles, ParticlePlayer player) {
+		for (Enum<?> particle : particles)
+			hookParticles.put(particle, player);
+		if (visualEffectTypes != null) // Types were generated already: add these
+			generateTypes();
+	}
+	
 	private static void generateTypes() {
 		List<VisualEffectType> types = new ArrayList<>();
 		Stream.of(Effect.class, EntityEffect.class)
@@ -87,6 +109,11 @@ public class VisualEffects {
 			.map(VisualEffectType::of)
 			.filter(Objects::nonNull)
 			.forEach(types::add);
+		for (Map.Entry<Enum<?>, ParticlePlayer> entry : hookParticles.entrySet()) {
+			VisualEffectType type = VisualEffectType.of(entry.getKey(), entry.getValue());
+			if (type != null)
+				types.add(type);
+		}
 
 		for (VisualEffectType type : types) {
 			String id = type.getId();
@@ -102,11 +129,18 @@ public class VisualEffects {
 		elementInfo = new SyntaxElementInfo<>(patterns, VisualEffect.class, VisualEffect.class.getName());
 	}
 
-	private static void registerColorable(String id) {
+	/**
+	 * @param id Id of a visual effect type: {@code <enum class simple name>.<constant>}, e.g. {@code Effect.SMOKE}.
+	 */
+	public static void registerColorable(String id) {
 		effectTypeModifiers.put(id, VisualEffectType::setColorable);
 	}
 
-	private static void registerDataSupplier(String id, BiFunction<Object, Location, Object> dataSupplier) {
+	/**
+	 * Sets how the value of the expression in an effect's pattern becomes the data the effect is played with.
+	 * @param id Id of a visual effect type: {@code <enum class simple name>.<constant>}, e.g. {@code Effect.SMOKE}.
+	 */
+	public static void registerDataSupplier(String id, BiFunction<Object, Location, Object> dataSupplier) {
 		Consumer<VisualEffectType> consumer = type -> type.withData(dataSupplier);
 		if (effectTypeModifiers.containsKey(id)) {
 			consumer = effectTypeModifiers.get(id).andThen(consumer);
