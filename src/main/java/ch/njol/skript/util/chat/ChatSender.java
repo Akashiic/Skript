@@ -19,7 +19,9 @@
 package ch.njol.skript.util.chat;
 
 import ch.njol.skript.Skript;
+import ch.njol.skript.command.Commands;
 import org.bukkit.Bukkit;
+import org.bukkit.command.SimpleCommandMap;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -87,7 +89,7 @@ public final class ChatSender {
 	}
 
 	public static void send(CommandSender receiver, List<MessageComponent> components) {
-		if (receiver instanceof Player && needsJson(components)) {
+		if (receiver instanceof Player && needsJson(components) && canUseTellraw()) {
 			sendJson((Player) receiver, ChatMessages.toJson(components));
 		} else {
 			receiver.sendMessage(toLegacy(components));
@@ -95,7 +97,7 @@ public final class ChatSender {
 	}
 
 	public static void send(Collection<? extends CommandSender> receivers, List<MessageComponent> components) {
-		if (needsJson(components)) {
+		if (needsJson(components) && canUseTellraw()) {
 			String json = ChatMessages.toJson(components);
 			String legacy = toLegacy(components);
 			for (CommandSender receiver : receivers) {
@@ -111,6 +113,16 @@ public final class ChatSender {
 		}
 	}
 
+	/**
+	 * Whether /tellraw can be dispatched through Bukkit. Forge hybrids register Vanilla and
+	 * modded commands in Bukkit's command map, plain CraftBukkit 1.7.10 might not.
+	 * If it can't, messages are sent as legacy text (without click/hover events).
+	 */
+	private static boolean canUseTellraw() {
+		SimpleCommandMap commandMap = Commands.getCommandMap();
+		return commandMap != null && commandMap.getCommand("tellraw") != null;
+	}
+	
 	/**
 	 * Sends a raw JSON chat message to a player using Vanilla's /tellraw command.
 	 */

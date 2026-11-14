@@ -1,3 +1,59 @@
+# Skript para Minecraft 1.7.10 (Crucible) no Java 21
+
+Este branch é um port do Skript **2.6.3** para servidores **Minecraft 1.7.10** com Forge + Bukkit
+(**Crucible**, Thermos, KCauldron, Cauldron), rodando no **Java 21** (também funciona no Java 8).
+
+A versão atual do Skript (2.17+) é feita para Paper 26.x e não tem como rodar na 1.7.10. Por isso
+a base é o último commit do upstream que ainda tinha suporte a versões anteriores à 1.13 (`215939ff1`).
+O código compila **direto contra a API Bukkit 1.7.10**, então tudo que está no jar existe no servidor.
+
+## Instalação
+
+1. Compile (`./gradlew build`) ou baixe o artefato do GitHub Actions; o jar fica em `build/libs/Skript.jar`.
+2. Coloque `Skript.jar` em `plugins/`.
+3. Se usar o [skript-reflect](https://github.com/Akashiic/skript-reflect) do mesmo branch, coloque ele também.
+
+Para rodar o Crucible no Java 9+, use os argumentos de JVM do próprio Crucible (`java9args.txt`).
+
+## Itens de mod e IDs numéricos
+
+Além dos aliases normais (`diamond sword`, `red wool`...), este build entende:
+
+| Sintaxe | Exemplo |
+|---|---|
+| Nome de registro do Forge `modid:nome[:data]` | `give player 1 of IC2:itemCable:3` |
+| ID vanilla `minecraft:nome[:data]` | `set block to minecraft:wool:14` |
+| ID numérico `id:<número>[:data]` | `if player's tool is id:4096:2:` |
+| Alias gerado para todo material de mod sem alias | `ic2 itemcable` (nome Bukkit do Crucible, em minúsculas e com espaços) |
+
+Biomas, entidades e encantamentos que os mods adicionam também recebem nomes gerados automaticamente.
+
+## O que mudou em relação ao Skript 2.6.3
+
+* Removido tudo que não existe na 1.7.10: entidades, eventos e blocos da 1.8+ (armor stand, coelho,
+  guardian, shulker...), BlockData, mão secundária, partículas (`Particle`), atributos, títulos e
+  action bar, componentes de chat JSON (mensagens com clique/hover viram texto comum), resource packs,
+  boss bars, game rules como classe, eventos e APIs do Paper/Spigot, bStats e timings.
+* Hooks de região (WorldGuard 7, GriefPrevention, Residence, PreciousStones) foram removidos.
+  O hook do Vault continua.
+* O Skript reconhece Crucible/Thermos/KCauldron como plataforma suportada e não se desativa.
+* Variáveis com itens agora guardam o data value (cor da lã, metadados de itens de mod).
+* Se um mod for removido, os IDs dos outros materiais em `materials.json` não se deslocam mais.
+* Aliases de itens que não existem na 1.7.10 são pulados e aparecem resumidos em uma linha no log
+  (com `verbosity: debug` no `config.sk` eles são listados).
+
+## Compilar
+
+Precisa de Java 17+ para rodar o Gradle (o projeto gera bytecode Java 8):
+
+```
+./gradlew build
+```
+
+A API Bukkit 1.7.10 vem do JitPack (`com.github.Bukkit:Bukkit:f210234`, o último commit do Bukkit).
+
+---
+
 # Skript [![Build Status](https://travis-ci.org/SkriptLang/Skript.svg?branch=master)](https://travis-ci.org/SkriptLang/Skript)
 Skript is a plugin for Paper/Spigot, which allows server owners and other people
 to modify their servers without learning Java. It can also be useful if you
