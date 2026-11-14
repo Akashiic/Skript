@@ -49,7 +49,7 @@ import ch.njol.util.coll.CollectionUtils;
 			"\tset the cost of enchantment 1 to 50"})
 @Since("2.5")
 @Events("enchant prepare")
-@RequiredPlugins("1.9 or 1.10")
+@RequiredPlugins("Minecraft 1.10 or older")
 @SuppressWarnings("deprecation")
 public class ExprEnchantmentExpCosts extends SimpleExpression<Long> {
 

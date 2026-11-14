@@ -20,32 +20,20 @@ package ch.njol.skript.util;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.bukkitutil.block.BlockCompat;
-import ch.njol.skript.bukkitutil.block.MagicBlockCompat;
-import com.destroystokyo.paper.block.BlockSoundGroup;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
-import org.bukkit.FluidCollisionMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.SoundGroup;
 import org.bukkit.World;
 import org.bukkit.block.Biome;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.PistonMoveReaction;
-import org.bukkit.block.data.BlockData;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.metadata.MetadataValue;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.util.BoundingBox;
-import org.bukkit.util.RayTraceResult;
-import org.bukkit.util.Vector;
-import org.bukkit.util.VoxelShape;
 import org.eclipse.jdt.annotation.Nullable;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
 import java.util.List;
@@ -55,14 +43,12 @@ import java.util.List;
  * any changes by 1 tick of reflects them on a given BlockState
  * depending on which constructor is used.
  */
+@SuppressWarnings("deprecation")
 public class DelayedChangeBlock implements Block {
-
-	private static final boolean ISPASSABLE_METHOD_EXISTS = Skript.methodExists(Block.class, "isPassable");
 
 	final Block b;
 	@Nullable
 	private final BlockState newState;
-	private final boolean isPassable;
 
 	public DelayedChangeBlock(Block b) {
 		this(b, null);
@@ -72,10 +58,10 @@ public class DelayedChangeBlock implements Block {
 		assert b != null;
 		this.b = b;
 		this.newState = newState;
-		if (ISPASSABLE_METHOD_EXISTS && newState != null)
-			this.isPassable = newState.getBlock().isPassable();
-		else
-			this.isPassable = false;
+	}
+
+	private void later(Runnable r) {
+		Bukkit.getScheduler().scheduleSyncDelayedTask(Skript.getInstance(), r);
 	}
 
 	@Override
@@ -98,14 +84,24 @@ public class DelayedChangeBlock implements Block {
 		b.removeMetadata(metadataKey, owningPlugin);
 	}
 
-	@SuppressWarnings("deprecation")
 	@Override
 	public byte getData() {
 		return b.getData();
 	}
 
-	public void setData(byte data) throws Throwable {
-		MagicBlockCompat.setDataMethod.invokeExact(b, data);
+	@Override
+	public void setData(byte data) {
+		setData(data, true);
+	}
+
+	@Override
+	public void setData(final byte data, final boolean applyPhysics) {
+		BlockState newState = this.newState;
+		if (newState != null) {
+			newState.setRawData(data);
+		} else {
+			later(() -> b.setData(data, applyPhysics));
+		}
 	}
 
 	@Override
@@ -126,6 +122,11 @@ public class DelayedChangeBlock implements Block {
 	@Override
 	public Material getType() {
 		return b.getType();
+	}
+
+	@Override
+	public int getTypeId() {
+		return b.getTypeId();
 	}
 
 	@Override
@@ -169,21 +170,51 @@ public class DelayedChangeBlock implements Block {
 	}
 
 	@Override
+	public Location getLocation(@Nullable Location loc) {
+		return b.getLocation(loc);
+	}
+
+	@Override
 	public Chunk getChunk() {
 		return b.getChunk();
 	}
 
 	@Override
-	public void setType(Material type) {
+	public void setType(final Material type) {
+		BlockState newState = this.newState;
 		if (newState != null) {
 			newState.setType(type);
 		} else {
-			Bukkit.getScheduler().scheduleSyncDelayedTask(Skript.getInstance(), new Runnable() {
-				@Override
-				public void run() {
-					b.setType(type);
-				}
-			});
+			later(() -> b.setType(type));
+		}
+	}
+
+	@Override
+	public boolean setTypeId(int type) {
+		return setTypeId(type, true);
+	}
+
+	@Override
+	public boolean setTypeId(final int type, final boolean applyPhysics) {
+		BlockState newState = this.newState;
+		if (newState != null) {
+			return newState.setTypeId(type);
+		} else {
+			later(() -> b.setTypeId(type, applyPhysics));
+			return true;
+		}
+	}
+
+	@Override
+	public boolean setTypeIdAndData(final int type, final byte data, final boolean applyPhysics) {
+		BlockState newState = this.newState;
+		if (newState != null) {
+			boolean changed = newState.setTypeId(type);
+			newState.setRawData(data);
+			return changed;
+		} else {
+			later(() -> b.setTypeIdAndData(type, data, applyPhysics));
+			return true;
 		}
 	}
 
@@ -199,18 +230,8 @@ public class DelayedChangeBlock implements Block {
 	}
 
 	@Override
-	public BlockState getState(boolean useSnapshot) {
-		return b.getState(useSnapshot);
-	}
-
-	@Override
 	public Biome getBiome() {
 		return b.getBiome();
-	}
-
-	@Override
-	public @NotNull Biome getComputedBiome() {
-		return b.getComputedBiome();
 	}
 
 	@Override
@@ -263,31 +284,6 @@ public class DelayedChangeBlock implements Block {
 	}
 
 	@Override
-	public boolean isBuildable() {
-		return b.isBuildable();
-	}
-
-	@Override
-	public boolean isBurnable() {
-		return b.isBurnable();
-	}
-
-	@Override
-	public boolean isReplaceable() {
-		return b.isReplaceable();
-	}
-
-	@Override
-	public boolean isSolid() {
-		return b.isSolid();
-	}
-
-	@Override
-	public boolean isCollidable() {
-		return b.isCollidable();
-	}
-
-	@Override
 	public double getTemperature() {
 		return b.getTemperature();
 	}
@@ -307,64 +303,19 @@ public class DelayedChangeBlock implements Block {
 		if (newState != null) {
 			return false;
 		} else {
-			Bukkit.getScheduler().scheduleSyncDelayedTask(Skript.getInstance(), new Runnable() {
-				@Override
-				public void run() {
-					b.breakNaturally();
-				}
-			});
+			later(() -> b.breakNaturally());
 			return true;
 		}
 	}
 
 	@Override
-	public boolean breakNaturally(@Nullable ItemStack tool) {
+	public boolean breakNaturally(@Nullable final ItemStack tool) {
 		if (newState != null) {
 			return false;
 		} else {
-			Bukkit.getScheduler().scheduleSyncDelayedTask(Skript.getInstance(), new Runnable() {
-				@Override
-				public void run() {
-					b.breakNaturally(tool);
-				}
-			});
+			later(() -> b.breakNaturally(tool));
 			return true;
 		}
-	}
-
-	@Override
-	public boolean breakNaturally(boolean triggerEffect) {
-		if (newState != null) {
-			return false;
-		} else {
-			Bukkit.getScheduler().scheduleSyncDelayedTask(Skript.getInstance(), new Runnable() {
-				@Override
-				public void run() {
-					b.breakNaturally(triggerEffect);
-				}
-			});
-			return true;
-		}
-	}
-
-	@Override
-	public boolean breakNaturally(ItemStack tool, boolean triggerEffect) {
-		if (newState != null) {
-			return false;
-		} else {
-			Bukkit.getScheduler().scheduleSyncDelayedTask(Skript.getInstance(), new Runnable() {
-				@Override
-				public void run() {
-					b.breakNaturally(tool, triggerEffect);
-				}
-			});
-			return true;
-		}
-	}
-
-	@Override
-	public boolean applyBoneMeal(BlockFace blockFace) {
-		return b.applyBoneMeal(blockFace);
 	}
 
 	@Override
@@ -377,127 +328,4 @@ public class DelayedChangeBlock implements Block {
 		return b.getDrops(tool);
 	}
 
-	@Override
-	public Collection<ItemStack> getDrops(ItemStack tool, @Nullable Entity entity) {
-		return b.getDrops(tool, entity);
-	}
-
-	@Nullable
-	@Override
-	public Location getLocation(@Nullable Location loc) {
-		if (loc != null) {
-			loc.setWorld(getWorld());
-			loc.setX(getX());
-			loc.setY(getY());
-			loc.setZ(getZ());
-			loc.setPitch(0);
-			loc.setYaw(0);
-		}
-		return loc;
-	}
-
-	@Override
-	public void setType(Material type, boolean applyPhysics) {
-		if (newState != null) {
-			newState.setType(type);
-		} else {
-			Bukkit.getScheduler().scheduleSyncDelayedTask(Skript.getInstance(), new Runnable() {
-				@Override
-				public void run() {
-					b.setType(type, applyPhysics);
-				}
-			});
-		}
-	}
-
-	@Override
-	public BlockData getBlockData() {
-		return b.getBlockData();
-	}
-
-	@Override
-	public void setBlockData(BlockData data) {
-		setBlockData(data, true);
-	}
-
-	@Override
-	public void setBlockData(BlockData data, boolean applyPhysics) {
-		if (newState != null) {
-			newState.setBlockData(data);
-		} else {
-			Bukkit.getScheduler().scheduleSyncDelayedTask(Skript.getInstance(), () -> b.setBlockData(data, applyPhysics));
-		}
-	}
-
-	@Nullable
-	@Override
-	public RayTraceResult rayTrace(Location start, Vector direction, double maxDistance, FluidCollisionMode fluidCollisionMode) {
-		return b.rayTrace(start, direction, maxDistance, fluidCollisionMode);
-	}
-
-	@Override
-	public boolean isPassable() {
-		return isPassable;
-	}
-
-	@Override
-	public BoundingBox getBoundingBox() {
-		return b.getBoundingBox();
-	}
-
-	@Override
-	public BlockSoundGroup getSoundGroup() {
-		return b.getSoundGroup();
-	}
-
-	@Override
-	public @NotNull SoundGroup getBlockSoundGroup() {
-		return b.getBlockSoundGroup();
-	}
-
-	@Override
-	public String getTranslationKey() {
-		return b.getTranslationKey();
-	}
-
-	@Override
-	public float getDestroySpeed(ItemStack itemStack) {
-		return b.getDestroySpeed(itemStack);
-	}
-
-	@Override
-	public boolean isPreferredTool(@NotNull ItemStack tool) {
-		return b.isPreferredTool(tool);
-	}
-
-	@Override
-	public boolean isValidTool(@NotNull ItemStack itemStack) {
-		return b.isValidTool(itemStack);
-	}
-
-	@Override
-	public float getDestroySpeed(@NotNull ItemStack itemStack, boolean considerEnchants) {
-		return b.getDestroySpeed(itemStack, considerEnchants);
-	}
-
-	@Override
-	@NotNull
-	public VoxelShape getCollisionShape() {
-		return b.getCollisionShape();
-	}
-
-	@Override
-	public boolean canPlace(@NotNull BlockData data) {
-		return b.canPlace(data);
-	}
-
-	@Override
-	public float getBreakSpeed(@NotNull Player player) {
-		return b.getBreakSpeed(player);
-	}
-
-	@Override
-	public @NotNull String translationKey() {
-		return b.getTranslationKey();
-	}
 }

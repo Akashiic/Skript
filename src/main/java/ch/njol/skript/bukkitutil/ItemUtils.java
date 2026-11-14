@@ -20,11 +20,8 @@ package ch.njol.skript.bukkitutil;
 
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.Damageable;
-import org.bukkit.inventory.meta.ItemMeta;
 import org.eclipse.jdt.annotation.Nullable;
 
-import ch.njol.skript.Skript;
 
 /**
  * Miscellaneous static utility methods related to items.
@@ -33,7 +30,7 @@ public class ItemUtils {
 	
 	private ItemUtils() {} // Not to be instanced
 	
-	private static final boolean damageMeta = Skript.classExists("org.bukkit.inventory.meta.Damageable");
+	private static final boolean damageMeta = false; // Minecraft 1.7.10 uses item durability (data value)
 	
 	/**
 	 * Gets damage/durability of an item, or 0 if it does not have damage.
@@ -42,14 +39,7 @@ public class ItemUtils {
 	 */
 	@SuppressWarnings("deprecation")
 	public static int getDamage(ItemStack stack) {
-		if (damageMeta) {
-			ItemMeta meta = stack.getItemMeta();
-			if (meta instanceof Damageable)
-				return ((Damageable) meta).getDamage();
-			return 0; // Not damageable item
-		} else {
-			return stack.getDurability();
-		}
+		return stack.getDurability();
 	}
 	
 	/**
@@ -60,31 +50,11 @@ public class ItemUtils {
 	 */
 	@SuppressWarnings("deprecation")
 	public static void setDamage(ItemStack stack, int damage) {
-		if (damageMeta) {
-			ItemMeta meta = stack.getItemMeta();
-			if (meta instanceof Damageable) {
-				((Damageable) meta).setDamage(damage);
-				stack.setItemMeta(meta);
-			}
-		} else {
-			stack.setDurability((short) damage);
-		}
+		stack.setDurability((short) damage);
 	}
 	
-	@Nullable
-	private static final Material bedItem;
-	@Nullable
-	private static final Material bedBlock;
-	
-	static {
-		if (!damageMeta) {
-			bedItem = Material.valueOf("BED");
-			bedBlock = Material.valueOf("BED_BLOCK");
-		} else {
-			bedItem = null;
-			bedBlock = null;
-		}
-	}
+	private static final Material bedItem = Material.BED;
+	private static final Material bedBlock = Material.BED_BLOCK;
 	
 	/**
 	 * Gets a block material corresponding to given item material, which might

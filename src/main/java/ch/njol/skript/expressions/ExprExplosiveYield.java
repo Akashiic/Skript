@@ -35,11 +35,10 @@ import ch.njol.skript.expressions.base.SimplePropertyExpression;
 import ch.njol.util.coll.CollectionUtils;
 
 @Name("Explosive Yield")
-@Description({"The yield of an explosive (creeper, primed tnt, fireball, etc.). This is how big of an explosion is caused by the entity.",
+@Description({"The yield of an explosive (primed tnt, fireball, etc.). This is how big of an explosion is caused by the entity.",
 				"Read <a href='https://minecraft.gamepedia.com/Explosion'>this wiki page</a> for more information"})
 @Examples({"on spawn of a creeper:",
 			"\tset the explosive yield of the event-entity to 10"})
-@RequiredPlugins("Minecraft 1.12 or newer for creepers")
 @Since("2.5")
 public class ExprExplosiveYield extends SimplePropertyExpression<Entity, Number> {
 
@@ -47,14 +46,10 @@ public class ExprExplosiveYield extends SimplePropertyExpression<Entity, Number>
 		register(ExprExplosiveYield.class, Number.class, "explosive (yield|radius|size)", "entities");
 	}
 
-	private final static boolean CREEPER_USABLE = Skript.methodExists(Creeper.class, "getExplosionRadius");
-
 	@Override
 	public Number convert(Entity e) {
 		if (e instanceof Explosive)
 			return ((Explosive) e).getYield();
-		if (CREEPER_USABLE && e instanceof Creeper)
-			return ((Creeper) e).getExplosionRadius();
 		return 0;
 	}
 
@@ -101,34 +96,6 @@ public class ExprExplosiveYield extends SimplePropertyExpression<Entity, Number>
 						e.setYield(0);
 						break;
 					default:
-						assert false;
-				}
-			} else if (CREEPER_USABLE && entity instanceof Creeper) {
-				Creeper c = (Creeper) entity;
-				int i = change.intValue();
-				if (i < 0) // Negative values will throw an error.
-					return;
-				switch (mode) {
-					case SET:
-						c.setExplosionRadius(i);
-						break;
-					case ADD:
-						int add = c.getExplosionRadius() + i;
-						if (add < 0)
-							return;
-						c.setExplosionRadius(add);
-						break;
-					case REMOVE:
-						int subtract = c.getExplosionRadius() - i;
-						if (subtract < 0)
-							return;
-						c.setExplosionRadius(subtract);
-						break;	
-					case DELETE:
-						c.setExplosionRadius(0);
-						break;
-					case REMOVE_ALL:
-					case RESET:
 						assert false;
 				}
 			}

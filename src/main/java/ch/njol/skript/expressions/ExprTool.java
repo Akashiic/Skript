@@ -51,26 +51,21 @@ import ch.njol.util.Kleenean;
  * @author Peter Güttinger
  */
 @Name("Tool")
-@Description("The item an entity is holding in their main or off hand.")
+@Description("The item an entity is holding in their hand.")
 @Examples({"player's tool is a pickaxe",
-	"player's off hand tool is a shield",
-	"set tool of all players to a diamond sword",
-	"set offhand tool of target entity to a bow"})
+	"set tool of all players to a diamond sword"})
 @Since("1.0")
 public class ExprTool extends PropertyExpression<LivingEntity, Slot> {
 	static {
 		Skript.registerExpression(ExprTool.class, Slot.class, ExpressionType.PROPERTY,
-			"[the] ((tool|held item|weapon)|1¦(off[ ]hand (tool|item))) [of %livingentities%]",
-			"%livingentities%'[s] ((tool|held item|weapon)|1¦(off[ ]hand (tool|item)))");
+			"[the] (tool|held item|weapon) [of %livingentities%]",
+			"%livingentities%'[s] (tool|held item|weapon)");
 	}
-
-	private boolean offHand;
 
 	@SuppressWarnings({"unchecked", "null"})
 	@Override
 	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parser) {
 		setExpr((Expression<LivingEntity>) exprs[0]);
-		offHand = parser.mark == 1;
 		return true;
 	}
 
@@ -87,9 +82,7 @@ public class ExprTool extends PropertyExpression<LivingEntity, Slot> {
 						return new InventorySlot(i, getTime() >= 0 ? ((PlayerItemHeldEvent) e).getNewSlot() : ((PlayerItemHeldEvent) e).getPreviousSlot());
 					} else if (e instanceof PlayerBucketEvent && ((PlayerBucketEvent) e).getPlayer() == ent) {
 						final PlayerInventory i = ((PlayerBucketEvent) e).getPlayer().getInventory();
-						boolean isOffHand = ((PlayerBucketEvent) e).getHand() == org.bukkit.inventory.EquipmentSlot.OFF_HAND || offHand;
-						return new InventorySlot(i, isOffHand ? EquipmentSlot.EquipSlot.OFF_HAND.slotNumber
-							: ((PlayerBucketEvent) e).getPlayer().getInventory().getHeldItemSlot()) {
+						return new InventorySlot(i, ((PlayerBucketEvent) e).getPlayer().getInventory().getHeldItemSlot()) {
 							@Override
 							@Nullable
 							public ItemStack getItem() {
@@ -110,13 +103,12 @@ public class ExprTool extends PropertyExpression<LivingEntity, Slot> {
 				final EntityEquipment eq = ent.getEquipment();
 				if (eq == null)
 					return null;
-				return new EquipmentSlot(eq, offHand ? EquipmentSlot.EquipSlot.OFF_HAND : EquipmentSlot.EquipSlot.TOOL) {
+				return new EquipmentSlot(eq, EquipmentSlot.EquipSlot.TOOL) {
 					@Override
 					public String toString(@Nullable Event event, boolean debug) {
 						String time = getTime() == 1 ? "future " : getTime() == -1 ? "former " : "";
-						String hand = offHand ? "off hand" : "";
 						String item = Classes.toString(getItem());
-						return String.format("%s %s tool of %s", time, hand, item);
+						return String.format("%stool of %s", time, item);
 					}
 				};
 			}
@@ -130,8 +122,7 @@ public class ExprTool extends PropertyExpression<LivingEntity, Slot> {
 
 	@Override
 	public String toString(final @Nullable Event e, final boolean debug) {
-		String hand = offHand ? "off hand" : "";
-		return String.format("%s tool of %s", hand, getExpr().toString(e, debug));
+		return String.format("tool of %s", getExpr().toString(e, debug));
 	}
 
 	@SuppressWarnings("unchecked")

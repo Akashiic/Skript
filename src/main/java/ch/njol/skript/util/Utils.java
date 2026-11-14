@@ -30,7 +30,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
-import net.md_5.bungee.api.ChatColor;
+import org.bukkit.ChatColor;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Creature;
 import org.bukkit.entity.Entity;
@@ -477,7 +477,7 @@ public abstract class Utils {
 	final static Map<String, String> chat = new HashMap<>();
 	final static Map<String, String> englishChat = new HashMap<>();
 	
-	public final static boolean HEX_SUPPORTED = Skript.isRunningMinecraft(1, 16);
+	public final static boolean HEX_SUPPORTED = false; // Minecraft 1.7.10 has no hex colors
 	
 	static {
 		Language.addListener(new LanguageChangeListener() {
@@ -595,12 +595,7 @@ public abstract class Utils {
 		if (!HEX_SUPPORTED || !HEX_PATTERN.matcher(hex).matches()) // Proper hex code validation
 			return null;
 		
-		hex = hex.replace("#", "");
-		try {
-			return ChatColor.of('#' + hex.substring(0, 6));
-		} catch (IllegalArgumentException e) {
-			return null;
-		}
+		return null; // Hex colors don't exist on Minecraft 1.7.10
 	}
 	
 	/**

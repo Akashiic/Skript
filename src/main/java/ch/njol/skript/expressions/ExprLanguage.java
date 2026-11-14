@@ -18,11 +18,10 @@
  */
 package ch.njol.skript.expressions;
 
+import java.lang.reflect.Method;
+
 import org.eclipse.jdt.annotation.Nullable;
 
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
 
 import org.bukkit.entity.Player;
 import ch.njol.skript.Skript;
@@ -39,36 +38,34 @@ import ch.njol.skript.expressions.base.SimplePropertyExpression;
 @Since("2.3")
 public class ExprLanguage extends SimplePropertyExpression<Player, String> {
 
-	private static final boolean USE_DEPRECATED_METHOD = !Skript.methodExists(Player.class, "getLocale");
-	
-	@Nullable
-	private static final MethodHandle getLocaleMethod;
-
 	static {
 		register(ExprLanguage.class, String.class, "[([currently] selected|current)] [game] (language|locale) [setting]", "players");
-		
-		MethodHandle handle;
-		try {
-			handle = MethodHandles.lookup().findVirtual(Player.Spigot.class, "getLocale", MethodType.methodType(String.class));
-		} catch (NoSuchMethodException | IllegalAccessException e) {
-			handle = null;
-		}
-		getLocaleMethod = handle;
 	}
 
+	@Nullable
+	private static Method spigotMethod, getLocaleMethod;
+	private static boolean lookedUp;
+
+	/**
+	 * Bukkit 1.7.10 has no locale API. Spigot-based servers may have Player.Spigot#getLocale(),
+	 * which is looked up reflectively since Skript compiles against Bukkit.
+	 */
 	@Override
 	@Nullable
 	public String convert(Player p) {
-		if (USE_DEPRECATED_METHOD) {
-			assert getLocaleMethod != null;
-			try {
-				return (String) getLocaleMethod.invoke(p.spigot());
-			} catch (Throwable e) {
-				Skript.exception(e);
-				return null;
+		try {
+			if (!lookedUp) {
+				lookedUp = true;
+				Method spigot = p.getClass().getMethod("spigot");
+				Method getLocale = spigot.getReturnType().getMethod("getLocale");
+				spigotMethod = spigot;
+				getLocaleMethod = getLocale;
 			}
-		} else {
-			return p.getLocale();
+			if (spigotMethod == null || getLocaleMethod == null)
+				return null;
+			return (String) getLocaleMethod.invoke(spigotMethod.invoke(p));
+		} catch (ReflectiveOperationException | LinkageError e) {
+			return null;
 		}
 	}
 

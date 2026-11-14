@@ -23,8 +23,6 @@ import org.bukkit.event.Event;
 import org.bukkit.event.vehicle.VehicleEnterEvent;
 import org.bukkit.event.vehicle.VehicleExitEvent;
 import org.eclipse.jdt.annotation.Nullable;
-import org.spigotmc.event.entity.EntityDismountEvent;
-import org.spigotmc.event.entity.EntityMountEvent;
 
 import ch.njol.skript.Skript;
 import ch.njol.skript.classes.Changer.ChangeMode;
@@ -48,7 +46,6 @@ import ch.njol.util.coll.CollectionUtils;
 @Since("2.0")
 public class ExprVehicle extends SimplePropertyExpression<Entity, Entity> {
 	
-	static final boolean hasMountEvents = Skript.classExists("org.spigotmc.event.entity.EntityMountEvent");
 	
 	static {
 		register(ExprVehicle.class, Entity.class, "vehicle[s]", "entities");
@@ -65,14 +62,6 @@ public class ExprVehicle extends SimplePropertyExpression<Entity, Entity> {
 				}
 				if (getTime() >= 0 && e instanceof VehicleExitEvent && p.equals(((VehicleExitEvent) e).getExited()) && !Delay.isDelayed(e)) {
 					return ((VehicleExitEvent) e).getVehicle();
-				}
-				if (hasMountEvents) {
-					if (getTime() >= 0 && e instanceof EntityMountEvent && p.equals(((EntityMountEvent) e).getEntity()) && !Delay.isDelayed(e)) {
-						return ((EntityMountEvent) e).getMount();
-					}
-					if (getTime() >= 0 && e instanceof EntityDismountEvent && p.equals(((EntityDismountEvent) e).getEntity()) && !Delay.isDelayed(e)) {
-						return ((EntityDismountEvent) e).getDismounted();
-					}
 				}
 				return p.getVehicle();
 			}

@@ -54,6 +54,11 @@ public class AliasesParser {
 	private static final ArgsMessage m_too_many_brackets = new ArgsMessage("aliases.too many brackets");
 	private static final ArgsMessage m_unknown_variation = new ArgsMessage("aliases.unknown variation");
 	private static final ArgsMessage m_invalid_minecraft_id = new ArgsMessage("aliases.invalid minecraft id");
+	
+	/**
+	 * Number of aliases that were skipped because their Minecraft id does not exist on this server.
+	 */
+	static int invalidIdCount;
 	private static final Message m_empty_alias = new Message("aliases.empty alias");
 	
 	/**
@@ -693,8 +698,11 @@ public class AliasesParser {
 					// Add alias to provider
 					provider.addAlias(new AliasesProvider.AliasName(forms.getFirst(), forms.getSecond(), plain.getSecond()),
 							id, merged.getTags(), merged.getBlockStates());
-				} catch (InvalidMinecraftIdException e) { // Spit out a more useful error message
-					Skript.error(m_invalid_minecraft_id.toString(e.getId()));
+				} catch (InvalidMinecraftIdException e) {
+					// The default aliases contain many items that were added after Minecraft 1.7.10,
+					// so only list them when debugging and print a summary instead (see Aliases)
+					invalidIdCount++;
+					Skript.debug(m_invalid_minecraft_id.toString(e.getId()));
 				}
 			}
 		}
@@ -707,7 +715,7 @@ public class AliasesParser {
 	 * @return Name fixed.
 	 */
 	protected String fixName(String name) {
-		String result = org.apache.commons.lang.StringUtils.normalizeSpace(name);
+		String result = name.trim().replaceAll("\\s+", " ");
 		
 		int i = result.indexOf('¦');
 		

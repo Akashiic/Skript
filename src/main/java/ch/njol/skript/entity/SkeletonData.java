@@ -22,7 +22,6 @@ import org.bukkit.entity.Skeleton;
 import org.bukkit.entity.Skeleton.SkeletonType;
 import org.eclipse.jdt.annotation.Nullable;
 
-import ch.njol.skript.Skript;
 import ch.njol.skript.SkriptAPIException;
 import ch.njol.skript.lang.Literal;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
@@ -30,27 +29,15 @@ import ch.njol.skript.lang.SkriptParser.ParseResult;
 /**
  * @author Peter Güttinger
  */
-@SuppressWarnings("deprecation") // Until 1.12: use deprecated methods for compatibility
 public class SkeletonData extends EntityData<Skeleton> {
 	
-	private final static boolean hasWither = Skript.methodExists(Skeleton.class, "getSkeletonType");
-	private final static boolean hasStray = Skript.isRunningMinecraft(1, 10);
-	private final static boolean separateClasses = Skript.isRunningMinecraft(1, 11);
-	
 	static {
-		// Register nothing on 1.11+ (see SimpleEntityData instead)
-		if (!separateClasses) {
-			if (hasStray)
-				EntityData.register(SkeletonData.class, "skeleton", Skeleton.class, 0, "skeleton", "wither skeleton", "stray");
-			else if (hasWither)
-				EntityData.register(SkeletonData.class, "skeleton", Skeleton.class, 0, "skeleton", "wither skeleton");
-			else
-				EntityData.register(SkeletonData.class, "skeleton", Skeleton.class, "skeleton");
-		}
+		// Minecraft 1.7.10: wither skeletons are a skeleton type, not a separate entity class
+		EntityData.register(SkeletonData.class, "skeleton", Skeleton.class, 0, "skeleton", "wither skeleton");
 	}
 	
 	private int type;
-	public static final int NORMAL = 0, WITHER = 1, STRAY = 2, LAST_INDEX = STRAY;
+	public static final int NORMAL = 0, WITHER = 1, LAST_INDEX = WITHER;
 	
 	public SkeletonData() {}
 	
@@ -64,10 +51,6 @@ public class SkeletonData extends EntityData<Skeleton> {
 		return type == WITHER;
 	}
 	
-	public boolean isStray() {
-		return type == STRAY;
-	}
-	
 	@Override
 	protected boolean init(final Literal<?>[] exprs, final int matchedPattern, final ParseResult parseResult) {
 		type = matchedPattern;
@@ -79,10 +62,8 @@ public class SkeletonData extends EntityData<Skeleton> {
 		if (e == null)
 			return true;
 		
-		if (hasWither && e.getSkeletonType() == SkeletonType.WITHER)
+		if (e.getSkeletonType() == SkeletonType.WITHER)
 			type = WITHER;
-		if (hasStray && e.getSkeletonType() == SkeletonType.STRAY)
-			type = STRAY;
 		return true;
 	}
 	
@@ -93,6 +74,7 @@ public class SkeletonData extends EntityData<Skeleton> {
 			int typeOffer = Integer.parseInt(s);
 			if (typeOffer > LAST_INDEX)
 				throw new SkriptAPIException("Unsupported skeleton type " + s);
+			type = typeOffer;
 		} catch (NumberFormatException e) {
 			throw new SkriptAPIException("Cannot parse skeleton type " + s);
 		}
@@ -106,9 +88,6 @@ public class SkeletonData extends EntityData<Skeleton> {
 			case WITHER:
 				e.setSkeletonType(SkeletonType.WITHER);
 				break;
-			case STRAY:
-				e.setSkeletonType(SkeletonType.STRAY);
-				break;
 			default:
 				e.setSkeletonType(SkeletonType.NORMAL);
 		}
@@ -119,8 +98,6 @@ public class SkeletonData extends EntityData<Skeleton> {
 		switch (type) {
 			case WITHER:
 				return e.getSkeletonType() == SkeletonType.WITHER;
-			case STRAY:
-				return e.getSkeletonType() == SkeletonType.STRAY;
 			default:
 				return e.getSkeletonType() == SkeletonType.NORMAL;
 		}

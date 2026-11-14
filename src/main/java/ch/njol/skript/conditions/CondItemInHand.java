@@ -30,9 +30,11 @@ import ch.njol.skript.lang.Expression;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.skript.registrations.Comparators;
 import ch.njol.util.Kleenean;
+import org.bukkit.Material;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.event.Event;
 import org.bukkit.inventory.EntityEquipment;
+import org.bukkit.inventory.ItemStack;
 import org.eclipse.jdt.annotation.Nullable;
 
 @Name("Is Holding")
@@ -48,12 +50,8 @@ public class CondItemInHand extends Condition {
 		Skript.registerCondition(CondItemInHand.class,
 				"[%livingentities%] ha(s|ve) %itemtypes% in [main] hand",
 				"[%livingentities%] (is|are) holding %itemtypes% [in main hand]",
-				"[%livingentities%] ha(s|ve) %itemtypes% in off[(-| )]hand",
-				"[%livingentities%] (is|are) holding %itemtypes% in off[(-| )]hand",
 				"[%livingentities%] (ha(s|ve) not|do[es]n't have) %itemtypes% in [main] hand",
-				"[%livingentities%] (is not|isn't) holding %itemtypes% [in main hand]",
-				"[%livingentities%] (ha(s|ve) not|do[es]n't have) %itemtypes% in off[(-| )]hand",
-				"[%livingentities%] (is not|isn't) holding %itemtypes% in off[(-| )]hand"
+				"[%livingentities%] (is not|isn't) holding %itemtypes% [in main hand]"
 		);
 	}
 	
@@ -62,15 +60,12 @@ public class CondItemInHand extends Condition {
 	@SuppressWarnings("NotNullFieldNotInitialized")
 	private Expression<ItemType> items;
 
-	private boolean offTool;
-
 	@Override
 	@SuppressWarnings("unchecked")
 	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult) {
 		entities = (Expression<LivingEntity>) exprs[0];
 		items = (Expression<ItemType>) exprs[1];
-		offTool = (matchedPattern == 2 || matchedPattern == 3 || matchedPattern == 6 || matchedPattern == 7);
-		setNegated(matchedPattern >= 4);
+		setNegated(matchedPattern >= 2);
 		return true;
 	}
 	
@@ -82,7 +77,8 @@ public class CondItemInHand extends Condition {
 							EntityEquipment equipment = livingEntity.getEquipment();
 							if (equipment == null)
 								return false; // No equipment -> no item in hand
-							ItemType handItem = new ItemType(offTool ? equipment.getItemInOffHand() : equipment.getItemInMainHand());
+							ItemStack hand = equipment.getItemInHand();
+							ItemType handItem = new ItemType(hand == null ? new ItemStack(Material.AIR) : hand);
 							return Comparators.compare(handItem, itemType).is(Relation.EQUAL);
 						}), isNegated());
 	}
@@ -90,8 +86,7 @@ public class CondItemInHand extends Condition {
 	@Override
 	public String toString(@Nullable Event e, boolean debug) {
 		return entities.toString(e, debug) + " " + (entities.isSingle() ? "is" : "are")
-				+ " holding " + items.toString(e, debug)
-				+ (offTool ? " in off-hand" : "");
+				+ " holding " + items.toString(e, debug);
 	}
 	
 }

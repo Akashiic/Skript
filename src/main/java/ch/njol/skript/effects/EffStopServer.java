@@ -55,10 +55,16 @@ public class EffStopServer extends Effect {
 	
 	@Override
 	protected void execute(Event e) {
-		if (restart)
-			Bukkit.spigot().restart();
-		else
-			Bukkit.shutdown();
+		if (restart) {
+			// 1.7.10 has no Bukkit.spigot() API; Spigot-based servers (Thermos, Crucible, ...) still ship RestartCommand
+			try {
+				Class.forName("org.spigotmc.RestartCommand").getMethod("restart").invoke(null);
+				return;
+			} catch (ReflectiveOperationException | LinkageError ignored) {
+				// Not a Spigot-based server, just stop it
+			}
+		}
+		Bukkit.shutdown();
 	}
 	
 	

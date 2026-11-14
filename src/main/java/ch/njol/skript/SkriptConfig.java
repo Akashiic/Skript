@@ -26,10 +26,6 @@ import ch.njol.skript.config.OptionSection;
 import ch.njol.skript.config.SectionNode;
 import ch.njol.skript.hooks.Hook;
 import ch.njol.skript.hooks.VaultHook;
-import ch.njol.skript.hooks.regions.GriefPreventionHook;
-import ch.njol.skript.hooks.regions.PreciousStonesHook;
-import ch.njol.skript.hooks.regions.ResidenceHook;
-import ch.njol.skript.hooks.regions.WorldGuardHook;
 import ch.njol.skript.lang.function.Function;
 import ch.njol.skript.localization.Language;
 import ch.njol.skript.log.SkriptLogger;
@@ -280,26 +276,6 @@ public class SkriptConfig {
 		.optional(true)
 		.setter(value -> {
 			userDisableHooks(VaultHook.class, value);
-		});
-	public final static Option<Boolean> disableHookGriefPrevention = new Option<>("disable hooks.regions.grief prevention", false)
-		.optional(true)
-		.setter(value -> {
-			userDisableHooks(GriefPreventionHook.class, value);
-		});
-	public final static Option<Boolean> disableHookPreciousStones = new Option<>("disable hooks.regions.precious stones", false)
-		.optional(true)
-		.setter(value -> {
-			userDisableHooks(PreciousStonesHook.class, value);
-		});
-	public final static Option<Boolean> disableHookResidence = new Option<>("disable hooks.regions.residence", false)
-		.optional(true)
-		.setter(value -> {
-			userDisableHooks(ResidenceHook.class, value);
-		});
-	public final static Option<Boolean> disableHookWorldGuard = new Option<>("disable hooks.regions.worldguard", false)
-		.optional(true)
-		.setter(value -> {
-			userDisableHooks(WorldGuardHook.class, value);
 		});
 	/**
 	 * Disables the specified hook depending on the option value, or gives an error if this isn't allowed at this time.

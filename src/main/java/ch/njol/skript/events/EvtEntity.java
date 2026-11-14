@@ -23,7 +23,9 @@ import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.event.Event;
 import org.bukkit.event.entity.EntityDeathEvent;
-import org.bukkit.event.entity.EntitySpawnEvent;
+import org.bukkit.event.entity.CreatureSpawnEvent;
+import org.bukkit.event.entity.EntityEvent;
+import org.bukkit.event.entity.ItemSpawnEvent;
 import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
@@ -34,6 +36,7 @@ import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.skript.log.ErrorQuality;
 import ch.njol.skript.registrations.Classes;
 import ch.njol.util.StringUtils;
+import ch.njol.util.coll.CollectionUtils;
 
 /**
  * @author Peter Güttinger
@@ -49,12 +52,13 @@ public final class EvtEntity extends SkriptEvent {
 						"on death of a wither or ender dragon:",
 						"	broadcast \"A %entity% has been slain in %world%!\"")
 				.since("1.0");
-		Skript.registerEvent("Spawn", EvtEntity.class, EntitySpawnEvent.class, "spawn[ing] [of %entitydatas%]")
-				.description("Called when an entity spawns (excluding players).")
+		// 1.7.10 has no EntitySpawnEvent; creature and item spawns are separate events
+		Skript.registerEvent("Spawn", EvtEntity.class, CollectionUtils.array(CreatureSpawnEvent.class, ItemSpawnEvent.class), "spawn[ing] [of %entitydatas%]")
+				.description("Called when a creature or a dropped item spawns (excluding players).")
 				.examples("on spawn of a zombie:",
 						"on spawn of an ender dragon:",
 						"	broadcast \"A dragon has been sighted in %world%!\"")
-				.since("1.0, 2.5.1 (non-living entities)");
+				.since("1.0, 2.5.1 (dropped items)");
 	}
 	
 	@Nullable
@@ -92,7 +96,7 @@ public final class EvtEntity extends SkriptEvent {
 	public boolean check(final Event e) {
 		if (types == null)
 			return true;
-		final Entity en = e instanceof EntityDeathEvent ? ((EntityDeathEvent) e).getEntity() : ((EntitySpawnEvent) e).getEntity();
+		final Entity en = e instanceof EntityDeathEvent ? ((EntityDeathEvent) e).getEntity() : ((EntityEvent) e).getEntity();
 		for (final EntityData<?> d : types) {
 			if (d.isInstance(en))
 				return true;

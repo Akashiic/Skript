@@ -28,7 +28,6 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
-import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 import org.eclipse.jdt.annotation.Nullable;
 
@@ -91,25 +90,6 @@ public class BlockUtils {
 		return l;
 	}
 	
-	@Nullable
-	public static BlockData createBlockData(String dataString) {
-		// Skript uses a comma to separate lists, so we use a semi colon as a delimiter
-		// Here we are just replacing it back to a comma to create a new block data
-		String data = dataString.replace(";", ",");
-		// Remove white space within square brackets ([ lit = false] -> [lit=false])
-		data = data.replaceAll(" (?=[^\\[]*])", "");
-		// Remove white space between last word and square bracket
-		data = data.replaceAll("\\s+\\[", "[");
-		// And replace white space between namespace with underscores
-		data = data.replace(" ", "_");
-		
-		try {
-			return Bukkit.createBlockData(data.startsWith("minecraft:") ? data : "minecraft:" + data);
-		} catch (IllegalArgumentException ignore) {
-			return null;
-		}
-	}
-
 	/**
 	 * Get the string version of a block, including type and location.
 	 * ex: 'stone' at 1.5, 1.5, 1.5 in world 'world'

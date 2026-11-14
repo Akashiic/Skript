@@ -25,7 +25,6 @@ import ch.njol.skript.log.SkriptLogger;
 import org.bukkit.Effect;
 import org.bukkit.EntityEffect;
 import org.bukkit.Location;
-import org.bukkit.Particle;
 import org.eclipse.jdt.annotation.Nullable;
 
 import java.util.Objects;
@@ -85,7 +84,7 @@ public class VisualEffectType {
 	}
 
 	public boolean isParticle() {
-		return effect instanceof Particle;
+		return false; // No particle API on Minecraft 1.7.10
 	}
 
 	public Effect getEffect() {
@@ -98,12 +97,6 @@ public class VisualEffectType {
 		if (!isEntityEffect())
 			throw new IllegalStateException();
 		return (EntityEffect) effect;
-	}
-
-	public Particle getParticle() {
-		if (!isParticle())
-			throw new IllegalStateException();
-		return (Particle) effect;
 	}
 
 	@Nullable

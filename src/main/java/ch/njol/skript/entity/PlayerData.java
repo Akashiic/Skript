@@ -20,7 +20,7 @@ package ch.njol.skript.entity;
 
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
-import org.bukkit.util.Consumer;
+import java.util.function.Consumer;
 import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.lang.Literal;

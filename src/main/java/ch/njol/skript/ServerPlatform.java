@@ -32,7 +32,13 @@ public enum ServerPlatform {
 	/**
 	 * CraftBukkit, but not Spigot or Paper.
 	 */
-	BUKKIT_CRAFTBUKKIT("CraftBukkit", false, false),
+	BUKKIT_CRAFTBUKKIT("CraftBukkit", true, false),
+	
+	/**
+	 * Forge + Bukkit hybrids for Minecraft 1.7.10: Crucible, Thermos, KCauldron and Cauldron.
+	 * This build of Skript targets them.
+	 */
+	BUKKIT_FORGE_HYBRID("Forge/Bukkit hybrid (Crucible, Thermos, KCauldron)", true, true),
 	
 	/**
 	 * Spigot, with its Bukkit API extensions. Officially supported.

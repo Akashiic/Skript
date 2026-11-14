@@ -32,8 +32,6 @@ import ch.njol.skript.timings.SkriptTimings;
 import ch.njol.skript.util.Direction;
 import ch.njol.skript.variables.Variables;
 import ch.njol.util.Kleenean;
-import io.papermc.lib.PaperLib;
-import io.papermc.lib.environments.PaperEnvironment;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 import org.bukkit.event.Event;
@@ -43,15 +41,11 @@ import org.eclipse.jdt.annotation.Nullable;
 
 @Name("Teleport")
 @Description({"Teleport an entity to a specific location. ",
-		"This effect is delayed by default on Paper, meaning certain syntax such as the return effect for functions cannot be used after this effect.",
-		"The keyword 'force' indicates this effect will not be delayed, ",
-		"which may cause lag spikes or server crashes when using this effect to teleport entities to unloaded chunks."})
+		"On Minecraft 1.7.10 teleporting is never delayed; the 'force' keyword is accepted but has no effect."})
 @Examples({"teleport the player to {homes.%player%}",
 		"teleport the attacker to the victim"})
 @Since("1.0")
 public class EffTeleport extends Effect {
-
-	private static final boolean CAN_RUN_ASYNC = PaperLib.getEnvironment() instanceof PaperEnvironment;
 
 	static {
 		Skript.registerEffect(EffTeleport.class, "[(1¦force)] teleport %entities% (to|%direction%) %location%");
@@ -62,17 +56,11 @@ public class EffTeleport extends Effect {
 	@SuppressWarnings("NotNullFieldNotInitialized")
 	private Expression<Location> location;
 
-	private boolean isAsync;
-
 	@SuppressWarnings({"unchecked", "null"})
 	@Override
 	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parseResult) {
 		entities = (Expression<Entity>) exprs[0];
 		location = Direction.combine((Expression<? extends Direction>) exprs[1], (Expression<? extends Location>) exprs[2]);
-		isAsync = CAN_RUN_ASYNC && parseResult.mark == 0;
-
-		if (isAsync)
-			getParser().setHasDelayBefore(Kleenean.UNKNOWN); // UNKNOWN because it isn't async if the chunk is already loaded.
 		return true;
 	}
 	
@@ -105,43 +93,11 @@ public class EffTeleport extends Effect {
 			}
 		}
 
-		if (!isAsync) {
-			for (Entity entity : entityArray) {
-				entity.teleport(loc);
-			}
-			return next;
+		// 1.7.10 has no async chunk loading, so teleports are always synchronous ('force' is kept for compatibility)
+		for (Entity entity : entityArray) {
+			entity.teleport(loc);
 		}
-
-		Delay.addDelayedEvent(e);
-		Object localVars = Variables.removeLocals(e);
-		
-		// This will either fetch the chunk instantly if on Spigot or already loaded or fetch it async if on Paper.
-		PaperLib.getChunkAtAsync(loc).thenAccept(chunk -> {
-			// The following is now on the main thread
-			for (Entity entity : entityArray) {
-				entity.teleport(loc);
-			}
-
-			// Re-set local variables
-			if (localVars != null)
-				Variables.setLocalVariables(e, localVars);
-			
-			// Continue the rest of the trigger if there is one
-			Object timing = null;
-			if (next != null) {
-				if (SkriptTimings.enabled()) {
-					Trigger trigger = getTrigger();
-					if (trigger != null) {
-						timing = SkriptTimings.start(trigger.getDebugLabel());
-					}
-				}
-
-				TriggerItem.walk(next, e);
-			}
-			Variables.removeLocals(e); // Clean up local vars, we may be exiting now
-			SkriptTimings.stop(timing);
-		});
-		return null;
+		return next;
 	}
 
 	@Override

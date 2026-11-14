@@ -38,7 +38,7 @@ import ch.njol.skript.SkriptAddon;
 import ch.njol.skript.localization.Language;
 import ch.njol.skript.localization.LanguageChangeListener;
 import ch.njol.skript.util.Utils;
-import net.md_5.bungee.api.ChatColor;
+import org.bukkit.ChatColor;
 
 /**
  * Handles parsing chat messages.
@@ -146,7 +146,10 @@ public class ChatMessages {
 	}
 	
 	static {
-		Gson nullableGson = new GsonBuilder().registerTypeAdapter(boolean.class, new MessageComponent.BooleanSerializer()).create();
+		Gson nullableGson = new GsonBuilder()
+			.registerTypeAdapter(boolean.class, new MessageComponent.BooleanSerializer())
+			.registerTypeAdapter(ChatColor.class, new MessageComponent.ColorSerializer())
+			.create();
 		assert nullableGson != null;
 		gson = nullableGson;
 	}

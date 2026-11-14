@@ -18,15 +18,9 @@
  */
 package ch.njol.skript.effects;
 
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
 
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
-import org.bukkit.block.data.BlockData;
-import org.bukkit.block.data.Openable;
-import org.bukkit.block.data.Powerable;
 import org.bukkit.event.Event;
 import org.eclipse.jdt.annotation.Nullable;
 
@@ -57,20 +51,6 @@ public class EffToggle extends Effect {
 		Skript.registerEffect(EffToggle.class, "(close|turn off|de[-]activate) %blocks%", "(toggle|switch) [[the] state of] %blocks%", "(open|turn on|activate) %blocks%");
 	}
 	
-	@Nullable
-	private static final MethodHandle setDataMethod;
-	private static final boolean flattening = Skript.isRunningMinecraft(1, 13);
-	
-	static {
-		MethodHandle mh;
-		try {
-			mh = MethodHandles.lookup().findVirtual(Block.class, "setData", MethodType.methodType(void.class, byte.class));
-		} catch (NoSuchMethodException | IllegalAccessException e) {
-			mh = null;
-		}
-		setDataMethod = mh;
-	}
-	
 	@SuppressWarnings("null")
 	private Expression<Block> blocks;
 	private int toggle;
@@ -83,9 +63,10 @@ public class EffToggle extends Effect {
 		return true;
 	}
 	
-	// Used for Minecraft 1.12 and older
-	private final static byte[] bitFlags = new byte[Skript.MAXBLOCKID + 1];
-	private final static boolean[] doors = new boolean[Skript.MAXBLOCKID + 1];
+	// Block ids and data values (Minecraft 1.7.10 uses numeric ids and data values for block states)
+	private final static int MAX_VANILLA_ID = 255;
+	private final static byte[] bitFlags = new byte[MAX_VANILLA_ID + 1];
+	private final static boolean[] doors = new boolean[MAX_VANILLA_ID + 1];
 	static {
 		bitFlags[28] = 0x8; // Detector rail
 		// Doors
@@ -101,6 +82,7 @@ public class EffToggle extends Effect {
 		bitFlags[70] = 0x1; // Stone pressure plate
 		bitFlags[72] = 0x1; // Wooden pressure plate
 		bitFlags[77] = 0x8; // Stone button
+		bitFlags[143] = 0x8; // Wooden button
 		// Trapdoors
 		bitFlags[96] = 0x4; // Wooden trapdoor
 		bitFlags[167] = 0x4; // Iron trapdoor
@@ -122,65 +104,28 @@ public class EffToggle extends Effect {
 	}
 	
 	@Override
+	@SuppressWarnings("deprecation")
 	protected void execute(final Event e) {
-		if (!flattening) {
-			executeLegacy(e);
-			return;
-		}
-		
-		// 1.13 and newer: use BlockData
 		for (Block b : blocks.getArray(e)) {
-			BlockData data = b.getBlockData();
-			if (toggle == -1) {
-				if (data instanceof Openable)
-					((Openable) data).setOpen(false);
-				else if (data instanceof Powerable)
-					((Powerable) data).setPowered(false);
-			} else if (toggle == 1) {
-				if (data instanceof Openable)
-					((Openable) data).setOpen(true);
-				else if (data instanceof Powerable)
-					((Powerable) data).setPowered(true);
-			} else {
-				if (data instanceof Openable) // open = NOT was open
-					((Openable) data).setOpen(!((Openable) data).isOpen());
-				else if (data instanceof Powerable) // power = NOT power
-					((Powerable) data).setPowered(!((Powerable) data).isPowered());
-			}
-			
-			b.setBlockData(data);
-		}
-	}
-	
-	/**
-	 * Handles toggling blocks on 1.12 and older.
-	 * @param e Event.
-	 */
-	private void executeLegacy(Event e) {
-		for (Block b : blocks.getArray(e)) {
-			int type = b.getType().getId();
+			int type = b.getTypeId();
+			if (type < 0 || type > MAX_VANILLA_ID) // modded blocks (Forge ids go up to 4095) can't be toggled
+				continue;
 			
 			byte data = b.getData();
 			if (doors[type] == true && (data & 0x8) == 0x8) {
 				b = b.getRelative(BlockFace.DOWN);
-				type = b.getType().getId();
-				if (doors[type] != true)
+				type = b.getTypeId();
+				if (type < 0 || type > MAX_VANILLA_ID || !doors[type])
 					continue;
 				data = b.getData();
 			}
 			
-			MethodHandle mh = setDataMethod;
-			assert mh != null;
-			try {
-				if (toggle == -1)
-					mh.invokeExact(b, (byte) (data & ~bitFlags[type]));
-				else if (toggle == 0)
-					mh.invokeExact(b, (byte) (data ^ bitFlags[type]));
-				else
-					mh.invokeExact(b, (byte) (data | bitFlags[type]));
-			} catch (Throwable ex) {
-				Skript.exception(ex);
-			}
+			if (toggle == -1)
+				b.setData((byte) (data & ~bitFlags[type]));
+			else if (toggle == 0)
+				b.setData((byte) (data ^ bitFlags[type]));
+			else
+				b.setData((byte) (data | bitFlags[type]));
 		}
 	}
 	

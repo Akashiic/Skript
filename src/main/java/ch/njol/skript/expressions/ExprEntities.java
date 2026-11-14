@@ -171,7 +171,7 @@ public class ExprEntities extends SimpleExpression<Entity> {
 			if (l.getWorld() == null) // safety
 				return null;
 
-			Collection<Entity> es = l.getWorld().getNearbyEntities(l, d, d, d);
+			Collection<Entity> es = l.getWorld().getEntities(); // 1.7.10 has no World#getNearbyEntities, filtered by distance below
 			double radiusSquared = d * d * Skript.EPSILON_MULT;
 			EntityData<?>[] ts = types.getAll(e);
 			return new CheckedIterator<>(es.iterator(), e1 -> {

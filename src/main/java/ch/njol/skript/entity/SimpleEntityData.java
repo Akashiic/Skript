@@ -23,109 +23,55 @@ import java.io.StreamCorruptedException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.bukkit.entity.AbstractHorse;
-import org.bukkit.entity.Allay;
 import org.bukkit.entity.Animals;
-import org.bukkit.entity.AreaEffectCloud;
-import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Bat;
 import org.bukkit.entity.Blaze;
+import org.bukkit.entity.Boat;
 import org.bukkit.entity.CaveSpider;
-import org.bukkit.entity.ChestedHorse;
 import org.bukkit.entity.Chicken;
-import org.bukkit.entity.Cod;
 import org.bukkit.entity.Cow;
 import org.bukkit.entity.Creature;
 import org.bukkit.entity.Damageable;
-import org.bukkit.entity.Dolphin;
-import org.bukkit.entity.Donkey;
-import org.bukkit.entity.DragonFireball;
-import org.bukkit.entity.Drowned;
 import org.bukkit.entity.Egg;
-import org.bukkit.entity.ElderGuardian;
 import org.bukkit.entity.EnderCrystal;
 import org.bukkit.entity.EnderDragon;
 import org.bukkit.entity.EnderPearl;
-import org.bukkit.entity.Endermite;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.Evoker;
-import org.bukkit.entity.EvokerFangs;
 import org.bukkit.entity.Fireball;
 import org.bukkit.entity.Firework;
-import org.bukkit.entity.Fish;
 import org.bukkit.entity.FishHook;
 import org.bukkit.entity.Ghast;
 import org.bukkit.entity.Giant;
-import org.bukkit.entity.GlowItemFrame;
-import org.bukkit.entity.GlowSquid;
 import org.bukkit.entity.Golem;
-import org.bukkit.entity.Guardian;
-import org.bukkit.entity.Hoglin;
 import org.bukkit.entity.Horse;
 import org.bukkit.entity.HumanEntity;
-import org.bukkit.entity.Husk;
-import org.bukkit.entity.Illager;
-import org.bukkit.entity.Illusioner;
 import org.bukkit.entity.IronGolem;
 import org.bukkit.entity.ItemFrame;
 import org.bukkit.entity.LargeFireball;
 import org.bukkit.entity.LeashHitch;
 import org.bukkit.entity.LivingEntity;
-import org.bukkit.entity.Llama;
-import org.bukkit.entity.LlamaSpit;
 import org.bukkit.entity.MagmaCube;
-import org.bukkit.entity.Marker;
-import org.bukkit.entity.Mob;
 import org.bukkit.entity.Monster;
-import org.bukkit.entity.Mule;
 import org.bukkit.entity.MushroomCow;
 import org.bukkit.entity.Painting;
-import org.bukkit.entity.Phantom;
 import org.bukkit.entity.PigZombie;
-import org.bukkit.entity.Piglin;
-import org.bukkit.entity.PiglinBrute;
-import org.bukkit.entity.Pillager;
-import org.bukkit.entity.PolarBear;
 import org.bukkit.entity.Projectile;
-import org.bukkit.entity.PufferFish;
-import org.bukkit.entity.Raider;
-import org.bukkit.entity.Ravager;
-import org.bukkit.entity.Salmon;
-import org.bukkit.entity.Shulker;
-import org.bukkit.entity.ShulkerBullet;
 import org.bukkit.entity.Silverfish;
 import org.bukkit.entity.Skeleton;
-import org.bukkit.entity.SkeletonHorse;
 import org.bukkit.entity.Slime;
 import org.bukkit.entity.SmallFireball;
 import org.bukkit.entity.Snowball;
 import org.bukkit.entity.Snowman;
-import org.bukkit.entity.SpectralArrow;
-import org.bukkit.entity.Spellcaster;
 import org.bukkit.entity.Spider;
 import org.bukkit.entity.Squid;
-import org.bukkit.entity.Stray;
-import org.bukkit.entity.Strider;
 import org.bukkit.entity.TNTPrimed;
-import org.bukkit.entity.Tadpole;
 import org.bukkit.entity.ThrownExpBottle;
-import org.bukkit.entity.TippedArrow;
-import org.bukkit.entity.Trident;
-import org.bukkit.entity.TropicalFish;
-import org.bukkit.entity.Turtle;
-import org.bukkit.entity.Vex;
-import org.bukkit.entity.Vindicator;
-import org.bukkit.entity.WanderingTrader;
-import org.bukkit.entity.Warden;
 import org.bukkit.entity.WaterMob;
 import org.bukkit.entity.Witch;
 import org.bukkit.entity.Wither;
-import org.bukkit.entity.WitherSkeleton;
 import org.bukkit.entity.WitherSkull;
-import org.bukkit.entity.Zoglin;
 import org.bukkit.entity.Zombie;
-import org.bukkit.entity.ZombieHorse;
 import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
@@ -185,16 +131,13 @@ public class SimpleEntityData extends EntityData<Entity> {
 		types.add(new SimpleEntityDataInfo(codeName, entityclass, true));
 	}
 	static {
-		// Simple Entities
+		// Simple Entities (Minecraft 1.7.10)
 		addSimpleEntity("arrow", Arrow.class);
-		addSimpleEntity("spectral arrow", SpectralArrow.class);
-		addSimpleEntity("tipped arrow", TippedArrow.class);
 		addSimpleEntity("blaze", Blaze.class);
 		addSimpleEntity("chicken", Chicken.class);
 		addSimpleEntity("mooshroom", MushroomCow.class);
 		addSimpleEntity("cow", Cow.class);
 		addSimpleEntity("cave spider", CaveSpider.class);
-		addSimpleEntity("dragon fireball", DragonFireball.class);
 		addSimpleEntity("egg", Egg.class);
 		addSimpleEntity("ender crystal", EnderCrystal.class);
 		addSimpleEntity("ender dragon", EnderDragon.class);
@@ -223,96 +166,22 @@ public class SimpleEntityData extends EntityData<Entity> {
 		addSimpleEntity("wither", Wither.class);
 		addSimpleEntity("wither skull", WitherSkull.class);
 		addSimpleEntity("firework", Firework.class);
-		addSimpleEntity("endermite", Endermite.class);
-		addSimpleEntity("armor stand", ArmorStand.class);
-		addSimpleEntity("shulker", Shulker.class);
-		addSimpleEntity("shulker bullet", ShulkerBullet.class);
-		addSimpleEntity("polar bear", PolarBear.class);
-		addSimpleEntity("area effect cloud", AreaEffectCloud.class);
-		addSimpleEntity("wither skeleton", WitherSkeleton.class);
-		addSimpleEntity("stray", Stray.class);
-		addSimpleEntity("husk", Husk.class);
-		addSuperEntity("skeleton", Skeleton.class);
-		addSimpleEntity("llama spit", LlamaSpit.class);
-		addSimpleEntity("evoker", Evoker.class);
-		addSimpleEntity("evoker fangs", EvokerFangs.class);
-		addSimpleEntity("vex", Vex.class);
-		addSimpleEntity("vindicator", Vindicator.class);
-		addSimpleEntity("elder guardian", ElderGuardian.class);
-		addSimpleEntity("normal guardian", Guardian.class);
-		addSimpleEntity("donkey", Donkey.class);
-		addSimpleEntity("mule", Mule.class);
-		addSimpleEntity("llama", Llama.class);
-		addSimpleEntity("undead horse", ZombieHorse.class);
-		addSimpleEntity("skeleton horse", SkeletonHorse.class);
-		addSimpleEntity("horse", Horse.class);
-		addSimpleEntity("dolphin", Dolphin.class);
-		addSimpleEntity("phantom", Phantom.class);
-		addSimpleEntity("drowned", Drowned.class);
-		addSimpleEntity("turtle", Turtle.class);
-		addSimpleEntity("cod", Cod.class);
-		addSimpleEntity("puffer fish", PufferFish.class);
-		addSimpleEntity("salmon", Salmon.class);
-		addSimpleEntity("tropical fish", TropicalFish.class);
-		addSimpleEntity("trident", Trident.class);
-		
-		if (Skript.classExists("org.bukkit.entity.Illusioner")) // Added in 1.12
-			addSimpleEntity("illusioner", Illusioner.class);
-
-		if (Skript.isRunningMinecraft(1, 14)) {
-			addSimpleEntity("pillager", Pillager.class);
-			addSimpleEntity("ravager", Ravager.class);
-			addSimpleEntity("wandering trader", WanderingTrader.class);
-		}
-
-		if (Skript.isRunningMinecraft(1, 16)) {
-			addSimpleEntity("piglin", Piglin.class);
-			addSimpleEntity("hoglin", Hoglin.class);
-			addSimpleEntity("zoglin", Zoglin.class);
-			addSimpleEntity("strider", Strider.class);
-		}
-
-		if (Skript.classExists("org.bukkit.entity.PiglinBrute")) // Added in 1.16.2
-			addSimpleEntity("piglin brute", PiglinBrute.class);
-
-		if (Skript.isRunningMinecraft(1, 17)) {
-			addSimpleEntity("glow squid", GlowSquid.class);
-			addSimpleEntity("marker", Marker.class);
-			addSimpleEntity("glow item frame", GlowItemFrame.class);
-		}
-
-		if (Skript.isRunningMinecraft(1, 19)) {
-			addSimpleEntity("allay", Allay.class);
-			addSimpleEntity("tadpole", Tadpole.class);
-			addSimpleEntity("warden", Warden.class);
-		}
-		
-		// Register zombie after Husk and Drowned to make sure both work
+		addSimpleEntity("boat", Boat.class);
 		addSimpleEntity("zombie", Zombie.class);
-		// Register squid after glow squid to make sure both work
 		addSimpleEntity("squid", Squid.class);
-		
+
 		// SuperTypes
 		addSuperEntity("human", HumanEntity.class);
 		addSuperEntity("damageable", Damageable.class);
 		addSuperEntity("monster", Monster.class);
-		addSuperEntity("mob", Mob.class);
 		addSuperEntity("creature", Creature.class);
 		addSuperEntity("animal", Animals.class);
 		addSuperEntity("golem", Golem.class);
 		addSuperEntity("projectile", Projectile.class);
 		addSuperEntity("living entity", LivingEntity.class);
 		addSuperEntity("entity", Entity.class);
-		addSuperEntity("chested horse", ChestedHorse.class);
-		addSuperEntity("any horse", AbstractHorse.class);
-		addSuperEntity("guardian", Guardian.class);
 		addSuperEntity("water mob" , WaterMob.class);
-		addSuperEntity("fish" , Fish.class);
 		addSuperEntity("any fireball", Fireball.class);
-		addSuperEntity("illager", Illager.class);
-		addSuperEntity("spellcaster", Spellcaster.class);
-		if (Skript.classExists("org.bukkit.entity.Raider")) // Introduced in Spigot 1.14
-			addSuperEntity("raider", Raider.class);
 	}
 	
 	static {

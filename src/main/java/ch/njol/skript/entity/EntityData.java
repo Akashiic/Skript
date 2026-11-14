@@ -50,7 +50,7 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
-import org.bukkit.util.Consumer;
+import java.util.function.Consumer;
 import org.eclipse.jdt.annotation.Nullable;
 
 import java.io.NotSerializableException;
@@ -422,17 +422,16 @@ public abstract class EntityData<E extends Entity> implements SyntaxElement, Ygg
 	public E spawn(Location loc, @Nullable Consumer<E> consumer) {
 		assert loc != null;
 		try {
-			E e;
-			if (consumer != null)
-				e = loc.getWorld().spawn(loc, (Class<E>) getType(), consumer);
-			else
-				e = loc.getWorld().spawn(loc, getType());
+			// 1.7.10 has no World#spawn(Location, Class, Consumer), so the consumer is applied right after spawning
+			E e = loc.getWorld().spawn(loc, getType());
 
 			if (baby.isTrue())
 				EntityUtils.setBaby(e);
 			else if (baby.isFalse())
 				EntityUtils.setAdult(e);
 			set(e);
+			if (consumer != null)
+				consumer.accept(e);
 			return e;
 		} catch (IllegalArgumentException e) {
 			if (Skript.testing())

@@ -21,8 +21,6 @@ package ch.njol.skript.effects;
 import org.bukkit.event.Event;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
-import org.bukkit.inventory.meta.MapMeta;
-import org.bukkit.inventory.meta.PotionMeta;
 import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
@@ -44,13 +42,11 @@ import ch.njol.util.coll.CollectionUtils;
 @Description("Colours items in a given <a href='classes.html#color'>colour</a>. " +
 		"You can also use RGB codes if you feel limited with the 16 default colours. " +
 		"RGB codes are three numbers from 0 to 255 in the order <code>(red, green, blue)</code>, where <code>(0,0,0)</code> is black and <code>(255,255,255)</code> is white. " +
-		"Armor is colourable for all Minecraft versions. With Minecraft 1.11 or newer you can also colour potions and maps. Note that the colours might not look exactly how you'd expect.")
+		"Only leather armor can be coloured on Minecraft 1.7.10. Note that the colours might not look exactly how you'd expect.")
 @Examples({"dye player's helmet blue",
 		"colour the player's tool red"})
-@Since("2.0, 2.2-dev26 (maps and potions)")
+@Since("2.0")
 public class EffColorItems extends Effect {
-	
-	private static final boolean MAPS_AND_POTIONS_COLORS = Skript.methodExists(PotionMeta.class, "setColor", org.bukkit.Color.class);
 	
 	static {
 		Skript.registerEffect(EffColorItems.class,
@@ -136,18 +132,8 @@ public class EffColorItems extends Effect {
 				final LeatherArmorMeta m = (LeatherArmorMeta) meta;
 				m.setColor(c);
 				item.setItemMeta(m);
-			} else if (MAPS_AND_POTIONS_COLORS) {
-				
-				if (meta instanceof MapMeta) {
-					final MapMeta m = (MapMeta) meta;
-					m.setColor(c);
-					item.setItemMeta(m);
-				} else if (meta instanceof PotionMeta) {
-					final PotionMeta m = (PotionMeta) meta;
-					m.setColor(c);
-					item.setItemMeta(m);
-				}
 			}
+			// Minecraft 1.7.10 can't colour potions or maps
 		}
 	}
 	

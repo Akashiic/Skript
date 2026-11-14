@@ -97,7 +97,7 @@ public class ExprDropsOfBlock extends SimpleExpression<ItemType> {
 				Entity entity = this.entity.getSingle(e);
 				ArrayList<ItemType> list = new ArrayList<>();
 				for (Block block : blocks) {
-					ItemStack[] drops = block.getDrops(item.getRandom(), entity).toArray(new ItemStack[0]);
+					ItemStack[] drops = block.getDrops(item.getRandom()).toArray(new ItemStack[0]);
 					for (ItemStack drop : drops) {
 						list.add(new ItemType(drop));
 					}

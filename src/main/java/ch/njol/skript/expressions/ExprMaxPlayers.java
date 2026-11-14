@@ -23,7 +23,6 @@ import org.bukkit.event.Event;
 import org.bukkit.event.server.ServerListPingEvent;
 import org.eclipse.jdt.annotation.Nullable;
 
-import com.destroystokyo.paper.event.server.PaperServerListPingEvent;
 import ch.njol.skript.Skript;
 import ch.njol.skript.classes.Changer.ChangeMode;
 import ch.njol.skript.doc.Description;
@@ -51,14 +50,12 @@ public class ExprMaxPlayers extends SimpleExpression<Long> {
 				"[the] [(1¦(real|default)|2¦(fake|shown|displayed))] max[imum] (count|amount|number|size) of players");
 	}
 
-	private static final boolean PAPER_EVENT_EXISTS = Skript.classExists("com.destroystokyo.paper.event.server.PaperServerListPingEvent");
 
 	private boolean isReal;
 
 	@Override
 	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, SkriptParser.ParseResult parseResult) {
-		boolean isServerPingEvent = getParser().isCurrentEvent(ServerListPingEvent.class) ||
-				(PAPER_EVENT_EXISTS && getParser().isCurrentEvent(PaperServerListPingEvent.class));
+		boolean isServerPingEvent = getParser().isCurrentEvent(ServerListPingEvent.class);
 		if (parseResult.mark == 2 && !isServerPingEvent) {
 			Skript.error("The 'shown' max players count expression can't be used outside of a server list ping event");
 			return false;

@@ -28,7 +28,7 @@ import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 
-import net.md_5.bungee.api.ChatColor;
+import org.bukkit.ChatColor;
 
 /**
  * Component for chat messages. This can be serialized with GSON and then
@@ -150,6 +150,16 @@ public class MessageComponent {
 	@Nullable
 	public HoverEvent hoverEvent;
 	
+	/**
+	 * Serializes Bukkit chat colors using their Vanilla JSON names (e.g. {@code dark_red}).
+	 */
+	public static class ColorSerializer implements JsonSerializer<ChatColor> {
+		@Override
+		public @Nullable JsonElement serialize(@Nullable ChatColor src, @Nullable Type typeOfSrc, @Nullable JsonSerializationContext context) {
+			return src == null ? null : new JsonPrimitive(src.name().toLowerCase(Locale.ENGLISH));
+		}
+	}
+
 	public static class BooleanSerializer implements JsonSerializer<Boolean> {
 		@Override
 		public @Nullable JsonElement serialize(@Nullable Boolean src, @Nullable Type typeOfSrc, @Nullable JsonSerializationContext context) {

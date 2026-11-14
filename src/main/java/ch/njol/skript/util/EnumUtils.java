@@ -75,12 +75,14 @@ public final class EnumUtils<E extends Enum<E>> {
 				int ordinal = e.ordinal();
 
 				String[] values = Language.getList(key);
+				if (values.length == 1 && values[0].toLowerCase(Locale.ENGLISH).equals(key.toLowerCase(Locale.ENGLISH))) {
+					// No translation. Forge hybrids (Crucible, Thermos...) add enum constants for modded
+					// biomes, entities etc. at runtime, so generate a name instead of failing.
+					Skript.debug("Missing lang enum constant for '" + key + "', using generated name");
+					values = new String[] {e.name().toLowerCase(Locale.ENGLISH).replace('_', ' ').trim()};
+				}
 				for (String option : values) {
 					option = option.toLowerCase(Locale.ENGLISH);
-					if (values.length == 1 && option.equals(key.toLowerCase(Locale.ENGLISH))) {
-						Skript.warning("Missing lang enum constant for '" + key + "'");
-						continue;
-					}
 
 					NonNullPair<String, Integer> strippedOption = Noun.stripGender(option, key);
 					String first = strippedOption.getFirst();

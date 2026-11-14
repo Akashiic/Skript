@@ -28,8 +28,8 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.effects.EffCancelEvent;
 
@@ -45,15 +45,9 @@ public class ClickEventTracker {
 		 */
 		final Cancellable event;
 		
-		/**
-		 * Hand used in event.
-		 */
-		@SuppressWarnings("unused")
-		final EquipmentSlot hand;
 
-		public TrackedEvent(Cancellable event, EquipmentSlot hand) {
+		public TrackedEvent(Cancellable event) {
 			this.event = event;
-			this.hand = hand;
 		}
 		
 	}
@@ -86,7 +80,18 @@ public class ClickEventTracker {
 	 * @param hand Slot associated with the event.
 	 * @return If the event should be passed to scripts.
 	 */
-	public boolean checkEvent(Player player, Cancellable event, EquipmentSlot hand) {
+	public boolean checkEvent(Player player, Cancellable event, @Nullable Object hand) {
+		return checkEvent(player, event);
+	}
+
+	/**
+	 * Processes a click event from a player. Minecraft 1.7.10 has only one hand,
+	 * so this mostly guards against duplicate events in the same tick.
+	 * @param player Player who caused it.
+	 * @param event The event.
+	 * @return If the event should be passed to scripts.
+	 */
+	public boolean checkEvent(Player player, Cancellable event) {
 		UUID uuid = player.getUniqueId();
 		TrackedEvent first = firstEvents.get(uuid);
 		if (first != null && first.event != event) { // We've checked an event before, and it is not this one
@@ -108,7 +113,7 @@ public class ClickEventTracker {
 			}
 			return false;
 		} else { // Remember and run this
-			firstEvents.put(uuid, new TrackedEvent(event, hand));
+			firstEvents.put(uuid, new TrackedEvent(event));
 			return true;
 		}
 	}

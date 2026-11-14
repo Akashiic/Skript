@@ -46,17 +46,12 @@ import ch.njol.util.coll.CollectionUtils;
 	"\tgive player a diamond sword",
 	"set player's time played to 0 seconds"})
 @Since("2.5")
-public class ExprTimePlayed extends SimplePropertyExpression<OfflinePlayer, Timespan> {
+public class ExprTimePlayed extends SimplePropertyExpression<Player, Timespan> {
 
-	private static final Statistic TIME_PLAYED;
+	private static final Statistic TIME_PLAYED = Statistic.PLAY_ONE_TICK;
 
 	static {
-		register(ExprTimePlayed.class, Timespan.class, "time played", "offlineplayers");
-		if (Skript.isRunningMinecraft(1, 13)) {
-			TIME_PLAYED = Statistic.PLAY_ONE_MINUTE; // Statistic name is misleading, it's actually measured in ticks
-		} else {
-			TIME_PLAYED = Statistic.valueOf("PLAY_ONE_TICK");
-		}
+		register(ExprTimePlayed.class, Timespan.class, "time played", "players");
 	}
 	
 	@SuppressWarnings({"unchecked", "null"})
@@ -68,7 +63,7 @@ public class ExprTimePlayed extends SimplePropertyExpression<OfflinePlayer, Time
 	
 	@Nullable
 	@Override
-	public Timespan convert(OfflinePlayer offlinePlayer) {
+	public Timespan convert(Player offlinePlayer) {
 		return Timespan.fromTicks_i(offlinePlayer.getStatistic(TIME_PLAYED));
 	}
 	
@@ -85,7 +80,7 @@ public class ExprTimePlayed extends SimplePropertyExpression<OfflinePlayer, Time
 	@Override
 	public void change(Event e, @Nullable Object[] delta, ChangeMode mode) {
 		long ticks = ((Timespan) delta[0]).getTicks_i();
-		for (OfflinePlayer offlinePlayer : getExpr().getArray(e)) {
+		for (Player offlinePlayer : getExpr().getArray(e)) {
 			long playerTicks = offlinePlayer.getStatistic(TIME_PLAYED);
 			switch (mode) {
 				case ADD:

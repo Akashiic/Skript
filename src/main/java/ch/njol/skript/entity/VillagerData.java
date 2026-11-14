@@ -20,14 +20,12 @@ package ch.njol.skript.entity;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 import org.bukkit.entity.Villager;
 import org.bukkit.entity.Villager.Profession;
 import org.eclipse.jdt.annotation.Nullable;
 
-import ch.njol.skript.Skript;
 import ch.njol.skript.lang.Literal;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.skript.variables.Variables;
@@ -44,7 +42,6 @@ public class VillagerData extends EntityData<Villager> {
 	 */
 	private static List<Profession> professions;
 	
-	private static final boolean HAS_NITWIT = Skript.isRunningMinecraft(1, 11);
 	static {
 		// professions in order!
 		// NORMAL(-1), FARMER(0), LIBRARIAN(1), PRIEST(2), BLACKSMITH(3), BUTCHER(4), NITWIT(5);
@@ -52,34 +49,13 @@ public class VillagerData extends EntityData<Villager> {
 		Variables.yggdrasil.registerSingleClass(Profession.class, "Villager.Profession");
 		
 		
-		if (Skript.isRunningMinecraft(1, 14)) {
-			EntityData.register(VillagerData.class, "villager", Villager.class, 0,
-					"villager", "normal", "armorer", "butcher", "cartographer",
-					"cleric", "farmer", "fisherman", "fletcher",
-					"leatherworker", "librarian", "mason", "nitwit",
-					"shepherd", "toolsmith", "weaponsmith");
-			professions = Arrays.asList(Profession.values());
-		} else if (Skript.isRunningMinecraft(1, 10)) { // Post 1.10: Not all professions go for villagers
-			EntityData.register(VillagerData.class, "villager", Villager.class, 0,
-					"normal", "villager", "farmer", "librarian",
-					"priest", "blacksmith", "butcher", "nitwit");
-			// Normal is for zombie villagers, but needs to be here, since someone thought changing first element in enum was good idea :(
-			
-			professions = new ArrayList<>();
-			for (Profession prof : Profession.values()) {
-				// We're better off doing stringfying the constants since these don't exist in 1.14
-				if (!prof.toString().equals("NORMAL") && !prof.toString().equals("HUSK"))
-					professions.add(prof);
-			}
-		} else { // Pre 1.10: method Profession#isZombie() doesn't exist
-			EntityData.register(VillagerData.class, "villager", Villager.class, 0,
-					"villager", "farmer", "librarian", "priest",
-					"blacksmith", "butcher", "nitwit");
-			
-			List<Profession> prof = Arrays.asList(Profession.values());
-			assert prof != null;
-			professions = prof;
-		}
+		// Minecraft 1.7.10: FARMER, LIBRARIAN, PRIEST, BLACKSMITH, BUTCHER
+		EntityData.register(VillagerData.class, "villager", Villager.class, 0,
+				"villager", "farmer", "librarian", "priest",
+				"blacksmith", "butcher");
+		
+		professions = new ArrayList<>(Arrays.asList(Profession.FARMER, Profession.LIBRARIAN,
+				Profession.PRIEST, Profession.BLACKSMITH, Profession.BUTCHER));
 	}
 	
 	@Nullable
@@ -110,8 +86,6 @@ public class VillagerData extends EntityData<Villager> {
 		Profession prof = profession == null ? CollectionUtils.getRandom(professions) : profession;
 		assert prof != null;
 		entity.setProfession(prof);
-		if (HAS_NITWIT && profession == Profession.NITWIT)
-			entity.setRecipes(Collections.emptyList());
 	}
 	
 	@Override

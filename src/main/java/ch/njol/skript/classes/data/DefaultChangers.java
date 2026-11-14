@@ -21,7 +21,6 @@ package ch.njol.skript.classes.data;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
-import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.LivingEntity;
@@ -286,10 +285,7 @@ public class DefaultChangers {
 			if (mode == ChangeMode.RESET)
 				return null; // REMIND regenerate?
 			if (mode == ChangeMode.SET)
-				if (Skript.classExists("org.bukkit.block.data.BlockData"))
-					return CollectionUtils.array(ItemType.class, BlockData.class);
-				else
-					return CollectionUtils.array(ItemType.class);
+				return CollectionUtils.array(ItemType.class);
 			return CollectionUtils.array(ItemType[].class, Inventory[].class);
 		}
 		
@@ -303,12 +299,10 @@ public class DefaultChangers {
 						Object o = delta[0];
 						if (o instanceof ItemType) {
 							((ItemType) delta[0]).getBlock().setBlock(block, true);
-						} else if (o instanceof BlockData) {
-							block.setBlockData(((BlockData) o));
 						}
 						break;
 					case DELETE:
-						block.setType(Material.AIR, true);
+						block.setTypeId(0, true);
 						break;
 					case ADD:
 					case REMOVE:

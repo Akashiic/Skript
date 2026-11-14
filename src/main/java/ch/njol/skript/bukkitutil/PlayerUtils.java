@@ -105,7 +105,7 @@ public abstract class PlayerUtils {
 	
 	public static boolean canEat(Player p, Material food) {
 		GameMode gm = p.getGameMode();
-		if (gm == GameMode.CREATIVE || gm == GameMode.SPECTATOR)
+		if (gm == GameMode.CREATIVE)
 			return false; // Can't eat anything in those gamemodes
 		
 		boolean edible = food.isEdible();
@@ -114,7 +114,6 @@ public abstract class PlayerUtils {
 		boolean special;
 		switch (food) {
 			case GOLDEN_APPLE:
-			case CHORUS_FRUIT:
 				special = true;
 				break;
 				//$CASES-OMITTED$

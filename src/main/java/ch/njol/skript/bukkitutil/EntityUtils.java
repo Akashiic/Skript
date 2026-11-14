@@ -29,8 +29,6 @@ import org.bukkit.entity.*;
  */
 public class EntityUtils {
 	
-	private static final boolean HAS_PIGLINS = Skript.classExists("org.bukkit.entity.Piglin");
-
 	/**
 	 * Cache Skript EntityData -> Bukkit EntityType
 	 */
@@ -52,9 +50,7 @@ public class EntityUtils {
 	 * @return True if entity is ageable
 	 */
 	public static boolean isAgeable(Entity entity) {
-		if (entity instanceof Ageable || entity instanceof Zombie)
-			return true;
-		return HAS_PIGLINS && (entity instanceof Piglin || entity instanceof Zoglin);
+		return entity instanceof Ageable || entity instanceof Zombie;
 	}
 	
 	/**
@@ -69,12 +65,6 @@ public class EntityUtils {
 			return ((Ageable) entity).getAge();
 		else if (entity instanceof Zombie)
 			return ((Zombie) entity).isBaby() ? -1 : 0;
-		else if (HAS_PIGLINS) {
-			if (entity instanceof Piglin)
-				return ((Piglin) entity).isBaby() ? -1 : 0;
-			else if (entity instanceof Zoglin)
-				return ((Zoglin) entity).isBaby() ? -1 : 0;
-		}
 		return 0;
 	}
 	
@@ -90,12 +80,6 @@ public class EntityUtils {
 			((Ageable) entity).setAge(age);
 		else if (entity instanceof Zombie)
 			((Zombie) entity).setBaby(age < 0);
-		else if (HAS_PIGLINS) {
-			if (entity instanceof Piglin)
-				((Piglin) entity).setBaby(age < 0);
-			else if (entity instanceof Zoglin)
-				((Zoglin) entity).setBaby(age < 0);
-		}
 	}
 	
 	/**

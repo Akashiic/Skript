@@ -18,18 +18,11 @@
  */
 package ch.njol.skript.expressions;
 
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.bukkit.Bukkit;
-import org.bukkit.GameRule;
-import org.bukkit.Nameable;
 import org.bukkit.OfflinePlayer;
-import org.bukkit.block.Block;
-import org.bukkit.block.BlockState;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.LivingEntity;
@@ -55,10 +48,10 @@ import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.skript.util.slot.Slot;
 import ch.njol.util.Kleenean;
 import ch.njol.util.coll.CollectionUtils;
-import net.md_5.bungee.api.ChatColor;
+import org.bukkit.ChatColor;
 
 @Name("Name / Display Name / Tab List Name")
-@Description({"Represents the Minecraft account, display or tab list name of a player, or the custom name of an item, entity, block, inventory, or gamerule.",
+@Description({"Represents the Minecraft account, display or tab list name of a player, or the custom name of an item, living entity or inventory.",
 		"",
 		"<ul>",
 		"\t<li><strong>Players</strong>",
@@ -68,10 +61,10 @@ import net.md_5.bungee.api.ChatColor;
 			"This name can be changed freely and can include colour codes, and is shared among all plugins (e.g. chat plugins will use the display name).</li>",
 		"\t\t</ul>",
 		"\t</li>",
-		"\t<li><strong>Entities</strong>",
+		"\t<li><strong>Living entities</strong> (other entities can't have custom names on Minecraft 1.7.10)",
 		"\t\t<ul>",
 		"\t\t\t<li><strong>Name:</strong> The custom name of the entity. Can be changed. But for living entities, " +
-			"the players will have to target the entity to see its name tag. For non-living entities, the name will not be visible at all. To prevent this, use 'display name'.</li>",
+			"the players will have to target the entity to see its name tag. To prevent this, use 'display name'.</li>",
 		"\t\t\t<li><strong>Display Name:</strong> The custom name of the entity. Can be changed, " +
 			"which will also enable <em>custom name visibility</em> of the entity so name tag of the entity will be visible always.</li>",
 		"\t\t</ul>",
@@ -84,12 +77,8 @@ import net.md_5.bungee.api.ChatColor;
 		"\t<li><strong>Inventories</strong>",
 		"\t\t<ul>",
 		"\t\t\t<li><strong>Name and Display Name:</strong> The name/title of the inventory. " +
-			"Changing name of an inventory means opening the same inventory with the same contents but with a different name to its current viewers.</li>",
-		"\t\t</ul>",
-		"\t</li>",
-		"\t<li><strong>Gamerules (1.13+)</strong>",
-		"\t\t<ul>",
-		"\t\t\t<li><strong>Name:</strong> The name of the gamerule. Cannot be changed.</li>",
+			"Changing name of an inventory means opening the same inventory with the same contents but with a different name to its current viewers. " +
+			"Inventory titles are limited to 32 characters on Minecraft 1.7.10.</li>",
 		"\t\t</ul>",
 		"\t</li>",
 		"</ul>"})
@@ -101,22 +90,14 @@ import net.md_5.bungee.api.ChatColor;
 @Since("before 2.1, 2.2-dev20 (inventory name), 2.4 (non-living entity support, changeable inventory name)")
 public class ExprName extends SimplePropertyExpression<Object, String> {
 
-	@Nullable
-	static final MethodHandle TITLE_METHOD;
-	static final boolean HAS_GAMERULES;
+	/**
+	 * Minecraft 1.7.10 limits inventory titles to 32 characters
+	 */
+	private static final int MAX_TITLE_LENGTH = 32;
 
 	static {
-		HAS_GAMERULES = Skript.classExists("org.bukkit.GameRule");
-		register(ExprName.class, String.class, "(1¦name[s]|2¦(display|nick|chat|custom)[ ]name[s])", "offlineplayers/entities/blocks/itemtypes/inventories/slots"
-                + (HAS_GAMERULES ? "/gamerules" : ""));
+		register(ExprName.class, String.class, "(1¦name[s]|2¦(display|nick|chat|custom)[ ]name[s])", "offlineplayers/entities/itemtypes/inventories/slots");
 		register(ExprName.class, String.class, "(3¦(player|tab)[ ]list name[s])", "players");
-
-		// Get the old method for getting the name of an inventory.
-		MethodHandle _METHOD = null;
-		try {
-			_METHOD = MethodHandles.lookup().findVirtual(Inventory.class, "getTitle", MethodType.methodType(String.class));
-		} catch (IllegalAccessException | NoSuchMethodException ignored) {}
-		TITLE_METHOD = _METHOD;
 	}
 
 	/*
@@ -152,37 +133,20 @@ public class ExprName extends SimplePropertyExpression<Object, String> {
 			}
 		} else if (o instanceof OfflinePlayer) {
 			return mark == 1 ? ((OfflinePlayer) o).getName() : null;
-		} else if (o instanceof Entity) {
-			return ((Entity) o).getCustomName();
-		} else if (o instanceof Block) {
-			BlockState state = ((Block) o).getState();
-			if (state instanceof Nameable)
-				return ((Nameable) state).getCustomName();
+		} else if (o instanceof LivingEntity) {
+			return ((LivingEntity) o).getCustomName();
 		} else if (o instanceof ItemType) {
 			ItemMeta m = ((ItemType) o).getItemMeta();
 			return m.hasDisplayName() ? m.getDisplayName() : null;
 		} else if (o instanceof Inventory) {
-			if (TITLE_METHOD != null) {
-				try {
-					return (String) TITLE_METHOD.invoke(o);
-				} catch (Throwable e) {
-					Skript.exception(e);
-					return null;
-				}
-			} else {
-				if (!((Inventory) o).getViewers().isEmpty())
-					return ((Inventory) o).getViewers().get(0).getOpenInventory().getTitle();
-				return null;
-			}
+			return ((Inventory) o).getTitle();
 		} else if (o instanceof Slot) {
 			ItemStack is = ((Slot) o).getItem();
 			if (is != null && is.hasItemMeta()) {
 				ItemMeta m = is.getItemMeta();
 				return m.hasDisplayName() ? m.getDisplayName() : null;
 			}
-		} else if (HAS_GAMERULES && o instanceof GameRule) {
-            return ((GameRule) o).getName();
-        }
+		}
 		return null;
 	}
 
@@ -212,18 +176,11 @@ public class ExprName extends SimplePropertyExpression<Object, String> {
 						((Player) o).setPlayerListName(name);
 						break;
 				}
-			} else if (o instanceof Entity) {
-				((Entity) o).setCustomName(name);
+			} else if (o instanceof LivingEntity) {
+				((LivingEntity) o).setCustomName(name);
 				if (mark == 2 || mode == ChangeMode.RESET) // Using "display name"
-					((Entity) o).setCustomNameVisible(name != null);
-				if (o instanceof LivingEntity)
-					((LivingEntity) o).setRemoveWhenFarAway(name == null);
-			} else if (o instanceof Block) {
-				BlockState state = ((Block) o).getState();
-				if (state instanceof Nameable) {
-					((Nameable) state).setCustomName(name);
-					state.update();
-				}
+					((LivingEntity) o).setCustomNameVisible(name != null);
+				((LivingEntity) o).setRemoveWhenFarAway(name == null);
 			} else if (o instanceof ItemType) {
 				ItemType i = (ItemType) o;
 				ItemMeta m = i.getItemMeta();
@@ -238,10 +195,12 @@ public class ExprName extends SimplePropertyExpression<Object, String> {
 				List<HumanEntity> viewers = new ArrayList<>(inv.getViewers());
 
 				InventoryType type = inv.getType();
-				if (!type.isCreatable())
+				if (!isCreatable(type))
 					return;
 				if (name == null)
 					name = type.getDefaultTitle();
+				if (name.length() > MAX_TITLE_LENGTH)
+					name = name.substring(0, MAX_TITLE_LENGTH);
 
 				Inventory copy;
 				if (type == InventoryType.CHEST) {
@@ -261,6 +220,21 @@ public class ExprName extends SimplePropertyExpression<Object, String> {
 					s.setItem(is);
 				}
 			}
+		}
+	}
+
+	/**
+	 * Bukkit 1.7.10 has no InventoryType#isCreatable()
+	 */
+	private static boolean isCreatable(InventoryType type) {
+		switch (type) {
+			case CRAFTING:
+			case PLAYER:
+			case CREATIVE:
+			case MERCHANT:
+				return false;
+			default:
+				return true;
 		}
 	}
 

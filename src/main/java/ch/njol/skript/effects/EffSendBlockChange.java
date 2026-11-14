@@ -21,7 +21,6 @@ package ch.njol.skript.effects;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
-import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.eclipse.jdt.annotation.Nullable;
@@ -38,13 +37,12 @@ import ch.njol.skript.lang.SkriptParser;
 import ch.njol.util.Kleenean;
 
 @Name("Send Block Change")
-@Description("Makes a player see a block as something it really isn't. BlockData support is only for MC 1.13+")
+@Description("Makes a player see a block as something it really isn't.")
 @Examples({"make player see block at player as dirt",
-		"make player see target block as campfire[facing=south]"})
+		"make player see target block as glowstone"})
 @Since("2.2-dev37c, 2.5.1 (block data support)")
 public class EffSendBlockChange extends Effect {
 
-	private static final boolean BLOCK_DATA_SUPPORT = Skript.classExists("org.bukkit.block.data.BlockData");
 	private static final boolean SUPPORTED =
 			Skript.methodExists(
 					Player.class,
@@ -56,7 +54,7 @@ public class EffSendBlockChange extends Effect {
 
 	static {
 		Skript.registerEffect(EffSendBlockChange.class,
-				BLOCK_DATA_SUPPORT ? "make %players% see %blocks% as %itemtype/blockdata%" : "make %players% see %blocks% as %itemtype%"
+				"make %players% see %blocks% as %itemtype%"
 		);
 	}
 
@@ -93,13 +91,6 @@ public class EffSendBlockChange extends Effect {
 			for (Player player : players.getArray(e)) {
 				for (Block block : blocks.getArray(e)) {
 					itemType.sendBlockChange(player, block.getLocation());
-				}
-			}
-		} else if (BLOCK_DATA_SUPPORT && object instanceof BlockData) {
-			BlockData blockData = (BlockData) object;
-			for (Player player : players.getArray(e)) {
-				for (Block block : blocks.getArray(e)) {
-					player.sendBlockChange(block.getLocation(), blockData);
 				}
 			}
 		}

@@ -32,8 +32,6 @@ import org.bukkit.event.Event.Result;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
-import org.bukkit.event.player.PlayerArmorStandManipulateEvent;
-import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.server.ServerCommandEvent;
@@ -125,7 +123,7 @@ public abstract class SkriptEventHandler {
 		
 		if (e instanceof Cancellable && ((Cancellable) e).isCancelled() && !listenCancelled.contains(e.getClass()) &&
 				!(e instanceof PlayerInteractEvent && (((PlayerInteractEvent) e).getAction() == Action.LEFT_CLICK_AIR || ((PlayerInteractEvent) e).getAction() == Action.RIGHT_CLICK_AIR) && ((PlayerInteractEvent) e).useItemInHand() != Result.DENY)
-				|| e instanceof ServerCommandEvent && (((ServerCommandEvent) e).getCommand().isEmpty() || ((ServerCommandEvent) e).isCancelled())) {
+				|| e instanceof ServerCommandEvent && ((ServerCommandEvent) e).getCommand().isEmpty()) {
 			if (Skript.logVeryHigh())
 				Skript.info(" -x- was cancelled");
 			return;
@@ -242,19 +240,6 @@ public abstract class SkriptEventHandler {
 			EventExecutor executor = listener.executor;
 			
 			Set<Class<? extends Event>> registeredEvents = listener.registeredEvents;
-			
-			// PlayerInteractEntityEvent has a subclass we need for armor stands
-			if (e.equals(PlayerInteractEntityEvent.class)) {
-				if (!registeredEvents.contains(e)) {
-					registeredEvents.add(e);
-					Bukkit.getPluginManager().registerEvent(e, listener, priority, executor, Skript.getInstance());
-					Bukkit.getPluginManager().registerEvent(PlayerInteractAtEntityEvent.class, listener, priority, executor, Skript.getInstance());
-				}
-				continue;
-			}
-			if (e.equals(PlayerInteractAtEntityEvent.class) || e.equals(PlayerArmorStandManipulateEvent.class)) {
-				continue; // Ignore, registered above
-			}
 			
 			if (!containsSuperclass((Set) registeredEvents, e)) { // I just love Java's generics
 				Bukkit.getPluginManager().registerEvent(e, listener, priority, executor, Skript.getInstance());

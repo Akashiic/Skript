@@ -19,7 +19,6 @@
 package ch.njol.skript.effects;
 
 import java.util.List;
-import java.util.UUID;
 
 import ch.njol.skript.registrations.Classes;
 import ch.njol.skript.util.LiteralUtils;
@@ -42,17 +41,13 @@ import ch.njol.skript.lang.Expression;
 import ch.njol.skript.lang.ExpressionList;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.skript.lang.VariableString;
-import ch.njol.skript.util.chat.BungeeConverter;
 import ch.njol.skript.util.chat.ChatMessages;
 import ch.njol.util.Kleenean;
-import net.md_5.bungee.api.chat.BaseComponent;
 
 @Name("Message")
 @Description({"Sends a message to the given player. Only styles written",
 		"in given string or in <a href=expressions.html#ExprColoured>formatted expressions</a> will be parsed.",
-		"Adding an optional sender allows the messages to be sent as if a specific player sent them.",
-		"This is useful with Minecraft 1.16.4's new chat ignore system, in which players can choose to ignore other players,",
-		"but for this to work, the message needs to be sent from a player."})
+		"On Minecraft 1.7.10 all formatting is sent as legacy color codes; click and hover events are not supported."})
 @Examples({"message \"A wild %player% appeared!\"",
 		"message \"This message is a distraction. Mwahaha!\"",
 		"send \"Your kill streak is %{kill streak::%uuid of player%}%.\" to player",
@@ -60,19 +55,12 @@ import net.md_5.bungee.api.chat.BaseComponent;
 		"\tmessage \"You're currently looking at a %type of the targeted entity%!\"",
 		"on chat:",
 		"\tcancel event",
-		"\tsend \"[%player%] >> %message%\" to all players from player"})
-@RequiredPlugins("Minecraft 1.16.4+ for optional sender")
+		"\tsend \"[%player%] >> %message%\" to all players"})
 @Since("1.0, 2.2-dev26 (advanced features), 2.5.2 (optional sender), 2.6 (sending objects)")
 public class EffMessage extends Effect {
 	
-	private static final boolean SUPPORTS_SENDER = Skript.classExists("org.bukkit.command.CommandSender$Spigot") &&
-		Skript.methodExists(CommandSender.Spigot.class, "sendMessage", UUID.class, BaseComponent.class);
-	
 	static {
-		if (SUPPORTS_SENDER)
-			Skript.registerEffect(EffMessage.class, "(message|send [message[s]]) %objects% [to %commandsenders%] [from %-player%]");
-		else
-			Skript.registerEffect(EffMessage.class, "(message|send [message[s]]) %objects% [to %commandsenders%]");
+		Skript.registerEffect(EffMessage.class, "(message|send [message[s]]) %objects% [to %commandsenders%]");
 	}
 
 	@SuppressWarnings("NotNullFieldNotInitialized")
@@ -87,9 +75,6 @@ public class EffMessage extends Effect {
 	@SuppressWarnings("NotNullFieldNotInitialized")
 	private Expression<CommandSender> recipients;
 	
-	@Nullable
-	private Expression<Player> sender;
-	
 	@SuppressWarnings({"unchecked", "null"})
 	@Override
 	public boolean init(Expression<?>[] exprs, int matchedPattern, Kleenean isDelayed, ParseResult parser) {
@@ -98,44 +83,39 @@ public class EffMessage extends Effect {
 		messages = messageExpr instanceof ExpressionList ?
 			((ExpressionList<?>) messageExpr).getExpressions() : new Expression[] {messageExpr};
 		recipients = (Expression<CommandSender>) exprs[1];
-		if (SUPPORTS_SENDER)
-			sender = (Expression<Player>) exprs[2];
 		return LiteralUtils.canInitSafely(messageExpr);
 	}
 
 	@Override
 	protected void execute(Event e) {
-		Player sender = this.sender != null ? this.sender.getSingle(e) : null;
-
 		CommandSender[] commandSenders = recipients.getArray(e);
 
 		for (Expression<?> message : getMessages()) {
 
 			Object[] messageArray = null;
-			List<MessageComponent> messageComponents = null;
+			String formattedMessage = null;
 
 			for (CommandSender receiver : commandSenders) {
 				if (receiver instanceof Player && message instanceof VariableString) {
-					if (messageComponents == null)
-						messageComponents = ((VariableString) message).getMessageComponents(e);
+					if (formattedMessage == null)
+						formattedMessage = toLegacyText(((VariableString) message).getMessageComponents(e));
 				} else {
 					if (messageArray == null)
 						messageArray = message.getArray(e);
 				}
 
-				if (receiver instanceof Player) { // Can use JSON formatting
+				if (receiver instanceof Player) {
+					// 1.7.10 has no chat component API, so all formatting is converted to legacy color codes.
+					// Click and hover events are not available.
 					if (message instanceof VariableString) { // Process formatting that is safe
-						sendMessage((Player) receiver, sender,
-							BungeeConverter.convert(messageComponents)
-						);
+						receiver.sendMessage(formattedMessage);
 					} else if (message instanceof ExprColoured && ((ExprColoured) message).isUnsafeFormat()) { // Manually marked as trusted
 						for (Object object : messageArray) {
-							sendMessage((Player) receiver, sender, BungeeConverter.convert(ChatMessages.parse((String) object)));
+							receiver.sendMessage(toLegacyText(ChatMessages.parse((String) object)));
 						}
 					} else { // It is just a string, no idea if it comes from a trusted source -> don't parse anything
 						for (Object object : messageArray) {
-							List<MessageComponent> components = ChatMessages.fromParsedString(toString(object));
-							sendMessage((Player) receiver, sender, BungeeConverter.convert(components));
+							receiver.sendMessage(toLegacyText(ChatMessages.fromParsedString(toString(object))));
 						}
 					}
 				} else { // Not a player, send plain text with legacy formatting
@@ -146,12 +126,34 @@ public class EffMessage extends Effect {
 			}
 		}
 	}
-	
-	private void sendMessage(Player receiver, @Nullable Player sender, BaseComponent... components) {
-		if (SUPPORTS_SENDER && sender != null)
-			receiver.spigot().sendMessage(sender.getUniqueId(), components);
-		else
-			receiver.spigot().sendMessage(components);
+
+	/**
+	 * Converts Skript's message components to a legacy formatted (§-coded) string, since Minecraft 1.7.10
+	 * servers have no chat component API. Each component starts from default formatting, like siblings
+	 * in a JSON chat message do.
+	 */
+	static String toLegacyText(List<MessageComponent> components) {
+		StringBuilder sb = new StringBuilder();
+		for (MessageComponent component : components) {
+			if (component.text.isEmpty())
+				continue;
+			if (component.color != null)
+				sb.append(component.color.toString());
+			else if (sb.length() > 0)
+				sb.append(org.bukkit.ChatColor.RESET);
+			if (component.bold)
+				sb.append(org.bukkit.ChatColor.BOLD);
+			if (component.italic)
+				sb.append(org.bukkit.ChatColor.ITALIC);
+			if (component.underlined)
+				sb.append(org.bukkit.ChatColor.UNDERLINE);
+			if (component.strikethrough)
+				sb.append(org.bukkit.ChatColor.STRIKETHROUGH);
+			if (component.obfuscated)
+				sb.append(org.bukkit.ChatColor.MAGIC);
+			sb.append(component.text);
+		}
+		return sb.toString();
 	}
 
 	private Expression<?>[] getMessages() {
@@ -167,8 +169,7 @@ public class EffMessage extends Effect {
 
 	@Override
 	public String toString(@Nullable Event e, boolean debug) {
-		return "send " + messageExpr.toString(e, debug) + " to " + recipients.toString(e, debug) +
-			(sender != null ? " from " + sender.toString(e, debug) : "");
+		return "send " + messageExpr.toString(e, debug) + " to " + recipients.toString(e, debug);
 	}
 	
 }

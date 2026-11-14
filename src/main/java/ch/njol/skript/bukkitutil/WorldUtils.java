@@ -18,16 +18,12 @@
  */
 package ch.njol.skript.bukkitutil;
 
-import ch.njol.skript.Skript;
 import org.bukkit.World;
-import org.bukkit.generator.WorldInfo;
 
 /**
  * Utility class for Bukkit worlds
  */
 public class WorldUtils {
-
-	private static final boolean HAS_MIN_HEIGHT = Skript.classExists("org.bukkit.generator.WorldInfo") && Skript.methodExists(WorldInfo.class, "getMinHeight");
 
 	/**
 	 * Get the minimum height of a world.
@@ -42,7 +38,7 @@ public class WorldUtils {
 	 * @return Min height of world, 0 if method does not exist
 	 */
 	public static int getWorldMinHeight(World world) {
-		return HAS_MIN_HEIGHT ? world.getMinHeight() : 0;
+		return 0; // Worlds always start at y=0 on Minecraft 1.7.10
 	}
 
 }

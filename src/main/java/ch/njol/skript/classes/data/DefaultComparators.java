@@ -25,10 +25,7 @@ import ch.njol.skript.aliases.ItemData;
 import ch.njol.skript.aliases.ItemType;
 import ch.njol.skript.classes.ClassInfo;
 import ch.njol.skript.classes.Comparator;
-import ch.njol.skript.entity.BoatChestData;
-import ch.njol.skript.entity.BoatData;
 import ch.njol.skript.entity.EntityData;
-import ch.njol.skript.entity.RabbitData;
 import ch.njol.skript.registrations.Comparators;
 import ch.njol.skript.util.BlockUtils;
 import ch.njol.skript.util.Date;
@@ -49,10 +46,7 @@ import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.World;
 import org.bukkit.block.Block;
-import org.bukkit.block.data.BlockData;
 import org.bukkit.command.CommandSender;
-import org.bukkit.enchantments.EnchantmentOffer;
-import org.bukkit.entity.ChestBoat;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.FallingBlock;
 import org.bukkit.entity.Item;
@@ -206,20 +200,6 @@ public class DefaultComparators {
 			}
 		});
 		
-		// Block - BlockData
-		if (Skript.classExists("org.bukkit.block.data.BlockData")) {
-			Comparators.registerComparator(Block.class, BlockData.class, new Comparator<Block, BlockData>() {
-				@Override
-				public Relation compare(Block block, BlockData data) {
-					return Relation.get(block.getBlockData().matches(data));
-				}
-
-				@Override
-				public boolean supportsOrdering() {
-					return false;
-				}
-			});
-		}
 		
 		// ItemType - ItemType
 		Comparators.registerComparator(ItemType.class, ItemType.class, new Comparator<ItemType, ItemType>() {
@@ -295,12 +275,6 @@ public class DefaultComparators {
 //				return Relation.get(i.isOfType(Material.POTION.getId(), PotionEffectUtils.guessData((ThrownPotion) e)));
 //			if (Skript.classExists("org.bukkit.entity.WitherSkull") && e instanceof WitherSkull)
 //				return Relation.get(i.isOfType(Material.SKULL_ITEM.getId(), (short) 1));
-			if (e instanceof BoatData)
-				return Relation.get(((BoatData)e).isOfItemType(i));
-			if (e instanceof BoatChestData)
-				return Relation.get(((BoatChestData) e).isOfItemType(i));
-			if (e instanceof RabbitData)
-				return Relation.get(i.isOfType(Material.RABBIT));
 			for (ItemData data : i.getTypes()) {
 				assert data != null;
 				EntityData<?> entity = Aliases.getRelatedEntity(data);
@@ -495,11 +469,6 @@ public class DefaultComparators {
 					case MAGIC:
 						return Relation.get(t.isOfType(Material.POTION));
 				}
-				if (Skript.fieldExists(DamageCause.class, "HOT_FLOOR")
-						&& dc.equals(DamageCause.HOT_FLOOR)) {
-					return Relation.get(t.isOfType(Material.MAGMA_BLOCK));
-				}
-
 				return Relation.NOT_EQUAL;
 			}
 
@@ -571,33 +540,6 @@ public class DefaultComparators {
 				return false;
 			}
 		});
-
-		// EnchantmentOffer Comparators
-		if (Skript.isRunningMinecraft(1, 11)) {
-			// EnchantmentOffer - EnchantmentType
-			Comparators.registerComparator(EnchantmentOffer.class, EnchantmentType.class, new Comparator<EnchantmentOffer, EnchantmentType>() {
-				@Override
-				public Relation compare(EnchantmentOffer eo, EnchantmentType et) {
-					return Relation.get(eo.getEnchantment() == et.getType() && eo.getEnchantmentLevel() == et.getLevel());
-				}
-
-				@Override
-				public boolean supportsOrdering() {
-					return false;
-				}
-			});
-			// EnchantmentOffer - Experience
-			Comparators.registerComparator(EnchantmentOffer.class, Experience.class, new Comparator<EnchantmentOffer, Experience>() {
-				@Override
-				public Relation compare(EnchantmentOffer eo, Experience exp) {
-					return Relation.get(eo.getCost() == exp.getXP());
-				}
-
-				@Override public boolean supportsOrdering() {
-					return false;
-				}
-			});
-		}
 
 		Comparators.registerComparator(Inventory.class, InventoryType.class, new Comparator<Inventory, InventoryType>() {
 			@Override

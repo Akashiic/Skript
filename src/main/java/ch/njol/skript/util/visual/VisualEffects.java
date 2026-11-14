@@ -36,7 +36,8 @@ import org.bukkit.*;
 import org.bukkit.block.BlockFace;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.material.MaterialData;
-import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.Potion;
+import org.bukkit.potion.PotionType;
 import org.bukkit.potion.PotionEffectType;
 import org.eclipse.jdt.annotation.Nullable;
 
@@ -47,8 +48,6 @@ import java.util.stream.Stream;
 
 public class VisualEffects {
 
-	private static final boolean NEW_EFFECT_DATA = Skript.classExists("org.bukkit.block.data.BlockData");
-	private static final boolean HAS_REDSTONE_DATA = Skript.classExists("org.bukkit.Particle$DustOptions");
 
 	private static final Map<String, Consumer<VisualEffectType>> effectTypeModifiers = new HashMap<>();
 	private static SyntaxElementInfo<VisualEffect> elementInfo;
@@ -82,7 +81,7 @@ public class VisualEffects {
 
 	private static void generateTypes() {
 		List<VisualEffectType> types = new ArrayList<>();
-		Stream.of(Effect.class, EntityEffect.class, Particle.class)
+		Stream.of(Effect.class, EntityEffect.class)
 			.map(Class::getEnumConstants)
 			.flatMap(Arrays::stream)
 			.map(VisualEffectType::of)
@@ -119,84 +118,17 @@ public class VisualEffects {
 		Language.addListener(() -> {
 			if (visualEffectTypes != null) // Already registered
 				return;
-			// Colorables
-			registerColorable("Particle.SPELL_MOB");
-			registerColorable("Particle.SPELL_MOB_AMBIENT");
-			registerColorable("Particle.REDSTONE");
-			registerColorable("Particle.NOTE");
-
 			// Data suppliers
-			registerDataSupplier("Effect.POTION_BREAK", (raw, location) ->
-				new PotionEffect(raw == null ? PotionEffectType.SPEED : (PotionEffectType) raw, 1, 0));
+			registerDataSupplier("Effect.POTION_BREAK", (raw, location) -> {
+				// Minecraft 1.7.10 uses Potion (not PotionEffect) as data for this effect
+				PotionType potionType = raw == null ? null : PotionType.getByEffect((PotionEffectType) raw);
+				return new Potion(potionType == null ? PotionType.SPEED : potionType);
+			});
 			registerDataSupplier("Effect.SMOKE", (raw, location) -> {
 				if (raw == null)
 					return BlockFace.SELF;
 				return Direction.getFacing(((Direction) raw).getDirection(location), false);
 			});
-
-			Color defaultColor = SkriptColor.LIGHT_RED;
-			registerDataSupplier("Particle.SPELL_MOB", (raw, location) -> {
-				Color color = raw == null ? defaultColor : (Color) raw;
-				return new ParticleOption(color, 1);
-			});
-			registerDataSupplier("Particle.SPELL_MOB_AMBIENT", (raw, location) -> {
-				Color color = raw == null ? defaultColor : (Color) raw;
-				return new ParticleOption(color, 1);
-			});
-			registerDataSupplier("Particle.REDSTONE", (raw, location) -> {
-				Color color = raw == null ? defaultColor : (Color) raw;
-				ParticleOption particleOption = new ParticleOption(color, 1);
-
-				if (HAS_REDSTONE_DATA && Particle.REDSTONE.getDataType() == Particle.DustOptions.class) {
-					return new Particle.DustOptions(particleOption.getBukkitColor(), particleOption.size);
-				} else {
-					return particleOption;
-				}
-			});
-			registerDataSupplier("Particle.NOTE", (raw, location) -> {
-				int colorValue = (int) (((Number) raw).floatValue() * 255);
-				ColorRGB color = new ColorRGB(colorValue, 0, 0);
-				return new ParticleOption(color, 1);
-			});
-			registerDataSupplier("Particle.ITEM_CRACK", (raw, location) -> {
-				ItemStack itemStack = Aliases.javaItemType("iron sword").getRandom();
-				if (raw instanceof ItemType) {
-					ItemStack rand = ((ItemType) raw).getRandom();
-					if (rand != null)
-						itemStack = rand;
-				} else if (raw != null) {
-					return raw;
-				}
-
-				assert itemStack != null;
-				if (Particle.ITEM_CRACK.getDataType() == Material.class)
-					return itemStack.getType();
-				return itemStack;
-			});
-
-			BiFunction<Object, Location, Object> crackDustBiFunction = (raw, location) -> {
-				if (raw == null) {
-					return Material.STONE.getData();
-				} else if (raw instanceof ItemType) {
-					ItemStack rand = ((ItemType) raw).getRandom();
-					if (NEW_EFFECT_DATA) {
-						return Bukkit.createBlockData(rand != null ? rand.getType() : Material.STONE);
-					} else {
-						if (rand == null)
-							return Material.STONE.getData();
-
-						@SuppressWarnings("deprecation")
-						MaterialData type = rand.getData();
-						assert type != null;
-						return type;
-					}
-				} else {
-					return raw;
-				}
-			};
-			registerDataSupplier("Particle.BLOCK_CRACK", crackDustBiFunction);
-			registerDataSupplier("Particle.BLOCK_DUST", crackDustBiFunction);
-			registerDataSupplier("Particle.FALLING_DUST", crackDustBiFunction);
 
 			generateTypes();
 		});

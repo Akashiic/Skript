@@ -27,7 +27,6 @@ import ch.njol.util.Kleenean;
 import ch.njol.yggdrasil.YggdrasilSerializable;
 import org.bukkit.Effect;
 import org.bukkit.Location;
-import org.bukkit.Particle;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.eclipse.jdt.annotation.Nullable;
@@ -35,8 +34,6 @@ import org.eclipse.jdt.annotation.Nullable;
 import java.util.Objects;
 
 public class VisualEffect implements SyntaxElement, YggdrasilSerializable {
-
-	private static final boolean HAS_REDSTONE_DATA = Skript.classExists("org.bukkit.Particle$DustOptions");
 
 	private VisualEffectType type;
 
@@ -87,49 +84,6 @@ public class VisualEffect implements SyntaxElement, YggdrasilSerializable {
 			if (e != null)
 				e.playEffect(type.getEntityEffect());
 
-		} else if (type.isParticle()) {
-			Particle particle = type.getParticle();
-			Object data = type.getData(this.data, l);
-
-			// Check that data has correct type (otherwise bad things will happen)
-			if (data != null && !particle.getDataType().isAssignableFrom(data.getClass())
-				&& !(data instanceof ParticleOption)) {
-				data = null;
-				if (Skript.debug())
-					Skript.warning("Incompatible particle data, resetting it!");
-			}
-
-			// Some particles use offset as RGB color codes
-			if (type.isColorable() && (!HAS_REDSTONE_DATA || particle != Particle.REDSTONE) && data instanceof ParticleOption) {
-				ParticleOption option = ((ParticleOption) data);
-				dX = option.getRed();
-				dY = option.getGreen();
-				dZ = option.getBlue();
-				speed = 1;
-				data = null;
-			}
-
-			int loopCount = count == 0 ? 1 : count;
-			if (ps == null) {
-				// Colored particles must be played one at time; otherwise, colors are broken
-				if (type.isColorable()) {
-					for (int i = 0; i < loopCount; i++) {
-						l.getWorld().spawnParticle(particle, l, 0, dX, dY, dZ, speed, data);
-					}
-				} else {
-					l.getWorld().spawnParticle(particle, l, count, dX, dY, dZ, speed, data);
-				}
-			} else {
-				for (Player p : ps) {
-					if (type.isColorable()) {
-						for (int i = 0; i < loopCount; i++) {
-							p.spawnParticle(particle, l, 0, dX, dY, dZ, speed, data);
-						}
-					} else {
-						p.spawnParticle(particle, l, count, dX, dY, dZ, speed, data);
-					}
-				}
-			}
 		} else {
 			throw new IllegalStateException();
 		}

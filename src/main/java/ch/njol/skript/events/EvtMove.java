@@ -24,8 +24,6 @@ import ch.njol.skript.lang.Literal;
 import ch.njol.skript.lang.SkriptEvent;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.skript.log.ErrorQuality;
-import ch.njol.util.coll.CollectionUtils;
-import io.papermc.paper.event.entity.EntityMoveEvent;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
@@ -34,27 +32,16 @@ import org.eclipse.jdt.annotation.Nullable;
 
 public class EvtMove extends SkriptEvent {
 
-	private static final boolean HAS_ENTITY_MOVE = Skript.classExists("io.papermc.paper.event.entity.EntityMoveEvent");
-
 	static {
-		Class<? extends Event>[] events;
-		if (HAS_ENTITY_MOVE)
-			events = CollectionUtils.array(PlayerMoveEvent.class, EntityMoveEvent.class);
-		else
-			events = CollectionUtils.array(PlayerMoveEvent.class);
-
-		Skript.registerEvent("Move", EvtMove.class, events, "%entitydata% (move|walk|step)")
+		// Only players have a move event on 1.7.10 (entity move events are Paper 1.16.5+)
+		Skript.registerEvent("Move", EvtMove.class, PlayerMoveEvent.class, "%entitydata% (move|walk|step)")
 			.description("Called when a player or entity moves.",
 				"NOTE: Move event will only be called when the entity/player moves position, not orientation (ie: looking around).",
 				"NOTE: These events can be performance heavy as they are called quite often.",
 				"If you use these events, and later remove them, a server restart is recommended to clear registered events from Skript.")
 			.examples("on player move:",
 				"\tif player does not have permission \"player.can.move\":",
-				"\t\tcancel event",
-				"on skeleton move:",
-				"\tif event-entity is not in world \"world\":",
-				"\t\tkill event-entity")
-			.requiredPlugins("Paper 1.16.5+ (entity move)")
+				"\t\tcancel event")
 			.since("2.6");
 	}
 
@@ -66,8 +53,8 @@ public class EvtMove extends SkriptEvent {
 		type = ((Literal<EntityData<?>>) args[0]).getSingle();
 		isPlayer = Player.class.isAssignableFrom(type.getType());
 
-		if (!HAS_ENTITY_MOVE && !isPlayer) {
-			Skript.error("Entity move event requires Paper 1.16.5+", ErrorQuality.SEMANTIC_ERROR);
+		if (!isPlayer) {
+			Skript.error("Only players have a move event on Minecraft 1.7.10", ErrorQuality.SEMANTIC_ERROR);
 			return false;
 		}
 		return true;
@@ -78,11 +65,6 @@ public class EvtMove extends SkriptEvent {
 		if (isPlayer && event instanceof PlayerMoveEvent) {
 			PlayerMoveEvent playerEvent = (PlayerMoveEvent) event;
 			return moveCheck(playerEvent.getFrom(), playerEvent.getTo());
-		} else if (HAS_ENTITY_MOVE && event instanceof EntityMoveEvent) {
-			EntityMoveEvent entityEvent = (EntityMoveEvent) event;
-			if (type.isInstance(entityEvent.getEntity())) {
-				return moveCheck(entityEvent.getFrom(), entityEvent.getTo());
-			}
 		}
 		return false;
 	}

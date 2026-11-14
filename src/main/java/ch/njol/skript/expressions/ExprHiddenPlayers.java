@@ -21,6 +21,7 @@ package ch.njol.skript.expressions;
 import java.util.List;
 import java.util.ArrayList;
 import ch.njol.skript.Skript;
+import ch.njol.skript.bukkitutil.PlayerUtils;
 import ch.njol.skript.doc.Description;
 import ch.njol.skript.doc.Examples;
 import ch.njol.skript.doc.Name;
@@ -66,7 +67,10 @@ public class ExprHiddenPlayers extends SimpleExpression<Player> {
 	public Player[] get(Event e) {
 		List<Player> list = new ArrayList<>();
 		for (Player player : players.getArray(e)) {
-			list.addAll(player.spigot().getHiddenPlayers());
+			for (Player other : PlayerUtils.getOnlinePlayers()) {
+				if (other != player && !player.canSee(other))
+					list.add(other);
+			}
 		}
 		return list.toArray(new Player[list.size()]);
 	}

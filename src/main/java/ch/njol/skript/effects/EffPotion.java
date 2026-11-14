@@ -159,7 +159,7 @@ public class EffPotion extends Effect {
 							}
 						}
 					}
-					en.addPotionEffect(new PotionEffect(t, duration, a, ambient, particles), true);
+					en.addPotionEffect(new PotionEffect(t, duration, a, ambient), true); // 1.7.10 has no particle visibility flag
 				}
 			}
 		}

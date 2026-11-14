@@ -43,7 +43,7 @@ public class CommandReloader {
 			syncCommandsMethod = craftServer.getDeclaredMethod("syncCommands");
 			if (syncCommandsMethod != null)
 				syncCommandsMethod.setAccessible(true);
-		} catch (ClassNotFoundException | NoSuchMethodException e) {
+		} catch (Exception e) { // 1.7.10 has no syncCommands (and no Brigadier)
 			// Ignore except for debugging. This is not necessary or in any way supported functionality
 			if (Skript.debug())
 				e.printStackTrace();

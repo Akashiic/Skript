@@ -38,13 +38,11 @@ import org.bukkit.block.BlockState;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.EntityType;
 import org.bukkit.inventory.ItemFactory;
-import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.PotionMeta;
+import org.bukkit.potion.PotionEffect;
 import org.bukkit.inventory.meta.SkullMeta;
-import org.bukkit.inventory.meta.SpawnEggMeta;
-import org.bukkit.potion.PotionData;
 import org.eclipse.jdt.annotation.Nullable;
 
 import com.google.gson.Gson;
@@ -81,8 +79,6 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 	
 	static final MaterialRegistry materialRegistry;
 	
-	private static final boolean SPAWN_EGG_META_EXISTS = Skript.classExists("org.bukkit.inventory.meta.SpawnEggMeta");
-	private static final boolean HAS_NEW_SKULL_META_METHODS = Skript.methodExists(SkullMeta.class, "getOwningPlayer");
 	
 	// Load or create material registry
 	static {
@@ -441,35 +437,15 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 				quality = newQuality;
 		}
 		
-		// Item flags
-		Set<ItemFlag> ourFlags = first.getItemFlags();
-		Set<ItemFlag> theirFlags = second.getItemFlags();
-		if (!Objects.equals(ourFlags, theirFlags)) {
-			newQuality = (!ourFlags.isEmpty() && theirFlags.isEmpty()) ? MatchQuality.SAME_ITEM : MatchQuality.SAME_MATERIAL;
-			if (!newQuality.isBetter(quality))
-				quality = newQuality;
-		}
-		
 		// Potion data
 		if (second instanceof PotionMeta) {
 			if (!(first instanceof PotionMeta)) {
 				return MatchQuality.DIFFERENT; // Second is a potion, first is clearly not
 			}
-			// Compare potion type, including extended and level 2 attributes
-			PotionData ourPotion = ((PotionMeta) first).getBasePotionData();
-			PotionData theirPotion = ((PotionMeta) second).getBasePotionData();
-			return !Objects.equals(ourPotion, theirPotion) ? MatchQuality.SAME_MATERIAL : quality;
-		}
-		
-		// Only check spawn egg data on 1.12 and below. See issue #3167
-		if (!MaterialRegistry.newMaterials && SPAWN_EGG_META_EXISTS && second instanceof SpawnEggMeta) {
-			if (!(first instanceof SpawnEggMeta)) {
-				return MatchQuality.DIFFERENT; // Second is a spawn egg, first is clearly not
-			}
-			// Compare spawn egg spawned type
-			EntityType ourSpawnedType = ((SpawnEggMeta) first).getSpawnedType();
-			EntityType theirSpawnedType = ((SpawnEggMeta) second).getSpawnedType();
-			return !Objects.equals(ourSpawnedType, theirSpawnedType) ? MatchQuality.SAME_MATERIAL : quality;
+			// Base potion type is the data value on 1.7.10 (compared elsewhere), so compare custom effects
+			List<PotionEffect> ourEffects = ((PotionMeta) first).getCustomEffects();
+			List<PotionEffect> theirEffects = ((PotionMeta) second).getCustomEffects();
+			return !Objects.equals(ourEffects, theirEffects) ? MatchQuality.SAME_MATERIAL : quality;
 		}
 		
 		// Skull owner
@@ -478,17 +454,9 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 				return MatchQuality.DIFFERENT; // Second is a skull, first is clearly not
 			}
 			// Compare skull owners
-			if (HAS_NEW_SKULL_META_METHODS) {
-				OfflinePlayer ourOwner = ((SkullMeta) first).getOwningPlayer();
-				OfflinePlayer theirOwner = ((SkullMeta) second).getOwningPlayer();
-				return !Objects.equals(ourOwner, theirOwner) ? MatchQuality.SAME_MATERIAL : quality;
-			} else { // Use old methods
-				@SuppressWarnings("deprecation")
-				String ourOwner = ((SkullMeta) first).getOwner();
-				@SuppressWarnings("deprecation")
-				String theirOwner = ((SkullMeta) second).getOwner();
-				return !Objects.equals(ourOwner, theirOwner) ? MatchQuality.SAME_MATERIAL : quality;
-			}
+			String ourOwner = ((SkullMeta) first).getOwner();
+			String theirOwner = ((SkullMeta) second).getOwner();
+			return !Objects.equals(ourOwner, theirOwner) ? MatchQuality.SAME_MATERIAL : quality;
 		}
 		
 		return quality;
@@ -615,17 +583,25 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 		Fields fields = new Fields(this); // ItemStack is transient, will be ignored
 		fields.putPrimitive("id", materialRegistry.getId(type));
 		fields.putObject("meta", stack.getItemMeta());
+		// On 1.7.10 the data value (wool color, modded item metadata...) is part of the item's identity
+		fields.putPrimitive("durability", stack.getDurability());
 		return fields;
 	}
 
 	@Override
 	public void deserialize(Fields fields) throws StreamCorruptedException, NotSerializableException {
-		this.type = materialRegistry.getMaterial(fields.getAndRemovePrimitive("id", int.class));
+		try {
+			this.type = materialRegistry.getMaterial(fields.getAndRemovePrimitive("id", int.class));
+		} catch (IllegalArgumentException e) {
+			throw new StreamCorruptedException(e.getMessage());
+		}
 		ItemMeta meta = fields.getAndRemoveObject("meta", ItemMeta.class);
+		// Variables saved by older versions don't have the data value
+		short durability = fields.contains("durability") ? fields.getAndRemovePrimitive("durability", short.class) : 0;
 		fields.setFields(this); // Everything but ItemStack and Material
 		
 		// Initialize ItemStack
-		this.stack = new ItemStack(type);
+		this.stack = new ItemStack(type, 1, durability);
 		stack.setItemMeta(meta); // Just set meta to it
 	}
 	
@@ -680,9 +656,6 @@ public class ItemData implements Cloneable, YggdrasilExtendedSerializable {
 			for (Map.Entry<Enchantment, Integer> entry : meta.getEnchants().entrySet()) {
 				our.addEnchant(entry.getKey(), entry.getValue(), true);
 			}
-		}
-		for (ItemFlag flag : meta.getItemFlags()) {
-			our.addItemFlags(flag);
 		}
 		setItemMeta(meta);
 	}

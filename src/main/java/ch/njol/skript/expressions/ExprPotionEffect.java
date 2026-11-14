@@ -87,7 +87,7 @@ public class ExprPotionEffect extends SimpleExpression<PotionEffect> {
 			if (timespan != null)
 				ticks = (int) timespan.getTicks_i();
 		}
-		return new PotionEffect[]{new PotionEffect(potionEffectType, ticks, tier, ambient, particles)};
+		return new PotionEffect[]{new PotionEffect(potionEffectType, ticks, tier, ambient) /* 1.7.10 has no particle visibility flag */};
 	}
 	
 	@Override

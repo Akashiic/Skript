@@ -31,7 +31,7 @@ import ch.njol.skript.update.ReleaseManifest;
 import ch.njol.skript.update.ReleaseStatus;
 import ch.njol.skript.update.UpdateManifest;
 import ch.njol.skript.update.Updater;
-import ch.njol.skript.util.chat.BungeeConverter;
+import ch.njol.skript.util.chat.ChatSender;
 import ch.njol.skript.util.chat.ChatMessages;
 
 /**
@@ -98,7 +98,7 @@ public class SkriptUpdater extends Updater {
 					UpdateManifest update = getUpdateManifest();
 					assert update != null; // Because we just checked that one is available
 					Skript.info(sender, "" + m_update_available.toString(update.id, Skript.getVersion()));
-					sender.spigot().sendMessage(BungeeConverter.convert(ChatMessages.parseToArray(
+					ChatSender.send(sender, (ChatMessages.parseToArray(
 							"Download it at: <aqua><u><link:" + update.downloadUrl + ">" + update.downloadUrl)));
 					break;
 				case UNKNOWN:
@@ -155,7 +155,7 @@ public class SkriptUpdater extends Updater {
 						line = processed;
 						
 						assert line != null;
-						sender.spigot().sendMessage(BungeeConverter.convert(ChatMessages.parseToArray(line)));
+						ChatSender.send(sender, (ChatMessages.parseToArray(line)));
 					}
 				}
 			}

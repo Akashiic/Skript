@@ -29,14 +29,14 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.ThrownPotion;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.PotionMeta;
-import org.bukkit.inventory.meta.SuspiciousStewMeta;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.Material;
 import org.bukkit.potion.Potion;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.potion.PotionType;
 import org.eclipse.jdt.annotation.Nullable;
 
-import ch.njol.skript.Skript;
 import ch.njol.skript.aliases.ItemType;
 import ch.njol.skript.localization.Language;
 import ch.njol.skript.localization.LanguageChangeListener;
@@ -46,8 +46,6 @@ import ch.njol.skript.localization.LanguageChangeListener;
  */
 @SuppressWarnings("deprecation")
 public abstract class PotionEffectUtils {
-	
-	private static final boolean HAS_SUSPICIOUS_META = Skript.classExists("org.bukkit.inventory.meta.SuspiciousStewMeta");
 	
 	private PotionEffectUtils() {}
 	
@@ -119,8 +117,6 @@ public abstract class PotionEffectUtils {
 		
 		builder.append(" of tier ").append(potionEffect.getAmplifier() + 1);
 		
-		if (!potionEffect.hasParticles())
-			builder.append(" without particles");
 		builder.append(" for ").append(Timespan.fromTicks_i(potionEffect.getDuration()));
 		return builder.toString();
 	}
@@ -149,21 +145,13 @@ public abstract class PotionEffectUtils {
 	@Nullable
 	public static PotionType checkPotionType(String name) {
 		switch (name) {
-			case "uncraftable":
-			case "empty":
-				return PotionType.UNCRAFTABLE;
-			case "mundane":
-				return PotionType.MUNDANE;
-			case "thick":
-				return PotionType.THICK;
+			case "water":
+				return PotionType.WATER;
 			case "night vision":
 			case "darkvision":
 				return PotionType.NIGHT_VISION;
 			case "invisibility":
 				return PotionType.INVISIBILITY;
-			case "leaping":
-			case "jump boost":
-				return PotionType.JUMP;
 			case "fire resistance":
 			case "fire immunity":
 				return PotionType.FIRE_RESISTANCE;
@@ -191,8 +179,6 @@ public abstract class PotionEffectUtils {
 				return PotionType.STRENGTH;
 			case "weakness":
 				return PotionType.WEAKNESS;
-			case "luck":
-				return PotionType.LUCK;
 		}
 		
 		return null;
@@ -286,8 +272,6 @@ public abstract class PotionEffectUtils {
 		ItemMeta meta = itemType.getItemMeta();
 		if (meta instanceof PotionMeta)
 			((PotionMeta) meta).clearCustomEffects();
-		else if (HAS_SUSPICIOUS_META && meta instanceof SuspiciousStewMeta)
-			((SuspiciousStewMeta) meta).clearCustomEffects();
 		itemType.setItemMeta(meta);
 	}
 	
@@ -310,8 +294,6 @@ public abstract class PotionEffectUtils {
 			
 			if (meta instanceof PotionMeta)
 				((PotionMeta) meta).addCustomEffect(effect, false);
-			else if (HAS_SUSPICIOUS_META && meta instanceof SuspiciousStewMeta)
-				((SuspiciousStewMeta) meta).addCustomEffect(effect, false);
 		}
 		itemType.setItemMeta(meta);
 	}
@@ -336,8 +318,6 @@ public abstract class PotionEffectUtils {
 			
 			if (meta instanceof PotionMeta)
 				((PotionMeta) meta).removeCustomEffect(effectType);
-			else if (HAS_SUSPICIOUS_META && meta instanceof SuspiciousStewMeta)
-				((SuspiciousStewMeta) meta).removeCustomEffect(effectType);
 		}
 		itemType.setItemMeta(meta);
 	}
@@ -356,9 +336,14 @@ public abstract class PotionEffectUtils {
 		if (meta instanceof PotionMeta) {
 			PotionMeta potionMeta = ((PotionMeta) meta);
 			effects.addAll(potionMeta.getCustomEffects());
-			effects.addAll(PotionDataUtils.getPotionEffects(potionMeta.getBasePotionData()));
-		} else if (HAS_SUSPICIOUS_META && meta instanceof SuspiciousStewMeta)
-			effects.addAll(((SuspiciousStewMeta) meta).getCustomEffects());
+			// Base potion effects are stored in the data value on Minecraft 1.7.10
+			ItemStack stack = itemType.getRandom();
+			if (stack != null && stack.getType() == Material.POTION && stack.getDurability() != 0) {
+				try {
+					effects.addAll(Potion.fromItemStack(stack).getEffects());
+				} catch (IllegalArgumentException ignored) {}
+			}
+		}
 		return effects;
 	}
 	

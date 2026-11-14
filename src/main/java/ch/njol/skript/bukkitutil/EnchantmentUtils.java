@@ -18,20 +18,18 @@
  */
 package ch.njol.skript.bukkitutil;
 
-import org.bukkit.NamespacedKey;
 import org.bukkit.enchantments.Enchantment;
 import org.eclipse.jdt.annotation.Nullable;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
-import ch.njol.skript.Skript;
+import java.util.Locale;
 
 /**
  * Maps enchantments to their ids in Minecraft 1.12.
  */
 public class EnchantmentUtils {
 	
-	private static final boolean KEY_METHOD_EXISTS = Skript.methodExists(Enchantment.class, "getKey");
 	private static final BiMap<Enchantment, String> ENCHANTMENTS = HashBiMap.create();
 	
 	static {
@@ -43,7 +41,6 @@ public class EnchantmentUtils {
 		ENCHANTMENTS.put(Enchantment.OXYGEN, "respiration");
 		ENCHANTMENTS.put(Enchantment.WATER_WORKER, "aqua_affinity");
 		ENCHANTMENTS.put(Enchantment.THORNS, "thorns");
-		ENCHANTMENTS.put(Enchantment.DEPTH_STRIDER, "depth_strider");
 		ENCHANTMENTS.put(Enchantment.DAMAGE_ALL, "sharpness");
 		ENCHANTMENTS.put(Enchantment.DAMAGE_UNDEAD, "smite");
 		ENCHANTMENTS.put(Enchantment.DAMAGE_ARTHROPODS, "bane_of_arthropods");
@@ -61,33 +58,20 @@ public class EnchantmentUtils {
 		ENCHANTMENTS.put(Enchantment.LUCK, "luck_of_the_sea");
 		ENCHANTMENTS.put(Enchantment.LURE, "lure");
 		
-		if (Skript.isRunningMinecraft(1, 9)) {
-			ENCHANTMENTS.put(Enchantment.FROST_WALKER, "frost_walker");
-			ENCHANTMENTS.put(Enchantment.MENDING, "mending");
-		}
-		
-		if (Skript.isRunningMinecraft(1, 11)) {
-			ENCHANTMENTS.put(Enchantment.BINDING_CURSE, "binding_curse");
-			ENCHANTMENTS.put(Enchantment.VANISHING_CURSE, "vanishing_curse");
-		}
-		
-		if (Skript.isRunningMinecraft(1, 12)) {
-			ENCHANTMENTS.put(Enchantment.SWEEPING_EDGE, "sweeping_edge");
-		}
 	}
 	
 	public static String getKey(Enchantment ench) {
-		if (KEY_METHOD_EXISTS)
-			return ench.getKey().getKey();
 		String name = ENCHANTMENTS.get(ench);
-		assert name != null : "missing name for " + ench;
+		if (name == null) // Modded enchantment (Crucible/Forge) or unknown, use its Bukkit name
+			return ench.getName().toLowerCase(Locale.ENGLISH);
 		return name;
 	}
 	
 	@Nullable
 	public static Enchantment getByKey(String key) {
-		if (KEY_METHOD_EXISTS)
-			return Enchantment.getByKey(NamespacedKey.minecraft(key));
-		return ENCHANTMENTS.inverse().get(key);
+		Enchantment ench = ENCHANTMENTS.inverse().get(key);
+		if (ench == null) // Modded enchantment (Crucible/Forge) or unknown, try its Bukkit name
+			ench = Enchantment.getByName(key.toUpperCase(Locale.ENGLISH));
+		return ench;
 	}
 }

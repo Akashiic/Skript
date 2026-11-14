@@ -182,11 +182,11 @@ public abstract class Commands {
 		@SuppressWarnings("null")
 		@EventHandler(priority = EventPriority.HIGHEST)
 		public void onServerCommand(final ServerCommandEvent e) {
-			if (e.getCommand() == null || e.getCommand().isEmpty() || e.isCancelled())
+			if (e.getCommand() == null || e.getCommand().isEmpty())
 				return;
 			if (SkriptConfig.enableEffectCommands.value() && e.getCommand().startsWith(SkriptConfig.effectCommandToken.value())) {
 				if (handleEffectCommand(e.getSender(), e.getCommand())) {
-					e.setCancelled(true);
+					e.setCommand(""); // ServerCommandEvent isn't cancellable on 1.7.10
 				}
 				return;
 			}

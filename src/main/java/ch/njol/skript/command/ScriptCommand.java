@@ -71,7 +71,7 @@ import ch.njol.skript.util.Date;
 import ch.njol.skript.util.EmptyStacktraceException;
 import ch.njol.skript.util.Timespan;
 import ch.njol.skript.util.Utils;
-import ch.njol.skript.util.chat.BungeeConverter;
+import ch.njol.skript.util.chat.ChatSender;
 import ch.njol.skript.util.chat.MessageComponent;
 import ch.njol.skript.variables.Variables;
 import ch.njol.util.StringUtils;
@@ -215,7 +215,7 @@ public class ScriptCommand implements TabExecutor {
 			if (sender instanceof Player) {
 				List<MessageComponent> components =
 						permissionMessage.getMessageComponents(event);
-				((Player) sender).spigot().sendMessage(BungeeConverter.convert(components));
+				ChatSender.send(sender, components);
 			} else {
 				sender.sendMessage(permissionMessage.getSingle(event));
 			}

@@ -47,12 +47,12 @@ import ch.njol.util.Checker;
 /**
  * @author Peter Güttinger
  */
-// Class can be deleted when legacy support is dropped (new class = EvtBlock)
+// Block events for Minecraft 1.7.10 (the BlockData variant was removed in this port)
 @SuppressWarnings({"deprecation", "unchecked"})
 public class EvtBlockLegacy extends SkriptEvent {
 
 	static {
-		if (!Skript.isRunningMinecraft(1, 13)) {
+		{ // Minecraft 1.7.10 uses the legacy (pre-BlockData) block events
 			Skript.registerEvent("Break / Mine", EvtBlockLegacy.class, new Class[]{BlockBreakEvent.class, PlayerBucketFillEvent.class, HangingBreakEvent.class}, "[block] (break[ing]|1¦min(e|ing)) [[of] %itemtypes%]")
 				.description("Called when a block is broken by a player. If you use 'on mine', only events where the broken block dropped something will call the trigger.")
 				.examples("on mine:", "on break of stone:", "on mine of any ore:")

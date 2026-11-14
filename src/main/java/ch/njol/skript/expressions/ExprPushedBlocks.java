@@ -59,8 +59,13 @@ public class ExprPushedBlocks extends SimpleExpression<Block> {
 	@Override
 	@Nullable
 	protected Block[] get(Event e) {
-		return (e instanceof BlockPistonExtendEvent) ? ((BlockPistonExtendEvent) e).getBlocks().toArray(new Block[0])
-				: ((BlockPistonRetractEvent) e).getBlocks().toArray(new Block[0]);
+		if (e instanceof BlockPistonExtendEvent)
+			return ((BlockPistonExtendEvent) e).getBlocks().toArray(new Block[0]);
+		BlockPistonRetractEvent event = (BlockPistonRetractEvent) e;
+		// 1.7.10: only sticky pistons move a block when retracting, and only the one at the retract location
+		if (!event.isSticky())
+			return new Block[0];
+		return new Block[] {event.getRetractLocation().getBlock()};
 	}
 	
 	@Override

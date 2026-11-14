@@ -78,7 +78,7 @@ import ch.njol.skript.util.Getter;
 import ch.njol.skript.util.Task;
 import ch.njol.skript.util.Utils;
 import ch.njol.skript.util.Version;
-import ch.njol.skript.util.chat.BungeeConverter;
+import ch.njol.skript.util.chat.ChatSender;
 import ch.njol.skript.util.chat.ChatMessages;
 import ch.njol.skript.variables.Variables;
 import ch.njol.util.Closeable;
@@ -90,8 +90,6 @@ import ch.njol.util.coll.CollectionUtils;
 import ch.njol.util.coll.iterator.CheckedIterator;
 import ch.njol.util.coll.iterator.EnumerationIterable;
 import com.google.gson.Gson;
-import org.bstats.bukkit.Metrics;
-import org.bstats.charts.SimplePie;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -233,7 +231,11 @@ public final class Skript extends JavaPlugin implements Listener {
 			m_finished_loading = new Message("skript.finished loading");
 	
 	public static ServerPlatform getServerPlatform() {
-		if (classExists("net.glowstone.GlowServer")) {
+		if (classExists("io.github.crucible.CrucibleModContainer") || classExists("thermos.Thermos")
+				|| classExists("kcauldron.KCauldron") || classExists("net.minecraftforge.cauldron.CauldronConfig")
+				|| (classExists("net.minecraftforge.common.MinecraftForge") && classExists("org.bukkit.craftbukkit.v1_7_R4.CraftServer"))) {
+			return ServerPlatform.BUKKIT_FORGE_HYBRID;
+		} else if (classExists("net.glowstone.GlowServer")) {
 			return ServerPlatform.BUKKIT_GLOWSTONE; // Glowstone has timings too, so must check for it first
 		} else if (classExists("co.aikar.timings.Timings")) {
 			return ServerPlatform.BUKKIT_PAPER; // Could be Sponge, but it doesn't work at all at the moment
@@ -276,12 +278,10 @@ public final class Skript extends JavaPlugin implements Listener {
 		Skript.debug("Loading for Minecraft " + minecraftVersion);
 		
 		// Check that MC version is supported
-		if (!isRunningMinecraft(1, 9)) {
-			// Prevent loading when not running at least Minecraft 1.9
-			Skript.error("This version of Skript does not work with Minecraft " + minecraftVersion + " and requires Minecraft 1.9.4+");
-			Skript.error("You probably want Skript 2.2 or 2.1 (Google to find where to get them)");
-			Skript.error("Note that those versions are, of course, completely unsupported!");
-			return false;
+		// This build of Skript targets Minecraft 1.7.10 (Crucible, Thermos, KCauldron, CraftBukkit)
+		if (!isRunningMinecraft(1, 7, 10) || isRunningMinecraft(1, 8)) {
+			Skript.warning("This build of Skript is made for Minecraft 1.7.10, but the server is running Minecraft " + minecraftVersion + ".");
+			Skript.warning("Some features may not work. Use an official Skript release for other Minecraft versions.");
 		}
 		
 		// Check that current server platform is somewhat supported
@@ -666,57 +666,6 @@ public final class Skript extends JavaPlugin implements Listener {
 				if (logNormal())
 					info("Loaded " + Variables.numVariables() + " variables in " + ((vld / 100) / 10.) + " seconds");
 
-				// Enable metrics and register custom charts
-				Metrics metrics = new Metrics(Skript.this, 722); // 722 is our bStats plugin ID
-				metrics.addCustomChart(new SimplePie("pluginLanguage", Language::getName));
-				metrics.addCustomChart(new SimplePie("effectCommands", () ->
-					SkriptConfig.enableEffectCommands.value().toString()
-				));
-				metrics.addCustomChart(new SimplePie("uuidsWithPlayers", () ->
-					SkriptConfig.usePlayerUUIDsInVariableNames.value().toString()
-				));
-				metrics.addCustomChart(new SimplePie("playerVariableFix", () ->
-					SkriptConfig.enablePlayerVariableFix.value().toString()
-				));
-				metrics.addCustomChart(new SimplePie("logVerbosity", () ->
-					SkriptConfig.verbosity.value().name().toLowerCase(Locale.ENGLISH).replace('_', ' ')
-				));
-				metrics.addCustomChart(new SimplePie("pluginPriority", () ->
-					SkriptConfig.defaultEventPriority.value().name().toLowerCase(Locale.ENGLISH).replace('_', ' ')
-				));
-				metrics.addCustomChart(new SimplePie("logPlayerCommands", () ->
-					SkriptConfig.logPlayerCommands.value().toString()
-				));
-				metrics.addCustomChart(new SimplePie("maxTargetDistance", () ->
-					SkriptConfig.maxTargetBlockDistance.value().toString()
-				));
-				metrics.addCustomChart(new SimplePie("softApiExceptions", () ->
-					SkriptConfig.apiSoftExceptions.value().toString()
-				));
-				metrics.addCustomChart(new SimplePie("timingsStatus", () -> {
-					if (!Skript.classExists("co.aikar.timings.Timings"))
-						return "unsupported";
-					return SkriptConfig.enableTimings.value().toString();
-				}));
-				metrics.addCustomChart(new SimplePie("parseLinks", () ->
-					ChatMessages.linkParseMode.name().toLowerCase(Locale.ENGLISH)
-				));
-				metrics.addCustomChart(new SimplePie("colorResetCodes", () ->
-					SkriptConfig.colorResetCodes.value().toString()
-				));
-				metrics.addCustomChart(new SimplePie("functionsWithNulls", () ->
-					SkriptConfig.executeFunctionsWithMissingParams.value().toString()
-				));
-				metrics.addCustomChart(new SimplePie("buildFlavor", () -> {
-					if (updater != null)
-						return updater.getCurrentRelease().flavor;
-					return "unknown";
-				}));
-				metrics.addCustomChart(new SimplePie("updateCheckerEnabled", () ->
-					SkriptConfig.checkForNewVersion.value().toString()
-				));
-				metrics.addCustomChart(new SimplePie("releaseChannel", SkriptConfig.releaseChannel::value));
-				Skript.metrics = metrics;
 				
 				/*
 				 * Start loading scripts
@@ -769,7 +718,7 @@ public final class Skript extends JavaPlugin implements Listener {
 								UpdateManifest update = updater.getUpdateManifest();
 								assert update != null; // Because we just checked that one is available
 								Skript.info(p, "" + SkriptUpdater.m_update_available.toString(update.id, Skript.getVersion()));
-								p.spigot().sendMessage(BungeeConverter.convert(ChatMessages.parseToArray(
+								ChatSender.send(p, (ChatMessages.parseToArray(
 										"Download it at: <aqua><u><link:" + update.downloadUrl + ">" + update.downloadUrl)));
 							}
 						}
@@ -965,14 +914,6 @@ public final class Skript extends JavaPlugin implements Listener {
 		}
 	}
 	
-	@Nullable
-	static Metrics metrics;
-	
-	@Nullable
-	public static Metrics getMetrics() {
-		return metrics;
-	}
-	
 	@SuppressWarnings("null")
 	private final static Collection<Closeable> closeOnDisable = Collections.synchronizedCollection(new ArrayList<Closeable>());
 	
@@ -1000,52 +941,49 @@ public final class Skript extends JavaPlugin implements Listener {
 		}
 	}
 
-	private static final boolean IS_STOPPING_EXISTS;
 	@Nullable
 	private static Method IS_RUNNING;
 	@Nullable
 	private static Object MC_SERVER;
+	private static boolean isRunningLookupDone;
 
-	static {
-		IS_STOPPING_EXISTS = methodExists(Server.class, "isStopping");
-
-		if (!IS_STOPPING_EXISTS) {
+	/**
+	 * Finds MinecraftServer#isServerRunning. CraftBukkit 1.7.10 calls it {@code isRunning},
+	 * while Forge based servers (Crucible, Thermos, KCauldron) use the SRG name {@code func_71278_l}.
+	 */
+	private static void lookupIsRunning() {
+		isRunningLookupDone = true;
+		try {
 			Server server = Bukkit.getServer();
-			Class<?> clazz = server.getClass();
-
-			Method serverMethod;
-			try {
-				serverMethod = clazz.getMethod("getServer");
-			} catch (NoSuchMethodException e) {
-				throw new RuntimeException(e);
+			Object mcServer = server.getClass().getMethod("getServer").invoke(server);
+			if (mcServer == null)
+				return;
+			for (String name : new String[] {"isRunning", "func_71278_l", "isServerRunning"}) {
+				try {
+					Method method = mcServer.getClass().getMethod(name);
+					if (method.getReturnType() == boolean.class) {
+						MC_SERVER = mcServer;
+						IS_RUNNING = method;
+						return;
+					}
+				} catch (NoSuchMethodException ignored) {}
 			}
-
-			try {
-				MC_SERVER = serverMethod.invoke(server);
-			} catch (IllegalAccessException | InvocationTargetException e) {
-				throw new RuntimeException(e);
-			}
-
-			try {
-				// Spigot removed the mapping for this method in 1.18, so its back to obfuscated method
-				// 1.19 mapping is u and 1.18 is v
-				String isRunningMethod = Skript.isRunningMinecraft(1, 19) ? "u" : Skript.isRunningMinecraft(1, 18) ? "v" :"isRunning";
-				IS_RUNNING = MC_SERVER.getClass().getMethod(isRunningMethod);
-			} catch (NoSuchMethodException e) {
-				throw new RuntimeException(e);
-			}
+		} catch (Exception e) {
+			if (debug())
+				Skript.exception(e, "Could not find a way to check whether the server is running");
 		}
 	}
 
-	@SuppressWarnings("ConstantConditions")
 	private boolean isServerRunning() {
-		if (IS_STOPPING_EXISTS)
-			return !Bukkit.getServer().isStopping();
-
+		if (!isRunningLookupDone)
+			lookupIsRunning();
+		Method isRunning = IS_RUNNING;
+		if (isRunning == null)
+			return true; // Unknown, Skript's own onDisable will still run beforeDisable()
 		try {
-			return (boolean) IS_RUNNING.invoke(MC_SERVER);
+			return (boolean) isRunning.invoke(MC_SERVER);
 		} catch (IllegalAccessException | InvocationTargetException e) {
-			throw new RuntimeException(e);
+			return true;
 		}
 	}
 
@@ -1396,7 +1334,7 @@ public final class Skript extends JavaPlugin implements Listener {
 			} else {
 				final ServerCommandEvent e = new ServerCommandEvent(sender, command);
 				Bukkit.getPluginManager().callEvent(e);
-				if (e.getCommand().isEmpty() || e.isCancelled())
+				if (e.getCommand().isEmpty()) // ServerCommandEvent isn't cancellable on 1.7.10
 					return false;
 				return Bukkit.dispatchCommand(e.getSender(), e.getCommand());
 			}
@@ -1593,12 +1531,9 @@ public final class Skript extends JavaPlugin implements Listener {
 			logEx("");
 			logEx("Just testing things? Good. Please report this bug, so that we can fix it before a stable release.");
 			logEx("Issue tracker: " + issuesUrl);
-		} else if (!isRunningMinecraft(1, 9)) {
-			logEx("You are running an outdated Minecraft version not supported by Skript.");
-			logEx("Please update to Minecraft 1.9.4 or later or fix this yourself and send us a pull request.");
-			logEx("Alternatively, use an older Skript version; do note that those are also unsupported by us.");
-			logEx("");
-			logEx("Again, we do not support Minecraft versions this old.");
+		} else if (isRunningMinecraft(1, 7, 10) && !isRunningMinecraft(1, 8)) {
+			logEx("You are running an unofficial build of Skript for Minecraft 1.7.10 (Crucible).");
+			logEx("Do not report this error to SkriptLang; report it to the maintainers of this build instead.");
 		} else if (!serverPlatform.supported){
 			logEx("Your server platform appears to be unsupported by Skript. It might not work reliably.");
 			logEx("You can report this at " + issuesUrl + ". However, we may be unable to fix the issue.");

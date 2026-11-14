@@ -48,17 +48,13 @@ public class MaterialRegistry {
 		for (int i = 0; i < names.length; i++) {
 			String name = names[i];
 			if (name == null) {
-				continue; // This slot is intentionally empty
+				// This slot is intentionally empty (e.g. a material of a mod that was removed).
+				// Keep the slot, otherwise the ids of all following materials would shift.
+				mappings.add(null);
+				continue;
 			}
 			Material mat;
-			if (newMaterials) {
-				mat = Material.getMaterial(name);
-				if (mat == null) { // Try getting legacy material instead
-					mat = Material.getMaterial(name, true);
-				}
-			} else { // Pre-1.13, no getMaterial existed
-				mat = Material.valueOf(name);
-			}
+			mat = Material.getMaterial(name); // May be null if a saved material no longer exists
 			
 			mappings.add(mat);
 			if (mat != null) {
@@ -112,7 +108,8 @@ public class MaterialRegistry {
 	public Material getMaterial(int id) {
 		try {
 			Material m = materials[id];
-			assert m != null;
+			if (m == null) // e.g. the material of a mod that was removed
+				throw new IllegalArgumentException("material with id " + id + " no longer exists");
 			return m;
 		} catch (ArrayIndexOutOfBoundsException e) {
 			throw new IllegalArgumentException("invalid material id");

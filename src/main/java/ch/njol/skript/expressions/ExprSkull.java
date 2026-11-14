@@ -50,11 +50,6 @@ public class ExprSkull extends SimplePropertyExpression<Object, ItemType> {
 	
 	private static final ItemType playerSkull = Aliases.javaItemType("player skull");
 	
-	/**
-	 * In 2017, SkullMeta finally got a method that takes OfflinePlayer.
-	 */
-	private static final boolean newSkullOwner = Skript.methodExists(SkullMeta.class, "setOwningPlayer", OfflinePlayer.class);
-	
 	@Override
 	public boolean init(final Expression<?>[] exprs, final int matchedPattern, final Kleenean isDelayed, final ParseResult parseResult) {
 		return super.init(exprs, matchedPattern, isDelayed, parseResult);
@@ -66,10 +61,7 @@ public class ExprSkull extends SimplePropertyExpression<Object, ItemType> {
 	public ItemType convert(final Object o) {
 		ItemType skull = playerSkull.clone();
 		SkullMeta meta = (SkullMeta) skull.getItemMeta();
-		if (newSkullOwner)
-			meta.setOwningPlayer((OfflinePlayer) o);
-		else
-			meta.setOwner(((OfflinePlayer) o).getName());
+		meta.setOwner(((OfflinePlayer) o).getName());
 		skull.setItemMeta(meta);
 		return skull;
 	}

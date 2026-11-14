@@ -39,17 +39,17 @@ import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
-import org.bukkit.util.Consumer;
 import org.eclipse.jdt.annotation.Nullable;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
+import java.util.function.Consumer;
 
 // TODO this won't show up in the docs, sections don't have a tab. We should create a tab for them,
 //  and maybe add EffectSections to the effects page as well
 @Name("Spawn")
 @Description({"Spawn a creature. This can be used as an effect and as a section.",
-	"If it is used as a section, the section is run before the entity is added to the world.",
+	"If it is used as a section, the section is run right after the entity is spawned.",
 	"You can modify the entity in this section, using for example 'event-entity' or 'cow'. ",
 	"Do note that other event values, such as 'player', won't work in this section."})
 @Examples({"spawn 3 creepers at the targeted block",
@@ -88,8 +88,6 @@ public class EffSecSpawn extends EffectSection {
 		}, 0);
 	}
 
-	private static final boolean BUKKIT_CONSUMER_EXISTS = Skript.classExists("org.bukkit.util.Consumer");
-
 	@Nullable
 	public static Entity lastSpawned = null;
 
@@ -116,11 +114,6 @@ public class EffSecSpawn extends EffectSection {
 		locations = Direction.combine((Expression<? extends Direction>) exprs[1 + matchedPattern], (Expression<? extends Location>) exprs[2 + matchedPattern]);
 
 		if (sectionNode != null) {
-			if (!BUKKIT_CONSUMER_EXISTS) {
-				Skript.error("The spawn section isn't available on your Minecraft version, use a spawn effect instead");
-				return false;
-			}
-
 			trigger = loadCode(sectionNode, "spawn", SpawnEvent.class);
 		}
 
@@ -135,7 +128,7 @@ public class EffSecSpawn extends EffectSection {
 
 		Object localVars = Variables.copyLocalVariables(e);
 
-		Consumer<? extends Entity> consumer;
+		Consumer<Entity> consumer;
 		if (trigger != null) {
 			consumer = o -> {
 				lastSpawned = o;

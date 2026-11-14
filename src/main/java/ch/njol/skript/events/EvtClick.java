@@ -19,17 +19,13 @@
 package ch.njol.skript.events;
 
 import org.bukkit.block.Block;
-import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.event.Event;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerEvent;
-import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.PlayerInventory;
 import org.eclipse.jdt.annotation.Nullable;
 
 import ch.njol.skript.Skript;
@@ -49,30 +45,15 @@ import ch.njol.util.coll.CollectionUtils;
 public class EvtClick extends SkriptEvent {
 	
 	/**
-	 * Two hands available.
-	 */
-	final static boolean twoHanded = Skript.isRunningMinecraft(1, 9);
-	
-	/**
-	 * If a hand has item, it will always be used when the other hand has
-	 * nothing.
-	 */
-	final static boolean alwaysPreferItem = !Skript.isRunningMinecraft(1, 13);
-	
-	/**
 	 * Click types.
 	 */
 	private final static int RIGHT = 1, LEFT = 2, ANY = RIGHT | LEFT;
 	
 	/**
-	 * Tracks PlayerInteractEvents to deduplicate them.
+	 * Kept for API compatibility (used by the cancel event effect). Minecraft 1.7.10 has only one hand,
+	 * so interact events are never fired twice per click and no deduplication is needed.
 	 */
 	public static final ClickEventTracker interactTracker = new ClickEventTracker(Skript.getInstance());
-	
-	/**
-	 * Tracks PlayerInteractEntityEvents to deduplicate them.
-	 */
-	private static final ClickEventTracker entityInteractTracker = new ClickEventTracker(Skript.getInstance());
 	
 	static {
 		Class<? extends PlayerEvent>[] eventTypes = CollectionUtils.array(PlayerInteractEvent.class, PlayerInteractEntityEvent.class);
@@ -132,23 +113,8 @@ public class EvtClick extends SkriptEvent {
 			PlayerInteractEntityEvent clickEvent = ((PlayerInteractEntityEvent) e);
 			Entity clicked = clickEvent.getRightClicked();
 			
-			// Usually, don't handle these events
-			if (clickEvent instanceof PlayerInteractAtEntityEvent) {
-				// But armor stands are an exception
-				// Later, there may be more exceptions...
-				if (!(clicked instanceof ArmorStand))
-					return false;
-			}
-			
 			if (click == LEFT) // Lefts clicks on entities don't work
 				return false;
-			
-			// PlayerInteractAtEntityEvent called only once for armor stands
-			if (!(e instanceof PlayerInteractAtEntityEvent)) {
-				if (!entityInteractTracker.checkEvent(clickEvent.getPlayer(), clickEvent, clickEvent.getHand())) {
-					return false; // Not first event this tick
-				}
-			}
 			
 			entity = clicked;
 			block = null;
@@ -174,12 +140,6 @@ public class EvtClick extends SkriptEvent {
 			if ((this.click & click) == 0)
 				return false; // We don't want to handle this kind of events
 			
-			EquipmentSlot hand = clickEvent.getHand();
-			assert hand != null; // Not PHYSICAL interaction
-			if (!interactTracker.checkEvent(clickEvent.getPlayer(), clickEvent, hand)) {
-				return false; // Not first event this tick
-			}
-			
 			block = clickEvent.getClickedBlock();
 			entity = null;
 		} else {
@@ -193,9 +153,7 @@ public class EvtClick extends SkriptEvent {
 				if (e instanceof PlayerInteractEvent) {
 					return t.isOfType(((PlayerInteractEvent) e).getItem());
 				} else { // PlayerInteractEntityEvent doesn't have item associated with it
-					PlayerInventory invi = ((PlayerInteractEntityEvent) e).getPlayer().getInventory();
-					ItemStack item = ((PlayerInteractEntityEvent) e).getHand() == EquipmentSlot.HAND
-							? invi.getItemInMainHand() : invi.getItemInOffHand();
+					ItemStack item = ((PlayerInteractEntityEvent) e).getPlayer().getItemInHand();
 					return t.isOfType(item);
 				}
 			}

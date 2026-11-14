@@ -27,7 +27,6 @@ import org.bukkit.entity.FallingBlock;
 import org.bukkit.inventory.ItemStack;
 import org.eclipse.jdt.annotation.Nullable;
 
-import ch.njol.skript.Skript;
 import ch.njol.skript.aliases.ItemFlags;
 
 /**
@@ -39,8 +38,7 @@ public interface BlockCompat {
 	/**
 	 * Instance of BlockCompat for current Minecraft version.
 	 */
-	static final BlockCompat INSTANCE = Skript.isRunningMinecraft(1, 13)
-			? new NewBlockCompat() : new MagicBlockCompat();
+	static final BlockCompat INSTANCE = new MagicBlockCompat(); // Minecraft 1.7.10: always magic values
 	
 	static final BlockSetter SETTER = INSTANCE.getSetter();
 	

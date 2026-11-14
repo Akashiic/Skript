@@ -20,15 +20,11 @@ package ch.njol.skript.entity;
 
 import java.util.Arrays;
 
-import org.bukkit.Bukkit;
-import org.bukkit.Material;
-import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Enderman;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.material.MaterialData;
 import org.eclipse.jdt.annotation.Nullable;
 
-import ch.njol.skript.Skript;
 import ch.njol.skript.aliases.ItemType;
 import ch.njol.skript.lang.Literal;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
@@ -44,12 +40,6 @@ public class EndermanData extends EntityData<Enderman> {
 	static {
 		EntityData.register(EndermanData.class, "enderman", Enderman.class, "enderman");
 	}
-	
-	/**
-	 * Spigot 1.13 introduced new block data API, which must be used instead
-	 * of the old one if targeting API version 1.13.
-	 */
-	static final boolean useBlockData = Skript.isRunningMinecraft(1, 13);
 	
 	@Nullable
 	private ItemType[] hand = null;
@@ -71,20 +61,13 @@ public class EndermanData extends EntityData<Enderman> {
 	@Override
 	protected boolean init(final @Nullable Class<? extends Enderman> c, final @Nullable Enderman e) {
 		if (e != null) {
-			if (useBlockData) {
-				BlockData data = e.getCarriedBlock();
-				if (data != null) {
-					Material type = data.getMaterial();
-					assert type != null;
-					hand = new ItemType[] {new ItemType(type)};
-				}
-			} else {
-				MaterialData m = e.getCarriedMaterial();
-				final ItemStack i = m.toItemStack(1);
-				if (i == null)
-					return false;
-				hand = new ItemType[] {new ItemType(i)};
-			}
+			MaterialData m = e.getCarriedMaterial();
+			if (m == null)
+				return true;
+			final ItemStack i = m.toItemStack(1);
+			if (i == null)
+				return false;
+			hand = new ItemType[] {new ItemType(i)};
 		}
 		return true;
 	}
@@ -96,13 +79,9 @@ public class EndermanData extends EntityData<Enderman> {
 			assert t != null;
 			final ItemStack i = t.getBlock().getRandom();
 			if (i != null) {
-				if (useBlockData) { // 1.13: item->block usually keeps only material
-					entity.setCarriedBlock(Bukkit.createBlockData(i.getType()));
-				} else {
-					MaterialData data = i.getData();
-					assert data != null;
-					entity.setCarriedMaterial(data);
-				}
+				MaterialData data = i.getData();
+				assert data != null;
+				entity.setCarriedMaterial(data);
 			}
 		}
 		
@@ -114,11 +93,8 @@ public class EndermanData extends EntityData<Enderman> {
 			@SuppressWarnings("null")
 			@Override
 			public boolean check(final @Nullable ItemType t) {
-				// TODO {Block/Material}Data -> Material conversion is not 100% accurate, needs a better solution
-				if (useBlockData)
-					return t != null && t.isOfType(entity.getCarriedBlock().getMaterial());
-				else
-					return t != null && t.isOfType(entity.getCarriedMaterial().getItemType());
+				MaterialData carried = entity.getCarriedMaterial();
+				return t != null && carried != null && t.isOfType(carried.getItemType());
 			}
 		}, false, false);
 	}

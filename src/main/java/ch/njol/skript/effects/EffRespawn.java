@@ -74,12 +74,30 @@ public class EffRespawn extends Effect {
 
 					@Override
 					public void run() {
-						p.spigot().respawn();
+						respawn(p);
 					}
 
 				}.runTaskLater(Skript.getInstance(), 1);
 			} else { // Just respawn
-				p.spigot().respawn();
+				respawn(p);
+			}
+		}
+	}
+
+	private static boolean respawnErrored;
+
+	/**
+	 * Bukkit 1.7.10 has no respawn API, but Spigot-based 1.7.10 servers (Thermos, Crucible, ...)
+	 * have Player.Spigot#respawn(), which is called reflectively since Skript compiles against Bukkit.
+	 */
+	private static void respawn(Player p) {
+		try {
+			Object spigot = p.getClass().getMethod("spigot").invoke(p);
+			spigot.getClass().getMethod("respawn").invoke(spigot);
+		} catch (ReflectiveOperationException | LinkageError ex) {
+			if (!respawnErrored) {
+				respawnErrored = true;
+				Skript.error("Forcing a player to respawn requires a Spigot-based server (Player.Spigot#respawn() is missing)");
 			}
 		}
 	}
