@@ -182,6 +182,12 @@ public class Language {
 		return !defaultLanguage.isEmpty();
 	}
 
+	/**
+	 * Language files of {@link ch.njol.skript.hooks.ModHooks} in {@code lang/hooks/}, merged into the default language.
+	 * They are loaded whether or not the hook is active; unused entries do no harm.
+	 */
+	private static final String[] HOOK_LANGUAGE_FILES = {"crucible", "forge", "kunftig"};
+	
 	public static void loadDefault(SkriptAddon addon) {
 		if (addon.getLanguageFileDirectory() == null)
 			return;
@@ -207,6 +213,16 @@ public class Language {
 		langVersion.put(addon.plugin, v == null ? Skript.getVersion() : new Version(v));
 		def.remove("version");
 		defaultLanguage.putAll(def);
+		
+		// Extra default language files of Skript's own mod/server hooks (lang/hooks/<name>.lang), so that each hook
+		// keeps its entries (types, entities...) next to its code instead of in the big default.lang
+		if (addon.plugin == Skript.getInstance()) {
+			for (String hook : HOOK_LANGUAGE_FILES) {
+				InputStream hookIs = addon.plugin.getResource(addon.getLanguageFileDirectory() + "/hooks/" + hook + ".lang");
+				if (hookIs != null)
+					defaultLanguage.putAll(load(hookIs, hook));
+			}
+		}
 
 		if (localizedLanguage == null)
 			localizedLanguage = new HashMap<>();
