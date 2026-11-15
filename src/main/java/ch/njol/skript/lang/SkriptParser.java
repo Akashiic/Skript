@@ -219,11 +219,21 @@ public class SkriptParser {
 					try {
 						String pattern = info.patterns[i];
 						assert pattern != null;
+						if (brokenPatterns.contains(pattern))
+							continue patternsLoop;
 						ParseResult res;
 						try {
 							res = parse_i(pattern, 0, 0);
 						} catch (MalformedPatternException e) {
-							throw new RuntimeException("pattern compiling exception, element class: " + info.c.getName(), e);
+							// An addon's pattern that can't compile (e.g. an old addon using a type that doesn't
+							// exist in this build, like WildSkript's 'region') must not break every script:
+							// disable that pattern and warn once
+							brokenPatterns.add(pattern);
+							Throwable cause = e.getCause() != null ? e.getCause() : e;
+							// Straight to the console: messages logged while parsing are filtered by the parse log handler
+							Skript.getInstance().getLogger().warning("Ignoring the syntax '" + pattern + "' of " + info.c.getName()
+								+ " (from " + info.originClassPath + "): its pattern can't be compiled: " + cause.getMessage());
+							continue patternsLoop;
 						}
 						if (res != null) {
 							int x = -1;
@@ -1244,6 +1254,11 @@ public class SkriptParser {
 	}
 
 	private static final Map<String, SkriptPattern> patterns = new HashMap<>();
+	
+	/**
+	 * Patterns of addons that failed to compile; they are skipped instead of failing the parsing of every line.
+	 */
+	private static final java.util.Set<String> brokenPatterns = java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
 
 	@Nullable
 	private ParseResult parse_i(String pattern, int i, int j) {
